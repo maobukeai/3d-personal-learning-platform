@@ -103,9 +103,19 @@
    This covers all non-Modal.vue dialogs that use fixed+inset-0. */
 
 /* Normalize glass-dialog text so it uses system tokens, not hard-coded white */
-.glass-dialog {
+.glass-dialog,
+.modal-surface--glass {
+  --text-secondary: #334155;
+  --text-muted: #475569;
   color: var(--text-primary);
 }
+
+.dark .glass-dialog,
+.dark .modal-surface--glass {
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+}
+
 .glass-dialog h1,
 .glass-dialog h2,
 .glass-dialog h3,

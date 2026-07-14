@@ -117,12 +117,11 @@ const onViewModeChange = (value: string | number | null) => {
         <button
           v-else
           type="button"
-          class="px-2.5 py-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium transition-colors flex items-center gap-1.5"
+          class="p-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 transition-colors flex items-center justify-center"
           title="批量管理"
           @click="emit('update:isBatchMode', true)"
         >
           <ListChecks class="w-3.5 h-3.5" />
-          <span>批量管理</span>
         </button>
       </template>
 
@@ -289,5 +288,10 @@ const onViewModeChange = (value: string | number | null) => {
   .select-field {
     flex: 1;
   }
+}
+
+:deep(.custom-sort-select) {
+  width: 120px !important;
+  flex-shrink: 0;
 }
 </style>

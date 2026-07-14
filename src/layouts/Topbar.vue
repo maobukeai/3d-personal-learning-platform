@@ -8,13 +8,13 @@ import {
   Search,
   Box,
   LayoutDashboard,
-  GraduationCap,
-  MessageSquare,
   FolderTree,
   MonitorPlay,
   Sun,
   Moon,
   Menu,
+  ClipboardList,
+  BookOpen,
 } from 'lucide-vue-next';
 import { toast } from '@/utils/feedbackAdapter';
 import { useAuthStore } from '@/stores/auth';
@@ -49,45 +49,44 @@ const handleLogoError = () => {
 }; // Top navigation tabs (Blender-club style center nav)
 const topNavTabs = computed(() => [
   {
-    key: 'dashboard',
-    label: t('sidebar.dashboard'),
-    icon: LayoutDashboard,
-    path: '/dashboard',
+    key: 'tasks',
+    label: t('sidebar.work'),
+    icon: ClipboardList,
+    path: '/work',
+    active: route.path.startsWith('/work'),
+  },
+  {
+    key: 'notes',
+    label: t('sidebar.notes'),
+    icon: BookOpen,
+    path: '/notes',
+    active: route.path.startsWith('/notes'),
+  },
+  {
+    key: 'resources',
+    label: t('sidebar.resourceCenter'),
+    icon: Box,
+    path: '/resources',
     active:
-      route.path === '/dashboard' ||
-      route.path.startsWith('/work') ||
-      route.path.startsWith('/notes'),
+      route.path === '/resources' ||
+      route.path.startsWith('/assets') ||
+      route.path.startsWith('/materials') ||
+      route.path.startsWith('/plugins') ||
+      route.path.startsWith('/softwares'),
   },
   {
-    key: 'learning',
-    label: t('sidebar.academy'),
-    icon: GraduationCap,
-    path: '/academy',
-    active: route.path.startsWith('/academy') || route.path.startsWith('/roadmaps'),
-  },
-  {
-    key: 'team',
+    key: 'projects',
     label: t('sidebar.projects'),
     icon: FolderTree,
     path: '/projects',
     active: route.path.startsWith('/projects') || route.path.startsWith('/project/'),
   },
   {
-    key: 'community',
-    label: t('sidebar.discussions'),
-    icon: MessageSquare,
-    path: '/discussions',
-    active: route.path.startsWith('/discussions') || route.path.startsWith('/messages'),
-  },
-  {
     key: 'showcase',
     label: t('sidebar.showcase'),
     icon: MonitorPlay,
     path: '/showcase',
-    active:
-      route.path.startsWith('/showcase') ||
-      route.path.startsWith('/my-works') ||
-      route.path.startsWith('/assets'),
+    active: route.path.startsWith('/showcase') || route.path.startsWith('/my-works'),
   },
 ]);
 const topNavTabsOptions = computed(() =>

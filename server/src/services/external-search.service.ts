@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import { performWebSearch } from './search.service';
 import { callLLMWithFailover } from './ai.service';
 import { logger } from '../utils/logger';
+import { redisService } from './redis.service';
 
 export interface ExternalSearchResult {
   title: string;
@@ -85,9 +86,14 @@ async function searchBlenderX(query: string): Promise<ExternalSearchResult[]> {
     const res = await axios.get(`https://www.blenderx.cn/?s=${encodeURIComponent(query)}`, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
       },
-      timeout: 4000,
+      timeout: 8000,
     });
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
@@ -228,9 +234,14 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
     const res = await axios.get(`https://www.gfxcamp.com/?s=${encodeURIComponent(query)}`, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
       },
-      timeout: 4000,
+      timeout: 8000,
     });
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
@@ -288,9 +299,14 @@ async function searchBlenderMX(query: string): Promise<ExternalSearchResult[]> {
     const res = await axios.get(`https://www.blendermx.com/?s=${encodeURIComponent(query)}`, {
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
       },
-      timeout: 4000,
+      timeout: 8000,
     });
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
@@ -333,6 +349,17 @@ export async function searchAndAnalyze(query: string): Promise<ExternalSearchRes
     };
   }
 
+  const cacheKey = `external_search:${keyword.toLowerCase()}`;
+  try {
+    const cached = await redisService.get<ExternalSearchResponse>(cacheKey);
+    if (cached) {
+      logger.info(`[External Search] Cache HIT for query: "${keyword}"`);
+      return cached;
+    }
+  } catch (err) {
+    logger.warn(`[External Search] Failed to get cache: ${err}`);
+  }
+
   // Concurrent searches
   const [extRes, bxRes, budecoRes, superRes, gfxRes, mxRes] = await Promise.allSettled([
     searchBlenderExtensions(keyword),
@@ -355,10 +382,16 @@ export async function searchAndAnalyze(query: string): Promise<ExternalSearchRes
   const hasResults = Object.values(results).some((list) => list.length > 0);
 
   if (!hasResults) {
-    return {
+    const fallbackResult: ExternalSearchResponse = {
       aiAnalysis: `没有在任何合作网站中找到与 “${keyword}” 相关的直接资源。您可以尝试更换关键词，或者点击弹框下方的网站图标直接进入对应站点搜索。`,
       results,
     };
+    try {
+      await redisService.set(cacheKey, fallbackResult, 43200);
+    } catch (err) {
+      logger.warn(`[External Search] Failed to set fallback cache: ${err}`);
+    }
+    return fallbackResult;
   }
 
   // Format matches for LLM prompt
@@ -409,8 +442,18 @@ ${formattedResults}
         .join('\n\n');
   }
 
-  return {
+  const result: ExternalSearchResponse = {
     aiAnalysis,
     results,
   };
+
+  try {
+    // Cache for 12 hours (43200 seconds)
+    await redisService.set(cacheKey, result, 43200);
+    logger.info(`[External Search] Cached result for query: "${keyword}"`);
+  } catch (err) {
+    logger.warn(`[External Search] Failed to set cache: ${err}`);
+  }
+
+  return result;
 }

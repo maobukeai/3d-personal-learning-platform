@@ -208,4 +208,9 @@ const label = useLabel();
     grid-template-columns: 1fr;
   }
 }
+
+:deep(.custom-sort-select) {
+  width: 120px !important;
+  flex-shrink: 0;
+}
 </style>

@@ -17,7 +17,11 @@ import {
   Plus,
   ExternalLink,
   RefreshCw,
+  Sparkles,
 } from 'lucide-vue-next';
+import 'md-editor-v3/lib/preview.css';
+
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import { useSystemStore } from '@/stores/system';
@@ -146,6 +150,8 @@ function canEditPlugin(plugin: PluginItem) {
 }
 const pluginsList = ref<PluginItem[]>([]);
 const searchQuery = ref('');
+const aiSearchAnalysis = ref('');
+const isDark = computed(() => document.documentElement.classList.contains('dark'));
 const activeCategory = ref(CATEGORY_ALL);
 const selectedTag = ref('all');
 const sortBy = ref<SortMode>('latest');
@@ -156,7 +162,6 @@ const viewModeOptions = computed<{ value: 'grid' | 'list'; label: string; icon: 
     { value: 'list', label: '', icon: LayoutList },
   ],
 );
-const showFavoritesOnly = ref(false);
 const favoritedIds = ref<string[]>([]);
 const insights = ref<PluginInsights | null>(null);
 
@@ -514,10 +519,6 @@ const visiblePlugins = computed(() => {
     });
   }
 
-  if (showFavoritesOnly.value) {
-    list = list.filter((plugin) => favoritedIds.value.includes(plugin.id));
-  }
-
   if (selectedTag.value !== 'all') {
     list = list.filter((plugin) => parseTags(plugin.tags).includes(selectedTag.value));
   }
@@ -610,6 +611,44 @@ watch([activeTab, myStatusFilter, selectedFavoriteCategory], () => {
 const fetchPlugins = async () => {
   try {
     isLoading.value = true;
+    const query = searchQuery.value.trim();
+    if (query && activeTab.value === 'explore') {
+      const { data } = await api.get('/api/resources/search-external', {
+        params: { q: query },
+      });
+      aiSearchAnalysis.value = data?.aiAnalysis || '';
+
+      const flatResults: PluginItem[] = [];
+      if (data && data.results) {
+        Object.entries(data.results).forEach(([site, list]) => {
+          (list as any[]).forEach((item) => {
+            flatResults.push({
+              id: `external-${item.link}`,
+              title: item.title,
+              description: item.snippet || `来自 ${site} 的全网搜资源。`,
+              category: site,
+              tags: JSON.stringify([site, '全网搜资源']),
+              version: '1.0.0',
+              compatibility: '全网搜资源',
+              downloads: 0,
+              fileUrl: item.link,
+              fileSize: null,
+              previewUrl: null,
+              installGuide: `该资源来自全网资源搜索，您可以直接访问其源站页面下载或查看：\n\n[点击前往源站](${item.link})`,
+              status: 'APPROVED',
+              rejectReason: null,
+              createdAt: new Date().toISOString(),
+              user: { id: 'external', name: site, avatarUrl: null },
+              bilibiliUrl: null,
+            });
+          });
+        });
+      }
+      pluginsList.value = flatResults;
+      return;
+    }
+
+    aiSearchAnalysis.value = '';
     const { data } = await api.get('/api/plugins', {
       params: {
         page: 1,
@@ -789,12 +828,7 @@ const activeFilterChips = computed(() => {
       label: label(`标签: ${selectedTag.value}`, `Tag: ${selectedTag.value}`),
     });
   }
-  if (showFavoritesOnly.value) {
-    chips.push({
-      key: 'favorites',
-      label: label('只看收藏', 'Favorites Only'),
-    });
-  }
+
   if (searchQuery.value.trim()) {
     chips.push({
       key: 'search',
@@ -808,7 +842,6 @@ const activeFilterChips = computed(() => {
 const clearFilter = (key: string) => {
   if (key === 'category') activeCategory.value = CATEGORY_ALL;
   if (key === 'tag') selectedTag.value = 'all';
-  if (key === 'favorites') showFavoritesOnly.value = false;
   if (key === 'search') searchQuery.value = '';
   fetchPlugins();
 };
@@ -817,7 +850,6 @@ const resetFilters = () => {
   searchQuery.value = '';
   activeCategory.value = CATEGORY_ALL;
   selectedTag.value = 'all';
-  showFavoritesOnly.value = false;
   fetchPlugins();
 };
 
@@ -1122,6 +1154,17 @@ const handleDeleteFavoriteCategory = async (cat: string) => {
 const handleDownload = async (plugin: PluginItem, event?: Event) => {
   event?.stopPropagation();
   if (downloadingIds.value[plugin.id]) return;
+
+  if (plugin.id.startsWith('external-')) {
+    if (plugin.fileUrl) {
+      window.open(plugin.fileUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      ElMessage.warning(
+        label('该外链暂未提供下载文件', 'This external link has no download file yet'),
+      );
+    }
+    return;
+  }
 
   try {
     downloadingIds.value[plugin.id] = true;
@@ -1466,7 +1509,6 @@ watch(
             :sort-by="sortBy"
             :view-mode="viewMode"
             :view-mode-options="viewModeOptions"
-            :show-favorites-only="showFavoritesOnly"
             :is-filter-open="isFilterOpen"
             :is-filter-collapsed="isFilterCollapsed"
             @toggle-filter-collapse="isFilterCollapsed = false"
@@ -1483,7 +1525,6 @@ watch(
             @select-all="selectAllPlugins"
             @bulk-delete="handleBulkDeletePlugins"
             @bulk-unfavorite="handleBulkUnfavoritePlugins"
-            @toggle-favorites="showFavoritesOnly = !showFavoritesOnly"
             @toggle-filter="isFilterOpen = !isFilterOpen"
           />
 
@@ -1503,25 +1544,44 @@ watch(
             @create-request="showHelpRequestPostDialog = true"
           />
 
-          <PluginCatalog
-            v-else
-            :plugins="visiblePlugins"
-            :is-loading="isLoading"
-            :view-mode="viewMode"
-            :active-tab="activeTab"
-            :favorited-ids="favoritedIds"
-            :downloading-ids="downloadingIds"
-            :active-filter-chips="activeFilterChips"
-            :total-count="stats.total || visiblePlugins.length"
-            :selected-ids="Array.from(selectedPluginIds)"
-            @open-detail="openDetail"
-            @select="togglePluginSelect"
-            @toggle-favorite="toggleFavorite"
-            @download="handleDownload"
-            @reset-filters="resetFilters"
-            @clear-filter="clearFilter"
-            @upload="isUploadDialogOpen = true"
-          />
+          <template v-else>
+            <!-- AI recommendation summary -->
+            <div
+              v-if="aiSearchAnalysis && searchQuery && activeTab === 'explore'"
+              class="mb-4.5 p-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 backdrop-blur-md"
+            >
+              <div class="flex items-center gap-2 mb-3">
+                <Sparkles class="w-4 h-4 text-indigo-400 animate-pulse" />
+                <span class="text-xs font-black text-indigo-400 uppercase tracking-wider">
+                  AI 推荐与提炼结论
+                </span>
+              </div>
+              <MdPreview
+                :model-value="aiSearchAnalysis"
+                :theme="isDark ? 'dark' : 'light'"
+                class="!bg-transparent !text-[var(--text-secondary)] !text-xs"
+              />
+            </div>
+
+            <PluginCatalog
+              :plugins="visiblePlugins"
+              :is-loading="isLoading"
+              :view-mode="viewMode"
+              :active-tab="activeTab"
+              :favorited-ids="favoritedIds"
+              :downloading-ids="downloadingIds"
+              :active-filter-chips="activeFilterChips"
+              :total-count="stats.total || visiblePlugins.length"
+              :selected-ids="Array.from(selectedPluginIds)"
+              @open-detail="openDetail"
+              @select="togglePluginSelect"
+              @toggle-favorite="toggleFavorite"
+              @download="handleDownload"
+              @reset-filters="resetFilters"
+              @clear-filter="clearFilter"
+              @upload="isUploadDialogOpen = true"
+            />
+          </template>
         </main>
       </div>
     </div>

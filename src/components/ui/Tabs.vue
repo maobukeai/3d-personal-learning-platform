@@ -148,19 +148,23 @@ onMounted(() => {
           modelValue === option.value
             ? 'text-accent dark:text-white'
             : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]',
-          direction === 'vertical' ? 'w-full justify-between' : 'shrink-0 justify-center',
+          direction === 'vertical' ? 'w-full justify-between min-w-0' : 'shrink-0 justify-center',
         ]"
+        :title="option.label || ''"
         @click="selectTab(option.value, index)"
       >
-        <div class="flex items-center gap-1.5">
+        <div
+          class="flex items-center gap-1.5 min-w-0"
+          :class="direction === 'vertical' ? 'flex-1' : ''"
+        >
           <component :is="option.icon" v-if="option.icon" class="w-4 h-4 shrink-0" />
-          <div v-if="option.hint" class="flex flex-col text-left">
-            <span v-if="option.label" class="leading-none">{{ option.label }}</span>
-            <span class="text-[9px] font-normal opacity-60 mt-1 leading-none">{{
+          <div v-if="option.hint" class="flex flex-col text-left min-w-0 flex-1">
+            <span v-if="option.label" class="leading-none truncate">{{ option.label }}</span>
+            <span class="text-[9px] font-normal opacity-60 mt-1 leading-none truncate">{{
               option.hint
             }}</span>
           </div>
-          <span v-else-if="option.label">{{ option.label }}</span>
+          <span v-else-if="option.label" class="truncate">{{ option.label }}</span>
         </div>
         <span
           v-if="

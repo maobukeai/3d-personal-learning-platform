@@ -1116,14 +1116,14 @@ watch(isExpanded, (val) => {
 }
 
 .panel-group + .panel-group {
-  margin-top: 1px;
-  padding-top: 1px;
+  margin-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--border-base) 35%, transparent);
 }
 
 .group-trigger {
   width: 100%;
-  height: 20px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1132,13 +1132,13 @@ watch(isExpanded, (val) => {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 800;
   line-height: 1;
   text-align: left;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0 4px;
+  padding: 0 8px;
 }
 
 .group-trigger:hover {
@@ -1165,15 +1165,15 @@ watch(isExpanded, (val) => {
 }
 
 .group-count {
-  min-width: 13px;
-  height: 13px;
+  min-width: 16px;
+  height: 16px;
   display: grid;
   place-items: center;
-  padding: 0 3px;
-  border-radius: 3px;
+  padding: 0 4px;
+  border-radius: 4px;
   background: var(--bg-hover);
   color: var(--text-muted);
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 900;
   line-height: 1;
 }
@@ -1185,8 +1185,8 @@ watch(isExpanded, (val) => {
 }
 
 .group-trigger svg {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   flex: 0 0 auto;
   transition: transform 0.18s ease;
 }
@@ -1225,7 +1225,7 @@ watch(isExpanded, (val) => {
   border-radius: 6px;
   background: color-mix(in srgb, var(--bg-card) 45%, transparent);
   backdrop-filter: blur(8px);
-  margin: 1px 0 2px;
+  margin: 4px 0 2px;
 }
 
 .panel-list--resource-grid::before {
@@ -1351,6 +1351,7 @@ watch(isExpanded, (val) => {
 }
 .panel-list--resource-grid-odd li:first-child .panel-link--resource .panel-link-label {
   flex: 0 0 auto;
+  font-size: 12.5px;
 }
 
 /* ==================== EVEN ITEM COUNT LAYOUT ==================== */
@@ -1368,22 +1369,22 @@ watch(isExpanded, (val) => {
 .panel-link--resource {
   position: relative;
   isolation: isolate;
-  height: 23px;
+  height: 32px;
   display: flex;
   align-items: center;
-  gap: 3.5px;
+  gap: 6px;
   overflow: hidden;
   border: 1px solid transparent;
-  border-radius: 4.5px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--text-primary) 2%, transparent);
   color: var(--text-secondary);
-  padding: 0 4px;
+  padding: 0 8px;
   transition: all 0.18s ease;
 }
 
 /* Style first child of odd layout as header bento card */
 .panel-list--resource-grid-odd li:first-child .panel-link--resource {
-  height: 24px;
+  height: 34px;
   background: color-mix(
     in srgb,
     var(--sidebar-accent) 5%,
@@ -1397,8 +1398,8 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource .panel-link-icon-wrap {
-  width: 15px;
-  height: 15px;
+  width: 20px;
+  height: 20px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
@@ -1412,14 +1413,14 @@ watch(isExpanded, (val) => {
 }
 
 .panel-link--resource .panel-link-icon {
-  width: 11px;
-  height: 11px;
+  width: 13px;
+  height: 13px;
   color: currentColor;
 }
 
 .panel-link--resource .panel-link-label {
   color: var(--text-secondary);
-  font-size: 9.5px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.1;
   transition: color 0.16s ease;
@@ -1642,25 +1643,26 @@ watch(isExpanded, (val) => {
   grid-template-columns: 1fr;
 }
 .is-very-narrow-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
-  height: 23px;
+  height: 32px;
   background: color-mix(in srgb, var(--text-primary) 2%, transparent);
   border-color: transparent;
 }
 
 .is-narrow-sidebar .panel-link--resource {
-  padding: 0 2px;
-  gap: 2px;
+  height: 28px;
+  padding: 0 4px;
+  gap: 4px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-icon-wrap {
-  width: 13px;
-  height: 13px;
+  width: 17px;
+  height: 17px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-icon {
-  width: 9px;
-  height: 9px;
+  width: 11px;
+  height: 11px;
 }
 .is-narrow-sidebar .panel-link--resource .panel-link-label {
-  font-size: 8.2px;
+  font-size: 10px;
 }
 
 .is-wide-sidebar .panel-list--resource-grid-odd {
@@ -1670,7 +1672,7 @@ watch(isExpanded, (val) => {
   grid-column: auto;
 }
 .is-wide-sidebar .panel-list--resource-grid-odd li:first-child .panel-link--resource {
-  height: 23px;
+  height: 32px;
   background: color-mix(in srgb, var(--text-primary) 2%, transparent);
   border-color: transparent;
 }

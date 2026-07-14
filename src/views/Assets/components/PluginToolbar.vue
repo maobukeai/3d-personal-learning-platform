@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { type Component } from 'vue';
 import {
-  Heart,
   SlidersHorizontal,
   ListChecks,
   CheckCheck,
@@ -22,7 +21,6 @@ defineProps<{
   sortBy: SortMode;
   viewMode: ViewMode;
   viewModeOptions: { value: ViewMode; icon: Component }[];
-  showFavoritesOnly: boolean;
   isFilterOpen: boolean;
   isFilterCollapsed?: boolean;
   selectedIds?: string[];
@@ -35,7 +33,6 @@ const emit = defineEmits<{
   (e: 'update:sortBy', value: SortMode): void;
   (e: 'update:viewMode', value: ViewMode): void;
   (e: 'update:isBatchMode', value: boolean): void;
-  (e: 'toggleFavorites'): void;
   (e: 'toggleFilter'): void;
   (e: 'toggleFilterCollapse'): void;
   (e: 'selectAll'): void;
@@ -117,12 +114,11 @@ const onViewModeChange = (value: string | number | null) => {
         <button
           v-else
           type="button"
-          class="px-2.5 py-1 text-xs rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 font-medium transition-colors flex items-center gap-1.5"
+          class="p-2 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 transition-colors flex items-center justify-center"
           title="批量管理"
           @click="emit('update:isBatchMode', true)"
         >
           <ListChecks class="w-3.5 h-3.5" />
-          <span>批量管理</span>
         </button>
       </template>
 
@@ -137,15 +133,6 @@ const onViewModeChange = (value: string | number | null) => {
         <SelectOption value="popular" :label="label('下载最多', 'Most Downloaded')" />
         <SelectOption value="name" :label="label('名称排序', 'Name')" />
       </Select>
-      <button
-        type="button"
-        class="ghost-button"
-        :class="{ active: showFavoritesOnly }"
-        @click="emit('toggleFavorites')"
-      >
-        <Heart class="icon-sm" />
-        {{ label('收藏', 'Saved') }}
-      </button>
       <Tabs
         :model-value="viewMode"
         :options="viewModeOptions"
@@ -230,34 +217,6 @@ const onViewModeChange = (value: string | number | null) => {
   border-color: var(--accent);
 }
 
-.ghost-button {
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  border-radius: 6px;
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-  border: 1px solid var(--border-base);
-  background: var(--bg-card);
-  color: var(--text-primary);
-}
-
-.ghost-button:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
-}
-
-.ghost-button.active {
-  border-color: rgba(37, 99, 235, 0.25);
-  color: var(--accent);
-  background: var(--accent-subtle);
-}
-
 .icon-sm {
   width: 14px;
   height: 14px;
@@ -285,9 +244,13 @@ const onViewModeChange = (value: string | number | null) => {
   }
 
   .primary-button,
-  .ghost-button,
   .select-field {
     flex: 1;
   }
+}
+
+:deep(.custom-sort-select) {
+  width: 120px !important;
+  flex-shrink: 0;
 }
 </style>

@@ -156,12 +156,11 @@ const localView = computed({
           <button
             v-else
             type="button"
-            class="px-2.5 py-1 text-xs rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 font-medium transition-colors flex items-center gap-1.5"
+            class="p-2 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 transition-colors flex items-center justify-center"
             title="批量管理"
             @click="emit('update:isBatchMode', true)"
           >
             <ListChecks class="w-3.5 h-3.5" />
-            <span>批量管理</span>
           </button>
         </template>
 

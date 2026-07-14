@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Puzzle, Search, Eye, EyeOff, RefreshCw, Plus, Sparkles } from 'lucide-vue-next';
+import { Puzzle, Search, Eye, EyeOff, RefreshCw, Plus } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
-import ResourceSearchDialog from './ResourceSearchDialog.vue';
 
 const searchQuery = defineModel<string>('searchQuery', { required: true });
 
@@ -19,8 +18,6 @@ const emit = defineEmits<{
 }>();
 
 const label = useLabel();
-
-const isSearchOpen = ref(false);
 </script>
 
 <template>
@@ -47,15 +44,6 @@ const isSearchOpen = ref(false);
     </template>
 
     <div class="flex items-center gap-2 shrink-0">
-      <Button
-        variant="secondary"
-        size="sm"
-        class="!h-8 !text-indigo-400 border-indigo-500/25 hover:bg-indigo-500/[0.05]"
-        @click="isSearchOpen = true"
-      >
-        <Sparkles class="w-3.5 h-3.5" />
-        <span>{{ label('AI 全网搜', 'AI Search') }}</span>
-      </Button>
       <!-- Stats button removed -->
       <Button
         variant="secondary"
@@ -73,6 +61,4 @@ const isSearchOpen = ref(false);
       </Button>
     </div>
   </PageHeader>
-
-  <ResourceSearchDialog v-model="isSearchOpen" @success="emit('success')" />
 </template>

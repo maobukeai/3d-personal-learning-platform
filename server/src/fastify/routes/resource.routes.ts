@@ -2260,7 +2260,17 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
           );
           if (parent.length > 0) return;
 
-          const txt = $(el).text().trim();
+          // 复制节点，将 a 标签转换为 [text](href) 格式，保留网页内含的下载网盘链接
+          const cloned = $(el).clone();
+          cloned.find('a').each((j, aEl) => {
+            const href = $(aEl).attr('href') || '';
+            const text = $(aEl).text().trim();
+            if (href && text) {
+              $(aEl).replaceWith(`[${text}](${href})`);
+            }
+          });
+
+          const txt = cloned.text().trim();
           if (txt && txt.length > 20 && textParagraphs.length < 15) {
             if (
               txt.includes('Copyright') ||

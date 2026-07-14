@@ -253,6 +253,15 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
         const title = titleEl.text().trim();
         const link = titleEl.attr('href') || '';
         let snippet = $(el).find('.entry-summary, .entry-content, p').text().trim();
+        // 净化 GFXCamp 摘要垃圾 Meta 噪声信息
+        snippet = snippet
+          .replace(/by\s+龋齿一号GFXCamp/gi, '')
+          .replace(/Published\s+\d+年\d+月\d+日/gi, '')
+          .replace(/Blender\s*\/\s*插件/gi, '')
+          .replace(/\d+年\d+月\d+日/gi, '')
+          .replace(/·/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
         if (snippet.length > 200) {
           snippet = snippet.substring(0, 200) + '...';
         }

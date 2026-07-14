@@ -99,7 +99,11 @@ const confirmButtonClasses = (item: ConfirmItem) =>
               <DialogDescription as-child>
                 <div class="text-sm text-[var(--text-secondary)]">
                   <div v-if="typeof localActiveItem.message === 'string'">
-                    {{ localActiveItem.message }}
+                    <div
+                      v-if="localActiveItem.dangerouslyUseHTMLString"
+                      v-html="localActiveItem.message"
+                    ></div>
+                    <template v-else>{{ localActiveItem.message }}</template>
                   </div>
                   <component :is="() => localActiveItem!.message" v-else />
                 </div>

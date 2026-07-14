@@ -1,6 +1,14 @@
 <script setup lang="ts">
 import { formatDateTime as formatDate } from '@/utils/format';
-import { computed, onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+  type Component,
+  defineAsyncComponent,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import {
   AlertTriangle,
@@ -15,11 +23,14 @@ import {
   MoreHorizontal,
   Puzzle,
   Laptop,
+  LayoutGrid,
+  List,
   RefreshCw,
   Search,
   Sparkles,
   Trash2,
   XCircle,
+  X,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
@@ -35,6 +46,10 @@ import Card from '@/components/ui/Card.vue';
 import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
 import Badge from '@/components/ui/Badge.vue';
 import AdminHeader from './components/AdminHeader.vue';
+import { useThemeObserver } from '@/composables/useThemeObserver';
+
+const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const { isDark } = useThemeObserver();
 
 type AuditTab = 'assets' | 'materials' | 'showcases' | 'plugins' | 'softwares';
 type AuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -215,9 +230,58 @@ const isEditOpen = ref(false);
 const isSaving = ref(false);
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
+const viewMode = ref<'list' | 'grid'>('list');
+
+const failedImages = ref<Record<string, boolean>>({});
+const handleImageError = (id: string) => {
+  failedImages.value[id] = true;
+};
+
+const selectPendingOnly = () => {
+  const pendingIds = filteredItems.value
+    .filter((item) => item.status === 'PENDING')
+    .map((item) => item.id);
+  selectedIds.value = Array.from(new Set([...selectedIds.value, ...pendingIds]));
+};
+
+const clearSelection = () => {
+  selectedIds.value = [];
+};
+
+const isDetailSplitOpen = ref(false);
+const isDesktop = ref(window.innerWidth >= 1024);
+
+const handleResize = () => {
+  isDesktop.value = window.innerWidth >= 1024;
+  if (!isDesktop.value) {
+    isDetailSplitOpen.value = false;
+  }
+};
+
+const stripMarkdown = (md?: string | null): string => {
+  if (!md) return '';
+  return md
+    .replace(/[#*`~_>]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 const openDetail = (item: AuditItem) => {
   activeItem.value = item;
-  detailDrawerVisible.value = true;
+  if (isDesktop.value) {
+    isDetailSplitOpen.value = true;
+    detailDrawerVisible.value = false;
+  } else {
+    detailDrawerVisible.value = true;
+    isDetailSplitOpen.value = false;
+  }
+};
+
+const closeDetail = () => {
+  isDetailSplitOpen.value = false;
+  detailDrawerVisible.value = false;
 };
 
 const rejectionForm = ref({
@@ -284,6 +348,7 @@ const statusFilterOptions = computed(() => [
 const fetchItems = async () => {
   isLoading.value = true;
   selectedIds.value = [];
+  failedImages.value = {};
   try {
     const params = {
       response: 'paginated',
@@ -309,11 +374,20 @@ const fetchItems = async () => {
       queueStats.value = response.data.stats || null;
     }
     const routeItemId = getRouteItemId();
-    activeItem.value =
+    const targetItem =
       items.value.find((item) => item.id === routeItemId) ||
       items.value.find((item) => item.id === activeItem.value?.id) ||
-      items.value[0] ||
       null;
+
+    activeItem.value = targetItem || items.value[0] || null;
+
+    if (routeItemId && targetItem) {
+      if (isDesktop.value) {
+        isDetailSplitOpen.value = true;
+      } else {
+        detailDrawerVisible.value = true;
+      }
+    }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, `无法加载${pageConfig.value.label}审核队列`));
   } finally {
@@ -485,8 +559,14 @@ const metricLine = (item: AuditItem) => {
   if (activeTab.value === 'assets') return `${item.size || item.fileSize || 0} MB`;
   if (activeTab.value === 'materials') return item.resolution || `${item.fileSize || 0} MB`;
   if (activeTab.value === 'showcases') return `${item.views || 0} 浏览 · ${item.likes || 0} 喜欢`;
-  if (activeTab.value === 'plugins' || activeTab.value === 'softwares')
-    return `${item.version || 'v1.0.0'} · ${item.compatibility || '未填兼容性'}`;
+  if (activeTab.value === 'plugins' || activeTab.value === 'softwares') {
+    const parts = [];
+    parts.push(item.version || 'v1.0.0');
+    if (item.compatibility && item.compatibility.trim() && item.compatibility !== '未填兼容性') {
+      parts.push(item.compatibility);
+    }
+    return parts.join(' · ');
+  }
   return '待审核';
 };
 
@@ -647,6 +727,8 @@ watch(activeTab, (newTab) => {
   statusFilter.value = 'PENDING';
   searchQuery.value = '';
   currentPage.value = 1;
+  isDetailSplitOpen.value = false;
+  activeItem.value = null;
   refreshQueue();
 });
 
@@ -672,7 +754,14 @@ watch(
     const routeItemId = getRouteItemId();
     if (!routeItemId) return;
     const target = items.value.find((item) => item.id === routeItemId);
-    if (target) activeItem.value = target;
+    if (target) {
+      activeItem.value = target;
+      if (isDesktop.value) {
+        isDetailSplitOpen.value = true;
+      } else {
+        detailDrawerVisible.value = true;
+      }
+    }
   },
 );
 
@@ -680,10 +769,12 @@ onMounted(() => {
   refreshQueue();
   fetchAllForStats();
   fetchAssetCategories();
+  window.addEventListener('resize', handleResize);
 });
 
 onBeforeUnmount(() => {
   if (searchTimer) clearTimeout(searchTimer);
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -691,7 +782,7 @@ onBeforeUnmount(() => {
   <div
     class="admin-audits-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+    <main class="min-h-0 flex-1 flex flex-col overflow-hidden p-2 sm:p-2.5 gap-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
         :title="pageConfig.title"
@@ -720,8 +811,9 @@ onBeforeUnmount(() => {
           刷新
         </UiButton>
       </AdminHeader>
+
       <!-- Filters & Search Toolbar -->
-      <Card padding="sm">
+      <Card padding="sm" class="shrink-0">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div class="flex items-center gap-3 overflow-x-auto scrollbar-hide shrink-0 mobile-row">
             <!-- Resource Type Tabs -->
@@ -734,13 +826,45 @@ onBeforeUnmount(() => {
               @change="(val: any) => setStatusFilter(val)"
             />
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-3 shrink-0 mobile-row">
+            <!-- View Mode Switcher -->
+            <div
+              class="flex items-center border border-slate-100 dark:border-white/5 bg-slate-100/50 dark:bg-white/5 rounded-lg p-0.5 shrink-0"
+            >
+              <button
+                type="button"
+                :class="[
+                  'p-1 rounded-md transition-colors border-0 cursor-pointer flex items-center justify-center',
+                  viewMode === 'list'
+                    ? 'bg-white dark:bg-white/10 text-accent dark:text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-transparent',
+                ]"
+                @click="viewMode = 'list'"
+                title="列表视图"
+              >
+                <List class="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                :class="[
+                  'p-1 rounded-md transition-colors border-0 cursor-pointer flex items-center justify-center',
+                  viewMode === 'grid'
+                    ? 'bg-white dark:bg-white/10 text-accent dark:text-white shadow-sm'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-transparent',
+                ]"
+                @click="viewMode = 'grid'"
+                title="网格视图"
+              >
+                <LayoutGrid class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <span
-              class="text-xs text-[var(--text-secondary)] shrink-0 flex items-center gap-1 font-semibold"
+              class="text-[11px] text-[var(--text-secondary)] shrink-0 flex items-center gap-1 font-semibold"
             >
               <ArrowUpDown class="w-3.5 h-3.5" /> 最新提交优先
             </span>
-            <Select v-model="pageSize" size="small" style="width: 100px">
+            <Select v-model="pageSize" size="small" style="width: 90px" class="shrink-0">
               <SelectOption :value="24" label="24 条" />
               <SelectOption :value="36" label="36 条" />
               <SelectOption :value="60" label="60 条" />
@@ -753,210 +877,671 @@ onBeforeUnmount(() => {
       <!-- Batch operations bar -->
       <div
         v-if="selectedIds.length"
-        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg mobile-row"
+        class="batch-bar flex items-center justify-between gap-3 p-2 px-3 border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 backdrop-blur-sm rounded-lg mobile-row shrink-0 z-20"
       >
-        <span class="text-xs font-semibold text-[var(--text-secondary)]">
-          已选择 {{ selectedIds.length }} 条记录
-        </span>
+        <div class="flex items-center gap-2 text-xs font-semibold text-[var(--text-secondary)]">
+          <span>已选择 {{ selectedIds.length }} 条记录</span>
+          <span class="opacity-30">|</span>
+          <button
+            type="button"
+            class="text-accent hover:underline bg-transparent border-0 cursor-pointer text-xs"
+            @click="toggleSelectAll"
+          >
+            {{ isAllSelected ? '取消全选' : '全选本页' }}
+          </button>
+          <span class="opacity-30">/</span>
+          <button
+            type="button"
+            class="text-accent hover:underline bg-transparent border-0 cursor-pointer text-xs"
+            @click="selectPendingOnly"
+          >
+            仅选待审核
+          </button>
+          <span class="opacity-30">/</span>
+          <button
+            type="button"
+            class="text-accent hover:underline bg-transparent border-0 cursor-pointer text-xs"
+            @click="clearSelection"
+          >
+            清除选择
+          </button>
+        </div>
         <div class="flex items-center gap-2">
           <UiButton variant="primary" size="sm" @click="handleBatchApprove">批量通过</UiButton>
           <UiButton variant="danger" size="sm" @click="handleBatchReject">批量打回</UiButton>
-          <UiButton variant="secondary" size="sm" @click="selectedIds = []">清空</UiButton>
         </div>
       </div>
 
-      <!-- Data Panel -->
-      <Card
-        padding="none"
-        class="table-shell-card overflow-hidden flex-1 flex flex-col min-h-[360px]"
-      >
-        <Table
-          v-loading="isLoading"
-          :data="filteredItems"
-          class="user-table w-full flex-1 mobile-table"
-          row-class-name="table-row"
-          @row-click="openDetail"
-        >
-          <TableColumn width="48">
-            <template #header>
-              <input
-                type="checkbox"
-                :checked="isAllSelected"
-                @change="toggleSelectAll"
-                @click.stop
-              />
-            </template>
-            <template #default="{ row }">
-              <input
-                type="checkbox"
-                :checked="selectedIds.includes(row.id)"
-                @change="toggleSelection(row.id)"
-                @click.stop
-              />
-            </template>
-          </TableColumn>
-
-          <TableColumn label="预览" width="80">
-            <template #default="{ row }">
-              <div
-                class="row-thumb w-10 h-10 rounded-lg border border-slate-100 dark:border-white/5 overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5"
+      <!-- Main Split Workspace -->
+      <div class="flex-1 min-h-0 flex gap-4 overflow-hidden relative">
+        <!-- Left Side List Panel -->
+        <div class="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+          <Card padding="none" class="table-shell-card overflow-hidden flex-1 flex flex-col h-full">
+            <!-- View Mode Wrapper -->
+            <template v-if="viewMode === 'list'">
+              <!-- Full Table when split-pane is closed -->
+              <Table
+                v-if="!isDetailSplitOpen"
+                v-loading="isLoading"
+                :data="filteredItems"
+                class="user-table w-full flex-1 mobile-table table-compact"
+                row-class-name="table-row"
+                @row-click="openDetail"
               >
-                <img
-                  v-if="mediaUrl(row)"
-                  :src="mediaUrl(row)"
-                  alt=""
-                  class="w-full h-full object-cover"
-                />
-                <component :is="pageConfig.icon" v-else class="w-5 h-5 text-slate-400" />
-              </div>
-            </template>
-          </TableColumn>
+                <TableColumn width="48">
+                  <template #header>
+                    <input
+                      type="checkbox"
+                      :checked="isAllSelected"
+                      @change="toggleSelectAll"
+                      @click.stop
+                    />
+                  </template>
+                  <template #default="{ row }">
+                    <input
+                      type="checkbox"
+                      :checked="selectedIds.includes(row.id)"
+                      @change="toggleSelection(row.id)"
+                      @click.stop
+                    />
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="资源名称" min-width="220">
-            <template #default="{ row }">
-              <div class="min-w-0">
-                <strong class="text-sm font-bold truncate text-[var(--text-primary)] block">{{
-                  row.title
-                }}</strong>
-                <small class="text-[11px] text-[var(--text-secondary)] truncate block mt-0.5">
-                  {{ row.description || '暂无描述' }}
-                </small>
-              </div>
-            </template>
-          </TableColumn>
+                <TableColumn label="预览" width="70">
+                  <template #default="{ row }">
+                    <div
+                      class="row-thumb w-8 h-8 rounded-lg border border-slate-100 dark:border-white/5 overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5"
+                    >
+                      <img
+                        v-if="mediaUrl(row) && !failedImages[row.id]"
+                        :src="mediaUrl(row)"
+                        alt=""
+                        class="w-full h-full object-cover"
+                        @error="handleImageError(row.id)"
+                      />
+                      <component :is="pageConfig.icon" v-else class="w-4 h-4 text-slate-400" />
+                    </div>
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="作者" width="180">
-            <template #default="{ row }">
-              <div class="user-cell flex items-center gap-2">
-                <UserAvatar :user="row.user" size="xs" />
-                <span class="text-sm font-semibold text-[var(--text-primary)] truncate">
-                  {{ row.user?.name || row.user?.email || '匿名创作者' }}
-                </span>
-              </div>
-            </template>
-          </TableColumn>
+                <TableColumn label="资源名称" min-width="220">
+                  <template #default="{ row }">
+                    <div class="min-w-0">
+                      <strong class="font-bold truncate text-[var(--text-primary)] block text-xs">{{
+                        row.title
+                      }}</strong>
+                    </div>
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="规格参数" width="160">
-            <template #default="{ row }">
-              <span class="text-xs text-[var(--text-secondary)]">
-                {{ itemKind(row) }} · {{ metricLine(row) }}
-              </span>
-            </template>
-          </TableColumn>
+                <TableColumn label="作者" width="180">
+                  <template #default="{ row }">
+                    <div class="user-cell flex items-center gap-2">
+                      <UserAvatar :user="row.user" size="xs" />
+                      <span class="text-sm font-semibold text-[var(--text-primary)] truncate">
+                        {{ row.user?.name || row.user?.email || '匿名创作者' }}
+                      </span>
+                    </div>
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="状态" width="120">
-            <template #default="{ row }">
-              <AdminContentStatusBadge :status="row.status" />
-            </template>
-          </TableColumn>
+                <TableColumn label="规格参数" width="160">
+                  <template #default="{ row }">
+                    <span class="text-xs text-[var(--text-secondary)]">
+                      {{ itemKind(row) }} · {{ metricLine(row) }}
+                    </span>
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="提交时间" width="180">
-            <template #default="{ row }">
-              <span class="text-xs text-[var(--text-secondary)]">
-                {{ formatDate(row.createdAt) }}
-              </span>
-            </template>
-          </TableColumn>
+                <TableColumn label="状态" width="120">
+                  <template #default="{ row }">
+                    <AdminContentStatusBadge :status="row.status" />
+                  </template>
+                </TableColumn>
 
-          <TableColumn label="操作" width="220" align="right">
-            <template #default="{ row }">
-              <div class="flex items-center justify-end gap-1.5" @click.stop>
-                <UiButton
-                  v-if="row.status !== 'APPROVED'"
-                  variant="primary"
-                  size="sm"
-                  :icon="CheckCircle2"
-                  @click="handleStatusUpdate(row, 'APPROVED')"
+                <TableColumn label="提交时间" width="180">
+                  <template #default="{ row }">
+                    <span class="text-xs text-[var(--text-secondary)]">
+                      {{ formatDate(row.createdAt) }}
+                    </span>
+                  </template>
+                </TableColumn>
+
+                <TableColumn label="操作" width="220" align="right">
+                  <template #default="{ row }">
+                    <div class="flex items-center justify-end gap-1.5" @click.stop>
+                      <UiButton
+                        v-if="row.status !== 'APPROVED'"
+                        variant="primary"
+                        size="sm"
+                        :icon="CheckCircle2"
+                        @click="handleStatusUpdate(row, 'APPROVED')"
+                      >
+                        通过
+                      </UiButton>
+                      <UiButton
+                        v-if="row.status !== 'REJECTED'"
+                        variant="danger"
+                        size="sm"
+                        :icon="XCircle"
+                        @click="handleStatusUpdate(row, 'REJECTED')"
+                      >
+                        打回
+                      </UiButton>
+                      <Dropdown trigger="click">
+                        <button
+                          type="button"
+                          class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                        >
+                          <MoreHorizontal class="w-4 h-4 text-slate-500" />
+                        </button>
+                        <template #dropdown>
+                          <DropdownMenu>
+                            <DropdownItem @click="openDetail(row)">
+                              <Eye class="dropdown-icon" /> 查看详情
+                            </DropdownItem>
+                            <DropdownItem @click="openEdit(row)">
+                              <Edit3 class="dropdown-icon" /> 编辑
+                            </DropdownItem>
+                            <DropdownItem divided @click="handleDelete(row)">
+                              <Trash2 class="dropdown-icon danger" /> 删除
+                            </DropdownItem>
+                          </DropdownMenu>
+                        </template>
+                      </Dropdown>
+                    </div>
+                  </template>
+                </TableColumn>
+              </Table>
+
+              <!-- Compact Table when split pane is open -->
+              <Table
+                v-else
+                v-loading="isLoading"
+                :data="filteredItems"
+                class="user-table w-full flex-1 mobile-table table-compact"
+                row-class-name="table-row"
+                @row-click="openDetail"
+              >
+                <TableColumn width="48">
+                  <template #header>
+                    <input
+                      type="checkbox"
+                      :checked="isAllSelected"
+                      @change="toggleSelectAll"
+                      @click.stop
+                    />
+                  </template>
+                  <template #default="{ row }">
+                    <input
+                      type="checkbox"
+                      :checked="selectedIds.includes(row.id)"
+                      @change="toggleSelection(row.id)"
+                      @click.stop
+                    />
+                  </template>
+                </TableColumn>
+
+                <TableColumn label="预览" width="70">
+                  <template #default="{ row }">
+                    <div
+                      class="row-thumb w-8 h-8 rounded-lg border border-slate-100 dark:border-white/5 overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5"
+                    >
+                      <img
+                        v-if="mediaUrl(row) && !failedImages[row.id]"
+                        :src="mediaUrl(row)"
+                        alt=""
+                        class="w-full h-full object-cover"
+                        @error="handleImageError(row.id)"
+                      />
+                      <component :is="pageConfig.icon" v-else class="w-4 h-4 text-slate-400" />
+                    </div>
+                  </template>
+                </TableColumn>
+
+                <TableColumn label="资源名称" min-width="200">
+                  <template #default="{ row }">
+                    <div class="min-w-0">
+                      <strong class="font-bold truncate text-[var(--text-primary)] block text-xs">{{
+                        row.title
+                      }}</strong>
+                    </div>
+                  </template>
+                </TableColumn>
+
+                <TableColumn label="状态" width="90">
+                  <template #default="{ row }">
+                    <AdminContentStatusBadge :status="row.status" />
+                  </template>
+                </TableColumn>
+
+                <TableColumn label="操作" width="80" align="right">
+                  <template #default="{ row }">
+                    <div class="flex items-center justify-end" @click.stop>
+                      <Dropdown trigger="click">
+                        <button
+                          type="button"
+                          class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
+                        >
+                          <MoreHorizontal class="w-4 h-4 text-slate-500" />
+                        </button>
+                        <template #dropdown>
+                          <DropdownMenu>
+                            <DropdownItem @click="openDetail(row)">
+                              <Eye class="dropdown-icon" /> 查看详情
+                            </DropdownItem>
+                            <DropdownItem @click="openEdit(row)">
+                              <Edit3 class="dropdown-icon" /> 编辑
+                            </DropdownItem>
+                            <DropdownItem divided @click="handleDelete(row)">
+                              <Trash2 class="dropdown-icon danger" /> 删除
+                            </DropdownItem>
+                          </DropdownMenu>
+                        </template>
+                      </Dropdown>
+                    </div>
+                  </template>
+                </TableColumn>
+              </Table>
+            </template>
+
+            <!-- Grid View -->
+            <template v-else>
+              <div
+                v-loading="isLoading"
+                class="flex-1 overflow-y-auto p-2 sm:p-2.5 custom-scrollbar"
+                :class="[
+                  isDetailSplitOpen
+                    ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3'
+                    : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4',
+                ]"
+              >
+                <!-- Grid Cards -->
+                <div
+                  v-for="row in filteredItems"
+                  :key="row.id"
+                  class="relative group rounded-xl border border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 hover:border-slate-200 dark:hover:border-white/10 hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden flex flex-col p-2 gap-1.5 text-xs animate-fade-in"
+                  :class="[
+                    selectedIds.includes(row.id)
+                      ? 'border-accent bg-accent/5 ring-1 ring-accent/30 shadow-lg'
+                      : '',
+                  ]"
+                  @click="openDetail(row)"
                 >
-                  通过
-                </UiButton>
+                  <!-- Hover Checkbox Overlay -->
+                  <div
+                    class="absolute top-2 left-2 z-10 transition-opacity duration-200"
+                    :class="[
+                      selectedIds.includes(row.id)
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100',
+                    ]"
+                    @click.stop
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="selectedIds.includes(row.id)"
+                      @change="toggleSelection(row.id)"
+                      class="w-4 h-4 cursor-pointer accent-accent"
+                    />
+                  </div>
+
+                  <!-- Thumbnail Cover -->
+                  <div
+                    class="relative w-full rounded-lg overflow-hidden border border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-white/5 flex items-center justify-center shrink-0 h-22"
+                  >
+                    <img
+                      v-if="mediaUrl(row) && !failedImages[row.id]"
+                      :src="mediaUrl(row)"
+                      alt=""
+                      class="w-full h-full object-cover"
+                      @error="handleImageError(row.id)"
+                    />
+                    <component :is="pageConfig.icon" v-else class="w-8 h-8 text-slate-400" />
+                    <!-- Small Status Badge on Thumbnail -->
+                    <div class="absolute bottom-1 right-1">
+                      <AdminContentStatusBadge
+                        :status="row.status"
+                        class="scale-90 transform origin-bottom-right"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Info Details block -->
+                  <div
+                    class="flex-1 flex flex-col min-w-0 justify-between gap-0.5 mt-0.5 text-[10px] text-[var(--text-secondary)]"
+                  >
+                    <div class="min-w-0">
+                      <strong
+                        class="font-bold truncate text-[var(--text-primary)] block text-xs leading-tight"
+                      >
+                        {{ row.title }}
+                      </strong>
+                      <!-- Combined specifications and type info -->
+                      <span class="truncate block opacity-95 mt-0.5 font-semibold">
+                        {{ itemKind(row) }} · {{ metricLine(row) }}
+                      </span>
+                    </div>
+                    <!-- Combined author name and date info in one line, no divider -->
+                    <div class="flex items-center justify-between gap-2 mt-0.5 truncate opacity-85">
+                      <div class="flex items-center gap-1.5 min-w-0">
+                        <UserAvatar
+                          :user="row.user"
+                          size="xs"
+                          class="scale-90 transform origin-left shrink-0"
+                        />
+                        <span class="truncate font-semibold text-[var(--text-primary)]">
+                          {{ row.user?.name || row.user?.email?.split('@')[0] || '匿名' }}
+                        </span>
+                      </div>
+                      <span class="font-mono text-[9px] shrink-0">
+                        {{ formatDate(row.createdAt).split(' ')[0] }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- Empty state inside ElTable wrapper or custom if filteredItems is empty -->
+            <div
+              v-if="filteredItems.length === 0"
+              class="empty-state py-12 flex flex-col items-center justify-center text-center flex-1"
+            >
+              <component
+                :is="pageConfig.icon"
+                class="w-12 h-12 text-slate-300 dark:text-white/10 mb-4"
+              />
+              <strong class="text-base font-bold text-[var(--text-primary)]">{{
+                pageConfig.emptyLabel
+              }}</strong>
+              <span class="text-sm text-[var(--text-secondary)] mt-1"
+                >当前筛选条件下暂无需要处理的记录。</span
+              >
+            </div>
+
+            <!-- Pagination -->
+            <div
+              class="flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 shrink-0"
+            >
+              <span class="text-xs text-[var(--text-secondary)]">
+                显示 {{ visibleRange }} / 共 {{ totalItems }} 条记录
+              </span>
+              <Pagination
+                v-model:current-page="currentPage"
+                :page-size="pageSize"
+                :total="totalItems"
+                layout="prev, pager, next"
+                small
+                background
+                @current-change="setPage"
+              />
+            </div>
+          </Card>
+        </div>
+
+        <!-- Right Side Detail Workspace (Split Pane) -->
+        <div
+          v-if="isDetailSplitOpen && activeItem"
+          class="w-full lg:w-[460px] xl:w-[560px] shrink-0 h-full border border-base rounded-2xl overflow-hidden glass-real-physical glass-panel-extreme shadow-2xl flex flex-col z-10 animate-fade-in"
+        >
+          <!-- Pane Header -->
+          <div
+            class="p-4 border-b border-strong/40 flex items-center justify-between shrink-0 bg-white/5"
+          >
+            <div class="flex items-center gap-2">
+              <AdminContentStatusBadge :status="activeItem.status" />
+              <span class="text-xs text-[var(--text-secondary)] font-semibold">审核详情</span>
+            </div>
+            <button
+              type="button"
+              class="w-6 h-6 rounded-full flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/10 transition-colors border-0 bg-transparent cursor-pointer"
+              @click="closeDetail"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </div>
+
+          <!-- Pane Scrollable Body -->
+          <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+            <!-- Media Banner -->
+            <div
+              class="relative w-full h-44 rounded-xl overflow-hidden border border-base bg-[var(--bg-subtle)] flex items-center justify-center group shadow-inner"
+            >
+              <img
+                v-if="mediaUrl(activeItem)"
+                :src="mediaUrl(activeItem)"
+                alt=""
+                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <component :is="pageConfig.icon" v-else class="w-10 h-10 text-[var(--text-muted)]" />
+
+              <!-- External View Button -->
+              <a
+                v-if="mediaUrl(activeItem)"
+                :href="mediaUrl(activeItem)"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="absolute right-3 bottom-3 p-1.5 bg-black/60 backdrop-blur-sm text-white rounded-lg hover:bg-black/80 transition-colors border-0 flex items-center gap-1 text-[10px] font-bold"
+              >
+                <Eye class="w-3.5 h-3.5" /> 查看原图
+              </a>
+            </div>
+
+            <!-- Title & User Info -->
+            <div class="space-y-3">
+              <h2 class="text-base font-bold text-[var(--text-primary)] leading-snug break-words">
+                {{ activeItem.title }}
+              </h2>
+
+              <!-- Creator profile card -->
+              <div
+                class="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex items-center justify-between"
+              >
+                <div class="flex items-center gap-2.5">
+                  <UserAvatar :user="activeItem.user" size="sm" class="ring-1 ring-white/10" />
+                  <div class="min-w-0">
+                    <span class="text-xs font-bold text-[var(--text-primary)] block truncate">
+                      {{ activeItem.user?.name || '匿名创作者' }}
+                    </span>
+                    <span class="text-[10px] text-[var(--text-secondary)] block truncate">
+                      {{ activeItem.user?.email || '无邮箱信息' }}
+                    </span>
+                  </div>
+                </div>
+                <Badge variant="info" class="text-[9px] font-bold">作者</Badge>
+              </div>
+            </div>
+
+            <!-- Technical Specifications Grid -->
+            <div class="p-3.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-2.5">
+              <h3
+                class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider"
+              >
+                技术参数规格
+              </h3>
+              <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[10px] text-[var(--text-secondary)]">资源类型</span>
+                  <strong class="text-[var(--text-primary)] font-semibold">{{
+                    itemKind(activeItem)
+                  }}</strong>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[10px] text-[var(--text-secondary)]">规格尺寸</span>
+                  <strong class="text-[var(--text-primary)] font-semibold">{{
+                    metricLine(activeItem)
+                  }}</strong>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <span class="text-[10px] text-[var(--text-secondary)]">提交时间</span>
+                  <strong class="text-[var(--text-primary)] font-mono font-semibold">{{
+                    formatDate(activeItem.createdAt)
+                  }}</strong>
+                </div>
+                <div
+                  class="flex flex-col gap-0.5"
+                  v-if="activeItem?.categoryId || activeItem?.category"
+                >
+                  <span class="text-[10px] text-[var(--text-secondary)]">归属分类</span>
+                  <strong class="text-[var(--text-primary)] font-semibold">
+                    {{
+                      activeItem?.category ||
+                      assetCategories.find((c) => c.id === activeItem?.categoryId)?.name ||
+                      '默认分类'
+                    }}
+                  </strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rich Description Panel -->
+            <div class="p-3.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-2.5">
+              <h3
+                class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider"
+              >
+                资源描述介绍
+              </h3>
+              <div
+                class="bg-black/10 dark:bg-white/[0.01] rounded-lg p-2.5 border border-white/5 max-h-[300px] overflow-y-auto custom-scrollbar"
+              >
+                <MdPreview
+                  :model-value="activeItem.description || '作者暂未填写简介。'"
+                  :theme="isDark ? 'dark' : 'light'"
+                  class="!bg-transparent !text-[11px] !text-[var(--text-secondary)]"
+                />
+              </div>
+            </div>
+
+            <!-- Tags -->
+            <div
+              v-if="activeItem.tags"
+              class="p-3.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-2"
+            >
+              <h3
+                class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider"
+              >
+                标签
+              </h3>
+              <div class="flex flex-wrap gap-1.5">
+                <Badge
+                  v-for="tag in activeItem.tags.split(',')"
+                  :key="tag"
+                  variant="info"
+                  class="text-[10px] px-2 py-0.5"
+                >
+                  {{ tag.trim() }}
+                </Badge>
+              </div>
+            </div>
+
+            <!-- Rejection Preset Panel (If status is PENDING or REJECTED) -->
+            <div
+              v-if="activeItem.status !== 'APPROVED'"
+              class="p-3.5 bg-rose-500/[0.02] border border-rose-500/10 rounded-xl space-y-3"
+            >
+              <h3
+                class="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-wider"
+              >
+                快速打回选项
+              </h3>
+              <!-- Template Reasons Pills -->
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="reason in pageConfig.reasons"
+                  :key="reason"
+                  type="button"
+                  class="text-[10px] p-1.5 px-2.5 rounded-lg border border-base bg-white/5 text-[var(--text-secondary)] hover:text-white hover:bg-rose-500/80 hover:border-rose-500 transition-colors cursor-pointer border-dashed"
+                  @click="
+                    rejectionForm.reason = reason;
+                    rejectionForm.targetId = activeItem?.id || '';
+                  "
+                >
+                  {{ reason }}
+                </button>
+              </div>
+              <div class="space-y-1.5">
+                <span class="text-[10px] text-[var(--text-secondary)] block">打回原因说明</span>
+                <textarea
+                  v-model="rejectionForm.reason"
+                  rows="3"
+                  class="w-full bg-white/[0.03] dark:bg-black/20 border border-[var(--border-base)] rounded-xl p-2.5 text-xs text-[var(--text-primary)] focus:border-rose-500 outline-none resize-none placeholder-[var(--text-muted)]"
+                  placeholder="可在此继续修改或手动补充具体细节原因..."
+                />
+              </div>
+              <div class="flex justify-end">
                 <UiButton
-                  v-if="row.status !== 'REJECTED'"
                   variant="danger"
                   size="sm"
-                  :icon="XCircle"
-                  @click="handleStatusUpdate(row, 'REJECTED')"
+                  :disabled="!rejectionForm.reason.trim()"
+                  @click="
+                    rejectionForm.targetId = activeItem?.id || '';
+                    submitRejection();
+                  "
                 >
-                  打回
+                  提交打回说明
                 </UiButton>
-                <Dropdown trigger="click">
-                  <button
-                    type="button"
-                    class="icon-btn p-1 rounded hover:bg-slate-100 dark:hover:bg-white/10 transition-colors"
-                  >
-                    <MoreHorizontal class="w-4 h-4 text-slate-500" />
-                  </button>
-                  <template #dropdown>
-                    <DropdownMenu>
-                      <DropdownItem @click="openDetail(row)">
-                        <Eye class="dropdown-icon" /> 查看详情
-                      </DropdownItem>
-                      <DropdownItem @click="openEdit(row)">
-                        <Edit3 class="dropdown-icon" /> 编辑
-                      </DropdownItem>
-                      <DropdownItem divided @click="handleDelete(row)">
-                        <Trash2 class="dropdown-icon danger" /> 删除
-                      </DropdownItem>
-                    </DropdownMenu>
-                  </template>
-                </Dropdown>
               </div>
-            </template>
-          </TableColumn>
-        </Table>
+            </div>
 
-        <!-- Empty state inside ElTable wrapper or custom if filteredItems is empty -->
-        <div
-          v-if="filteredItems.length === 0"
-          class="empty-state py-12 flex flex-col items-center justify-center text-center flex-1"
-        >
-          <component
-            :is="pageConfig.icon"
-            class="w-12 h-12 text-slate-300 dark:text-white/10 mb-4"
-          />
-          <strong class="text-base font-bold text-[var(--text-primary)]">{{
-            pageConfig.emptyLabel
-          }}</strong>
-          <span class="text-sm text-[var(--text-secondary)] mt-1"
-            >当前筛选条件下暂无需要处理的记录。</span
+            <!-- Previous Rejection History Banner -->
+            <div
+              v-if="activeItem.status === 'REJECTED' && activeItem.rejectReason"
+              class="p-3.5 border border-rose-500/20 bg-rose-500/5 rounded-xl space-y-1.5"
+            >
+              <h3 class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">
+                当前打回历史原因
+              </h3>
+              <p class="text-xs text-[var(--text-primary)] leading-relaxed">
+                {{ activeItem.rejectReason }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Sticky Action Footer -->
+          <div
+            class="p-3 border-t border-strong/40 bg-white/5 flex items-center justify-between shrink-0"
           >
+            <UiButton
+              variant="secondary"
+              size="sm"
+              :icon="Edit3"
+              @click="activeItem && openEdit(activeItem)"
+            >
+              修改信息
+            </UiButton>
+            <div class="flex items-center gap-2">
+              <UiButton
+                v-if="activeItem.status !== 'APPROVED'"
+                variant="primary"
+                size="sm"
+                :icon="CheckCircle2"
+                @click="activeItem && handleStatusUpdate(activeItem, 'APPROVED')"
+              >
+                确认通过
+              </UiButton>
+              <UiButton
+                variant="danger"
+                size="sm"
+                :icon="Trash2"
+                @click="activeItem && handleDelete(activeItem)"
+              >
+                删除
+              </UiButton>
+            </div>
+          </div>
         </div>
-
-        <!-- Pagination -->
-        <div
-          class="flex items-center justify-between p-3 border-t border-slate-100 dark:border-white/5 bg-white/40 dark:bg-white/5 shrink-0"
-        >
-          <span class="text-xs text-[var(--text-secondary)]">
-            显示 {{ visibleRange }} / 共 {{ totalItems }} 条记录
-          </span>
-          <Pagination
-            v-model:current-page="currentPage"
-            :page-size="pageSize"
-            :total="totalItems"
-            layout="prev, pager, next"
-            small
-            background
-            @current-change="setPage"
-          />
-        </div>
-      </Card>
+      </div>
     </main>
 
+    <!-- Side Drawer on Mobile -->
     <Drawer v-model="detailDrawerVisible" size="500px" :with-header="false">
-      <aside
-        v-if="activeItem"
-        class="detail-drawer flex flex-col h-full p-4 overflow-y-auto space-y-4"
-      >
+      <aside v-if="activeItem" class="detail-drawer flex flex-col h-full overflow-hidden">
         <!-- Header -->
-        <div class="flex items-start justify-between">
-          <div class="min-w-0">
+        <div class="p-4 border-b border-strong/40 flex items-center justify-between shrink-0">
+          <div class="flex items-center gap-2">
             <AdminContentStatusBadge :status="activeItem.status" />
-            <h2 class="text-xl font-bold mt-2 text-[var(--text-primary)] break-words">
-              {{ activeItem.title }}
-            </h2>
-            <p class="text-xs text-[var(--text-secondary)] mt-1">
-              {{ itemKind(activeItem) }} · {{ formatDate(activeItem.createdAt) }}
-            </p>
+            <span class="text-xs text-[var(--text-secondary)] font-semibold">审核详情</span>
           </div>
           <button
             type="button"
@@ -967,115 +1552,171 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <!-- Preview Media -->
-        <div
-          class="inspector-media w-full h-48 rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5"
-        >
-          <img
-            v-if="mediaUrl(activeItem)"
-            :src="mediaUrl(activeItem)"
-            alt=""
-            class="w-full h-full object-cover"
-          />
-          <component :is="pageConfig.icon" v-else class="w-12 h-12 text-slate-400" />
-        </div>
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+          <!-- Media Banner -->
+          <div
+            class="relative w-full h-44 rounded-xl overflow-hidden border border-base bg-[var(--bg-subtle)] flex items-center justify-center group shadow-inner"
+          >
+            <img
+              v-if="mediaUrl(activeItem)"
+              :src="mediaUrl(activeItem)"
+              alt=""
+              class="w-full h-full object-cover"
+            />
+            <component :is="pageConfig.icon" v-else class="w-10 h-10 text-[var(--text-muted)]" />
+          </div>
 
-        <!-- Details -->
-        <div
-          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
-        >
-          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-            提交信息
-          </h3>
-          <div class="grid grid-cols-[80px_1fr] gap-x-2 gap-y-1 text-xs">
-            <span class="text-[var(--text-secondary)]">作者</span>
-            <strong class="text-[var(--text-primary)]">{{
-              activeItem.user?.name || activeItem.user?.email || '匿名创作者'
-            }}</strong>
-            <span class="text-[var(--text-secondary)]">类型</span>
-            <strong class="text-[var(--text-primary)]">{{ itemKind(activeItem) }}</strong>
-            <span class="text-[var(--text-secondary)]">规格</span>
-            <strong class="text-[var(--text-primary)]">{{ metricLine(activeItem) }}</strong>
-            <span class="text-[var(--text-secondary)]">时间</span>
-            <strong class="text-[var(--text-primary)]">{{
-              formatDate(activeItem.createdAt)
-            }}</strong>
+          <!-- Title & User Info -->
+          <div class="space-y-3">
+            <h2 class="text-lg font-bold text-[var(--text-primary)] leading-snug break-words">
+              {{ activeItem.title }}
+            </h2>
+
+            <div
+              class="p-3 bg-white/[0.02] border border-white/5 rounded-xl flex items-center justify-between"
+            >
+              <div class="flex items-center gap-2.5">
+                <UserAvatar :user="activeItem.user" size="sm" />
+                <div class="min-w-0">
+                  <span class="text-xs font-bold text-[var(--text-primary)] block truncate">
+                    {{ activeItem.user?.name || '匿名创作者' }}
+                  </span>
+                  <span class="text-[10px] text-[var(--text-secondary)] block truncate">
+                    {{ activeItem.user?.email || '无邮箱信息' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Specifications -->
+          <div class="p-3.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-2.5">
+            <h3 class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+              技术参数规格
+            </h3>
+            <div class="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-[var(--text-secondary)]">资源类型</span>
+                <strong class="text-[var(--text-primary)] font-semibold">{{
+                  itemKind(activeItem)
+                }}</strong>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-[var(--text-secondary)]">规格尺寸</span>
+                <strong class="text-[var(--text-primary)] font-semibold">{{
+                  metricLine(activeItem)
+                }}</strong>
+              </div>
+              <div class="flex flex-col gap-0.5">
+                <span class="text-[10px] text-[var(--text-secondary)]">提交时间</span>
+                <strong class="text-[var(--text-primary)] font-mono font-semibold">{{
+                  formatDate(activeItem.createdAt)
+                }}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="p-3.5 bg-white/[0.02] border border-white/5 rounded-xl space-y-2.5">
+            <h3 class="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+              资源描述介绍
+            </h3>
+            <div
+              class="bg-black/10 dark:bg-white/[0.01] rounded-lg p-2 border border-white/5 max-h-[250px] overflow-y-auto custom-scrollbar"
+            >
+              <MdPreview
+                :model-value="activeItem.description || '作者暂未填写简介。'"
+                :theme="isDark ? 'dark' : 'light'"
+                class="!bg-transparent !text-[11px] !text-[var(--text-secondary)]"
+              />
+            </div>
+          </div>
+
+          <!-- Rejection Preset Panel (If status is PENDING or REJECTED) -->
+          <div
+            v-if="activeItem.status !== 'APPROVED'"
+            class="p-3.5 bg-rose-500/[0.02] border border-rose-500/10 rounded-xl space-y-3"
+          >
+            <h3 class="text-[10px] font-bold text-rose-500 uppercase tracking-wider">
+              快速打回选项
+            </h3>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="reason in pageConfig.reasons"
+                :key="reason"
+                type="button"
+                class="text-[10px] p-1.5 px-2.5 rounded-lg border border-base bg-white/5 text-[var(--text-secondary)] hover:text-white hover:bg-rose-500/80 hover:border-rose-500 transition-colors cursor-pointer border-dashed"
+                @click="
+                  rejectionForm.reason = reason;
+                  rejectionForm.targetId = activeItem?.id || '';
+                "
+              >
+                {{ reason }}
+              </button>
+            </div>
+            <div class="space-y-1.5">
+              <textarea
+                v-model="rejectionForm.reason"
+                rows="3"
+                class="w-full bg-white/[0.03] dark:bg-black/20 border border-[var(--border-base)] rounded-xl p-2.5 text-xs text-[var(--text-primary)] focus:border-rose-500 outline-none resize-none"
+                placeholder="具体细节原因..."
+              />
+            </div>
+            <div class="flex justify-end">
+              <UiButton
+                variant="danger"
+                size="sm"
+                :disabled="!rejectionForm.reason.trim()"
+                @click="
+                  rejectionForm.targetId = activeItem?.id || '';
+                  submitRejection();
+                  detailDrawerVisible = false;
+                "
+              >
+                提交打回
+              </UiButton>
+            </div>
           </div>
         </div>
 
-        <!-- Description -->
+        <!-- Footer -->
         <div
-          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
+          class="p-3 border-t border-strong/40 bg-white/5 flex items-center justify-between shrink-0"
         >
-          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-            资源描述
-          </h3>
-          <p class="text-xs text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed">
-            {{ activeItem.description || '暂无描述' }}
-          </p>
-        </div>
-
-        <!-- Tags -->
-        <div
-          v-if="activeItem.tags"
-          class="inspector-section p-3 border border-slate-100 dark:border-white/5 rounded-lg space-y-2"
-        >
-          <h3 class="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-            标签
-          </h3>
-          <p class="text-xs text-[var(--text-primary)] break-all">{{ activeItem.tags }}</p>
-        </div>
-
-        <!-- Rejection Reason if rejected -->
-        <div
-          v-if="activeItem.rejectReason"
-          class="inspector-section p-3 border border-red-100 dark:border-red-950/20 bg-red-50/50 dark:bg-red-950/5 rounded-lg space-y-2"
-        >
-          <h3 class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">
-            打回原因
-          </h3>
-          <p class="text-xs text-red-700 dark:text-red-300 leading-relaxed">
-            {{ activeItem.rejectReason }}
-          </p>
-        </div>
-
-        <!-- Drawer Actions -->
-        <div
-          class="drawer-actions pt-4 mt-auto border-t border-slate-100 dark:border-white/5 flex flex-wrap gap-2 mobile-row"
-        >
-          <a
-            v-if="mediaUrl(activeItem)"
-            :href="mediaUrl(activeItem)"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-3 py-1.5 bg-slate-100 dark:bg-white/5 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-lg flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors"
-          >
-            <Eye class="w-3.5 h-3.5" /> 查看原件
-          </a>
-          <UiButton variant="secondary" size="sm" :icon="Edit3" @click="openEdit(activeItem)">
-            编辑
-          </UiButton>
           <UiButton
-            v-if="activeItem.status !== 'APPROVED'"
-            variant="primary"
+            variant="secondary"
             size="sm"
-            :icon="CheckCircle2"
-            @click="handleStatusUpdate(activeItem, 'APPROVED')"
+            :icon="Edit3"
+            @click="activeItem && openEdit(activeItem)"
           >
-            通过
+            修改
           </UiButton>
-          <UiButton
-            v-if="activeItem.status !== 'REJECTED'"
-            variant="danger"
-            size="sm"
-            :icon="XCircle"
-            @click="handleStatusUpdate(activeItem, 'REJECTED')"
-          >
-            打回
-          </UiButton>
-          <UiButton variant="danger" size="sm" :icon="Trash2" @click="handleDelete(activeItem)">
-            删除
-          </UiButton>
+          <div class="flex items-center gap-2">
+            <UiButton
+              v-if="activeItem.status !== 'APPROVED'"
+              variant="primary"
+              size="sm"
+              :icon="CheckCircle2"
+              @click="
+                activeItem && handleStatusUpdate(activeItem, 'APPROVED');
+                detailDrawerVisible = false;
+              "
+            >
+              通过
+            </UiButton>
+            <UiButton
+              variant="danger"
+              size="sm"
+              :icon="Trash2"
+              @click="
+                activeItem && handleDelete(activeItem);
+                detailDrawerVisible = false;
+              "
+            >
+              删除
+            </UiButton>
+          </div>
         </div>
       </aside>
     </Drawer>
@@ -1187,9 +1828,7 @@ onBeforeUnmount(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  overflow: auto;
+  overflow: hidden;
   background: var(--bg-card);
   color: var(--text-primary);
 }
@@ -1285,5 +1924,36 @@ onBeforeUnmount(() => {
 .spinning {
   /* @keyframes spin provided globally; only duration differs from the 1s default */
   animation-duration: 0.9s;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Table Density Customizations */
+.table-compact :deep(th),
+.table-compact :deep(td) {
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+}
+
+.table-comfortable :deep(th),
+.table-comfortable :deep(td) {
+  padding: 10px 12px !important;
+  font-size: 13px !important;
 }
 </style>

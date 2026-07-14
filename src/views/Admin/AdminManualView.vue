@@ -293,7 +293,7 @@ onMounted(async () => {
   <div
     class="admin-manual-page flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)] mobile-adaptive"
   >
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+    <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
         title="手动资源站管理"

@@ -231,12 +231,9 @@ const toggleVisibility = () => {
           >
             <Calendar class="w-2.5 h-2.5 shrink-0" />
             <span>{{ formatDate(props.note.createdAt) }}</span>
-            <span v-if="props.note.category" class="text-slate-300 dark:text-slate-700 shrink-0"
-              >|</span
-            >
             <span
               v-if="props.note.category"
-              class="flex items-center gap-0.5 text-accent font-bold shrink-0 truncate max-w-[60px] sm:max-w-[80px]"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold bg-accent/5 dark:bg-accent/15 border border-accent/15 text-accent shrink-0 truncate max-w-[80px] sm:max-w-[120px]"
             >
               <Folder class="w-2.5 h-2.5 text-accent shrink-0" />
               {{ props.note.category }}
@@ -373,13 +370,6 @@ const toggleVisibility = () => {
           <MessageSquare class="w-3.5 h-3.5" /> {{ props.note._count.comments || 0 }}
         </span>
       </div>
-
-      <span
-        v-if="props.note.category"
-        class="text-[8px] md:text-[9px] font-black text-accent bg-accent/5 border border-accent/15 px-2 py-0.5 rounded uppercase truncate max-w-[50px] sm:max-w-[80px]"
-      >
-        {{ props.note.category }}
-      </span>
     </div>
 
     <!-- Hover Glass Action Menu (Pill Bar) -->

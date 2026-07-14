@@ -45,6 +45,25 @@ const { t } = useI18n();
 function handleClose() {
   emit('update:show', false);
 }
+
+import { ref } from 'vue';
+import { usePasteToUpload } from '@/composables/usePasteToUpload';
+
+const uploaderRef = ref<HTMLElement | null>(null);
+
+usePasteToUpload(
+  uploaderRef,
+  (files) => {
+    const mockEvent = {
+      target: {
+        files: files,
+        value: '',
+      },
+    } as unknown as Event;
+    emit('image-select', mockEvent);
+  },
+  { accept: 'image/*', multiple: true },
+);
 </script>
 
 <template>
@@ -122,7 +141,11 @@ function handleClose() {
             <ImageIcon class="h-4 w-4 text-accent" />
             {{ t('community.discussions.postImagesLabel') }}
           </h3>
-          <div class="image-uploader">
+          <div
+            ref="uploaderRef"
+            class="image-uploader outline-none focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl"
+            tabindex="0"
+          >
             <div v-for="(image, index) in imagePreviews" :key="`${image}-${index}`">
               <img :src="image" alt="" />
               <button type="button" @click="emit('remove-image', index)">

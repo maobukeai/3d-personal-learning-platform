@@ -654,8 +654,8 @@ onMounted(fetchAdminStats);
 
 <template>
   <div class="admin-dashboard mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden">
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
-      <div class="space-y-3">
+    <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5">
+      <div class="space-y-2">
         <!-- Ultra-Compact Single Row Header -->
         <AdminHeader
           title="平台运营概览"

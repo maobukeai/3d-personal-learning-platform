@@ -69,6 +69,7 @@ const openConfirm = (
       showInput: input,
       inputValue: options.inputValue,
       inputPlaceholder: options.inputPlaceholder,
+      dangerouslyUseHTMLString: options.dangerouslyUseHTMLString,
       resolve,
       reject,
     });
@@ -89,6 +90,7 @@ export const ElMessageBox = {
         confirmButtonText: options?.confirmButtonText ?? '确定',
         cancelButtonText: '',
         showInput: false,
+        dangerouslyUseHTMLString: options?.dangerouslyUseHTMLString,
         resolve: () => resolve(),
         reject: () => resolve(),
       });

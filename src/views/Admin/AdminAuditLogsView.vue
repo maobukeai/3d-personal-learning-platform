@@ -250,7 +250,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="audit-console flex flex-1 min-h-0 flex-col overflow-hidden mobile-adaptive">
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
+    <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
         title="审计日志"

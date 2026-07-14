@@ -18,6 +18,8 @@ import {
   Trash2,
   Share2,
   Loader2,
+  Maximize2,
+  Minimize2,
 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -73,6 +75,7 @@ const authStore = useAuthStore();
 const router = useRouter();
 const { t } = useI18n();
 const visible = ref(false);
+const isFullscreen = ref(false);
 const detailNote = ref<Note | null>(null);
 const isCopying = ref(false);
 const isSummarizing = ref(false);
@@ -295,6 +298,7 @@ const open = async (note: Note) => {
       sessionSummary.value = '';
     }
     visible.value = true;
+    isFullscreen.value = false;
     readProgress.value = 0;
     // reset scroll to top after modal renders
     scrollResetTimer = setTimeout(() => {
@@ -464,7 +468,13 @@ defineExpose({ open });
     v-bind="
       inline
         ? { class: 'w-full text-left bg-transparent' }
-        : { show: visible, size: 'xxl', padding: 'none', variant: 'glass', showClose: false }
+        : {
+            show: visible,
+            size: isFullscreen ? 'fullscreen' : 'xxl',
+            padding: 'none',
+            variant: 'glass',
+            showClose: false,
+          }
     "
     @close="
       visible = false;
@@ -476,9 +486,23 @@ defineExpose({ open });
       :class="
         inline
           ? 'mobile-adaptive flex flex-col md:flex-row relative bg-transparent w-full'
-          : 'mobile-adaptive flex flex-col md:flex-row h-screen md:h-[88vh] overflow-hidden relative bg-transparent'
+          : [
+              'mobile-adaptive flex flex-col md:flex-row overflow-hidden relative bg-transparent',
+              isFullscreen ? 'h-screen md:h-screen w-screen' : 'h-screen md:h-[88vh]',
+            ]
       "
     >
+      <!-- Full Screen Toggle Button -->
+      <button
+        v-if="!inline"
+        type="button"
+        class="dialog-fullscreen-btn absolute top-4 right-14 z-50 flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)]/80 backdrop-blur-xs hover:bg-slate-100 dark:hover:bg-zinc-800 text-[var(--text-secondary)] transition-all active:scale-90 shadow-md cursor-pointer"
+        :title="isFullscreen ? t('notes.exitFullscreen') : t('notes.enterFullscreen')"
+        @click="isFullscreen = !isFullscreen"
+      >
+        <component :is="isFullscreen ? Minimize2 : Maximize2" class="w-4 h-4" />
+      </button>
+
       <!-- Global Close Button (Top Right of the entire Dialog Container) -->
       <button
         v-if="!inline"

@@ -112,6 +112,35 @@ watch(
   },
 );
 
+import { usePasteToUpload } from '@/composables/usePasteToUpload';
+
+const coverDropzoneRef = ref<HTMLElement | null>(null);
+const galleryDropzoneRef = ref<HTMLElement | null>(null);
+
+usePasteToUpload(
+  coverDropzoneRef,
+  (files) => {
+    const file = files[0];
+    if (file) {
+      if (coverPreviewUrl.value) URL.revokeObjectURL(coverPreviewUrl.value);
+      coverFile.value = file;
+      coverPreviewUrl.value = URL.createObjectURL(file);
+    }
+  },
+  { accept: 'image/*' },
+);
+
+usePasteToUpload(
+  galleryDropzoneRef,
+  (files) => {
+    files.forEach((file) => {
+      galleryFiles.value.push(file);
+      galleryPreviews.value.push(URL.createObjectURL(file));
+    });
+  },
+  { accept: 'image/*,video/*', multiple: true },
+);
+
 // Cover Image Handlers
 const handleCoverChange = (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0];
@@ -305,7 +334,12 @@ const handlePublish = async () => {
                 <X class="w-3 h-3" />
               </button>
             </div>
-            <div v-else class="relative group h-[80px]">
+            <div
+              v-else
+              ref="coverDropzoneRef"
+              class="relative group h-[80px] outline-none focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl"
+              tabindex="0"
+            >
               <input
                 type="file"
                 accept="image/*"
@@ -421,7 +455,11 @@ const handlePublish = async () => {
           </label>
 
           <!-- Dropzone -->
-          <div class="relative group h-16">
+          <div
+            ref="galleryDropzoneRef"
+            class="relative group h-16 outline-none focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl"
+            tabindex="0"
+          >
             <input
               type="file"
               accept="image/*,video/*"

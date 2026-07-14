@@ -949,7 +949,7 @@ onUnmounted(() => {
   <div
     class="admin-mirror-page mobile-adaptive flex flex-1 min-h-0 flex-col overflow-hidden text-[var(--text-primary)]"
   >
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 scrollbar-hide">
+    <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
         title="镜像源管理"

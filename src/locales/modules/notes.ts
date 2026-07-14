@@ -153,6 +153,8 @@ export const notesZh = {
     saveConfig: '保存配置',
     syncNow: '一键同步',
   },
+  enterFullscreen: '全屏模式',
+  exitFullscreen: '退出全屏',
 };
 
 export const notesEn = {
@@ -313,4 +315,6 @@ export const notesEn = {
     saveConfig: 'Save Config',
     syncNow: 'Sync Now',
   },
+  enterFullscreen: 'Enter Fullscreen',
+  exitFullscreen: 'Exit Fullscreen',
 };

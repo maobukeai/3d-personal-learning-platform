@@ -28,6 +28,7 @@ export interface ConfirmItem {
   showInput: boolean;
   inputPlaceholder?: string;
   inputValue?: string;
+  dangerouslyUseHTMLString?: boolean;
   resolve: (value: any) => void;
   reject: (reason: any) => void;
 }

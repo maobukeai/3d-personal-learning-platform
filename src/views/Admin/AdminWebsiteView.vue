@@ -142,7 +142,7 @@ onMounted(load);
 <template>
   <div class="h-full w-full flex flex-col min-w-0 bg-[var(--bg-main)]">
     <!-- Main settings area aligned with standard dashboard layouts -->
-    <main class="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 scrollbar-hide">
+    <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Admin Header with action buttons placed in default slot -->
       <AdminHeader title="官网运营" :show-search="false">
         <a class="preview-link" :href="officialSiteUrl" target="_blank" rel="noopener">

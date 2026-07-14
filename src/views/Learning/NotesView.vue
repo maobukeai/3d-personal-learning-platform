@@ -194,7 +194,9 @@ const myNotebooksList = computed(() => {
     if (c) set.add(c);
   });
   localNotebooks.value.forEach((c) => set.add(c));
-  return Array.from(set).filter(Boolean);
+  return Array.from(set)
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'zh-CN'));
 });
 
 // Active notebook model for vertical Tabs
@@ -274,7 +276,9 @@ const loadTagsAndCategories = async () => {
       api.get('/api/notes/categories', { params }),
     ]);
     tags.value = tagsRes.data.tags || [];
-    categories.value = catRes.data.categories || [];
+    categories.value = (catRes.data.categories || []).sort((a: string, b: string) =>
+      a.localeCompare(b, 'zh-CN'),
+    );
   } catch {
     // Ignore error
   }

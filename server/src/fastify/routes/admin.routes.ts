@@ -17,6 +17,18 @@ import * as cloudflareController from '../../controllers/admin/cloudflare.contro
 import { updateSettingsSchema, courseSchema, lessonSchema } from '../../utils/schemas';
 import { fastifyAuthenticate, fastifyRequireAdmin } from '../auth/fastify-auth';
 import { fastifyUpload } from '../middlewares/fastify-upload.middleware';
+import prisma from '../../services/prisma';
+import { QueueService } from '../../services/queue.service';
+import {
+  auditService,
+  AuditAction,
+  AuditModule,
+  type AuditRequest,
+} from '../../services/audit.service';
+import { AppError } from '../../utils/error';
+import { logger } from '../../utils/logger';
+import path from 'path';
+import type { UploadedFile } from '../../types/upload';
 
 /**
  * Fastify 管理后台路由（原生 Fastify handler，已移除 adaptHandler 桥接）。
@@ -524,6 +536,100 @@ export const registerAdminRoutes = (app: FastifyInstance): void => {
     },
   );
 
+  // POST /admin/materials —— 创建材质 (Admin context)
+  app.post(
+    '/admin/materials',
+    {
+      preHandler: [
+        fastifyAuthenticate,
+        fastifyRequireAdmin,
+        fastifyUpload([
+          { name: 'material', maxCount: 1 },
+          { name: 'thumbnail', maxCount: 1 },
+        ]),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const body = request.body as Record<string, unknown>;
+        const adminUserId = (request as any).userId as string;
+
+        let authorUserId = adminUserId;
+        if (body.userId && typeof body.userId === 'string' && body.userId.trim()) {
+          const userExists = await prisma.user.findUnique({ where: { id: body.userId } });
+          if (userExists) authorUserId = body.userId;
+        }
+
+        const title = (body.title as string | undefined)?.trim() || 'Untitled Material';
+        const category = (body.category as string | undefined)?.trim() || 'Other';
+
+        const files = (request as unknown as { files?: Record<string, UploadedFile[]> }).files;
+        const materialFile = files?.material?.[0];
+        const thumbnailFile = files?.thumbnail?.[0];
+        const externalUrl = body.externalUrl as string | undefined;
+
+        let url = externalUrl || '';
+        let size = 0;
+
+        if (materialFile) {
+          url = materialFile.url || '';
+          size = parseFloat((materialFile.size / (1024 * 1024)).toFixed(2));
+        }
+
+        let thumbnailUrl = null;
+        if (thumbnailFile) {
+          thumbnailUrl = thumbnailFile.url || '';
+        } else if (body.externalThumbnailUrl && typeof body.externalThumbnailUrl === 'string') {
+          thumbnailUrl = body.externalThumbnailUrl;
+        }
+
+        let parsedTags = null;
+        if (body.tags && typeof body.tags === 'string') {
+          const tagsArr = body.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+          parsedTags = tagsArr.length > 0 ? JSON.stringify(tagsArr) : null;
+        }
+
+        const status = (body.status as string) === 'PENDING' ? 'PENDING' : 'APPROVED';
+        const material = await prisma.material.create({
+          data: {
+            title,
+            description: body.description as string | undefined,
+            fileUrl: url,
+            previewUrl: thumbnailUrl,
+            fileSize: size,
+            category,
+            resolution: (body.resolution as string) || '2K',
+            isProcedural:
+              body.isProcedural !== undefined ? String(body.isProcedural) === 'true' : false,
+            status,
+            userId: authorUserId,
+            tags: parsedTags,
+            originality: (body.originality as string) || 'ORIGINAL',
+            originalAuthor: body.originalAuthor as string | undefined,
+            originalLink: body.originalLink as string | undefined,
+            license: (body.license as string) || 'CC_BY',
+          },
+        });
+        await auditService.log({
+          userId: adminUserId,
+          action: AuditAction.CREATE_MATERIAL,
+          module: AuditModule.MATERIAL,
+          description: `Admin created material on behalf of ${authorUserId}: ${material.title}`,
+          newValue: material,
+          req: request as any,
+        });
+
+        reply.send(material);
+      } catch (error) {
+        logger.error('[Fastify admin] createMaterial error:', error);
+        throw error;
+      }
+    },
+  );
+
   // ===== Showcase audit =====
   app.get('/admin/showcases', { ...auth }, async (request, reply) => {
     return contentController.getAllShowcasesForAdmin(request, reply);
@@ -557,6 +663,92 @@ export const registerAdminRoutes = (app: FastifyInstance): void => {
     },
   );
 
+  // POST /admin/showcases —— 创建作品展示 (Admin context)
+  app.post(
+    '/admin/showcases',
+    {
+      preHandler: [
+        fastifyAuthenticate,
+        fastifyRequireAdmin,
+        fastifyUpload([
+          { name: 'showcase', maxCount: 1 },
+          { name: 'thumbnail', maxCount: 1 },
+        ]),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const body = request.body as Record<string, unknown>;
+        const adminUserId = (request as any).userId as string;
+
+        let authorUserId = adminUserId;
+        if (body.userId && typeof body.userId === 'string' && body.userId.trim()) {
+          const userExists = await prisma.user.findUnique({ where: { id: body.userId } });
+          if (userExists) authorUserId = body.userId;
+        }
+
+        const title = (body.title as string | undefined)?.trim() || 'Untitled Showcase';
+        const type = (body.type as string) || 'IMAGE'; // IMAGE or VIDEO
+
+        const files = (request as unknown as { files?: Record<string, UploadedFile[]> }).files;
+        const mainFile = files?.showcase?.[0];
+        const thumbnailFile = files?.thumbnail?.[0];
+        const externalUrl = body.externalUrl as string | undefined;
+
+        let url = externalUrl || '';
+        if (mainFile) {
+          url = mainFile.url || '';
+        }
+
+        let thumbnailUrl = null;
+        if (thumbnailFile) {
+          thumbnailUrl = thumbnailFile.url || '';
+        } else if (body.externalThumbnailUrl && typeof body.externalThumbnailUrl === 'string') {
+          thumbnailUrl = body.externalThumbnailUrl;
+        }
+
+        let parsedTags = null;
+        if (body.tags && typeof body.tags === 'string') {
+          const tagsArr = body.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+          parsedTags = tagsArr.length > 0 ? JSON.stringify(tagsArr) : null;
+        }
+
+        const status = (body.status as string) === 'PENDING' ? 'PENDING' : 'APPROVED';
+
+        const showcase = await prisma.showcase.create({
+          data: {
+            title,
+            description: body.description as string | undefined,
+            tags: parsedTags,
+            type,
+            thumbnailUrl: thumbnailUrl || '',
+            videoUrl: type === 'VIDEO' ? url : null,
+            isVideo: type === 'VIDEO',
+            userId: authorUserId,
+            status,
+          },
+        });
+
+        await auditService.log({
+          userId: adminUserId,
+          action: AuditAction.CREATE_SHOWCASE,
+          module: AuditModule.SHOWCASE,
+          description: `Admin created showcase on behalf of ${authorUserId}: ${showcase.title}`,
+          newValue: showcase,
+          req: request as any,
+        });
+
+        reply.send(showcase);
+      } catch (error) {
+        logger.error('[Fastify admin] createShowcase error:', error);
+        throw error;
+      }
+    },
+  );
+
   // ===== Assets management =====
   app.get('/admin/assets', { ...auth }, async (request, reply) => {
     return assetController.getAllAssetsForAdmin(request, reply);
@@ -587,6 +779,157 @@ export const registerAdminRoutes = (app: FastifyInstance): void => {
     { ...auth, schema: { params: idParams } },
     async (request, reply) => {
       return assetController.adminDeleteAsset(request, reply);
+    },
+  );
+
+  // POST /admin/assets —— 创建资产 (Admin context)
+  app.post(
+    '/admin/assets',
+    {
+      preHandler: [
+        fastifyAuthenticate,
+        fastifyRequireAdmin,
+        fastifyUpload([
+          { name: 'asset', maxCount: 1 },
+          { name: 'thumbnail', maxCount: 1 },
+          { name: 'package', maxCount: 1 },
+        ]),
+      ],
+    },
+    async (request, reply) => {
+      try {
+        const body = request.body as Record<string, unknown>;
+        const adminUserId = (request as any).userId as string;
+
+        let authorUserId = adminUserId;
+        if (body.userId && typeof body.userId === 'string' && body.userId.trim()) {
+          const userExists = await prisma.user.findUnique({ where: { id: body.userId } });
+          if (userExists) {
+            authorUserId = body.userId;
+          }
+        }
+
+        const title = (body.title as string | undefined)?.trim() || 'Untitled Asset';
+        const categoryId = body.categoryId as string | undefined;
+        if (!categoryId) {
+          throw new AppError('Category is required', 400);
+        }
+
+        const files = (request as unknown as { files?: Record<string, UploadedFile[]> }).files;
+        const assetFile = files?.asset?.[0];
+        const packageFile = files?.package?.[0];
+        const thumbnailFile = files?.thumbnail?.[0];
+        const externalUrl = body.externalUrl as string | undefined;
+
+        let url = externalUrl || '';
+        let type = 'LINK';
+        let size = 0;
+
+        if (assetFile) {
+          url = assetFile.url || '';
+          type = 'GLB';
+          size = parseFloat((assetFile.size / (1024 * 1024)).toFixed(2));
+        }
+
+        let packageUrl = null;
+        let packageSize = null;
+        let packageFilesList: string[] = [];
+
+        if (packageFile) {
+          packageUrl = packageFile.url || '';
+          packageSize = parseFloat((packageFile.size / (1024 * 1024)).toFixed(2));
+        }
+
+        let thumbnailUrl = null;
+        if (thumbnailFile) {
+          thumbnailUrl = thumbnailFile.url || '';
+        } else if (body.externalThumbnailUrl && typeof body.externalThumbnailUrl === 'string') {
+          thumbnailUrl = body.externalThumbnailUrl;
+        }
+
+        let parsedTags = null;
+        if (body.tags && typeof body.tags === 'string') {
+          const tagsArr = body.tags
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+          parsedTags = tagsArr.length > 0 ? JSON.stringify(tagsArr) : null;
+        }
+
+        const status = (body.status as string) === 'PENDING' ? 'PENDING' : 'APPROVED';
+
+        const parseBool = (val: any, dflt: boolean) => {
+          if (val === undefined || val === null) return dflt;
+          return String(val) === 'true';
+        };
+
+        const asset = await prisma.asset.create({
+          data: {
+            title,
+            description: body.description as string | undefined,
+            url,
+            packageUrl,
+            packageSize,
+            packageFilesList: packageFilesList.length > 0 ? JSON.stringify(packageFilesList) : null,
+            thumbnail: thumbnailUrl,
+            type,
+            size,
+            categoryId,
+            status,
+            userId: authorUserId,
+            isFree: parseBool(body.isFree, true),
+            formats: body.formats ? JSON.stringify(body.formats) : null,
+            tags: parsedTags,
+            bilibiliUrl: body.bilibiliUrl as string | undefined,
+            originality: (body.originality as string) || 'ORIGINAL',
+            originalAuthor: body.originalAuthor as string | undefined,
+            originalLink: body.originalLink as string | undefined,
+            license: (body.license as string) || 'CC_BY',
+            meshType: (body.meshType as string) || 'LOW_POLY',
+            uvUnwrapped: parseBool(body.uvUnwrapped, true),
+            uvOverlapping: parseBool(body.uvOverlapping, false),
+            pbrChannels: body.pbrChannels ? JSON.stringify(body.pbrChannels) : null,
+            rigged: parseBool(body.rigged, false),
+            gameReady: parseBool(body.gameReady, false),
+          },
+          include: { category: true },
+        });
+
+        if (assetFile && assetFile.buffer) {
+          try {
+            await QueueService.enqueue(
+              'draco-compression',
+              {
+                assetId: asset.id,
+                buffer: assetFile.buffer.toString('base64'),
+                ext: path.extname(assetFile.originalname).toLowerCase() || '.glb',
+                file: assetFile,
+              },
+              {
+                idempotencyKey: `upload:${authorUserId}:${title}:${Date.now()}`,
+                type: 'draco-compression',
+                userId: authorUserId,
+              },
+            );
+          } catch (enqueueErr) {
+            logger.error('[AdminAssetCreate] Queue enqueue error:', enqueueErr);
+          }
+        }
+
+        await auditService.log({
+          userId: adminUserId,
+          action: AuditAction.CREATE_ASSET,
+          module: AuditModule.ASSET,
+          description: `Admin created asset on behalf of ${authorUserId}: ${asset.title}`,
+          newValue: asset,
+          req: request as unknown as AuditRequest,
+        });
+
+        reply.send(asset);
+      } catch (error) {
+        logger.error('[Fastify admin] createAsset error:', error);
+        throw error;
+      }
     },
   );
 

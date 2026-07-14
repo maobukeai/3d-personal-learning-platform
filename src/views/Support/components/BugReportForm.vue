@@ -56,6 +56,23 @@ const triggerFileInput = () => {
 const onFileChange = (event: Event) => {
   emit('fileChange', event);
 };
+
+import { usePasteToUpload } from '@/composables/usePasteToUpload';
+
+const uploadRowRef = ref<HTMLElement | null>(null);
+
+usePasteToUpload(
+  uploadRowRef,
+  (files) => {
+    const mockEvent = {
+      target: {
+        files: files,
+      },
+    } as unknown as Event;
+    emit('fileChange', mockEvent);
+  },
+  { accept: 'image/*', disabled: () => props.isUploading || !!props.previewUrl },
+);
 </script>
 
 <template>
@@ -125,7 +142,11 @@ const onFileChange = (event: Event) => {
       <UiInput v-model="form.pageUrl" label="页面链接" placeholder="https://..." :glass="false" />
     </div>
 
-    <div class="upload-row">
+    <div
+      ref="uploadRowRef"
+      class="upload-row outline-none focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-xl"
+      tabindex="0"
+    >
       <input
         ref="fileInput"
         type="file"

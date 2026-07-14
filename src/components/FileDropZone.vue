@@ -33,8 +33,31 @@ const emit = defineEmits<{
 
 import { ref, watch, onUnmounted, computed } from 'vue';
 import { getAssetUrl } from '@/utils/api';
+import { usePasteToUpload } from '@/composables/usePasteToUpload';
 
 const objectUrl = ref('');
+const dropzoneRef = ref<HTMLElement | null>(null);
+
+const handlePasteFiles = (files: File[]) => {
+  if (props.multiple) {
+    emit('update:modelValue', files);
+  } else {
+    emit('update:modelValue', files[0]);
+  }
+  const mockEvent = {
+    target: {
+      files: files,
+      value: '',
+    },
+  } as unknown as Event;
+  emit('change', mockEvent);
+};
+
+usePasteToUpload(dropzoneRef, handlePasteFiles, {
+  accept: props.accept,
+  multiple: props.multiple,
+  disabled: () => props.progress !== null && props.progress < 100,
+});
 
 watch(
   () => props.modelValue,
@@ -77,8 +100,10 @@ const handleFileChange = (e: Event) => {
 
 <template>
   <div
-    class="relative group w-full"
+    ref="dropzoneRef"
+    class="relative group w-full outline-none focus-within:ring-2 focus-within:ring-indigo-500/20 rounded-2xl"
     :class="[heightClass, progress !== null && progress < 100 ? 'pointer-events-none' : '']"
+    tabindex="0"
   >
     <input
       v-if="progress === null || progress >= 100"

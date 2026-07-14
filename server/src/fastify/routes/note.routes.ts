@@ -16,6 +16,16 @@ import {
   type SafeUser,
 } from '../auth/fastify-auth';
 import { noteCreateSchema, noteUpdateSchema, noteCommentSchema } from '../../utils/schemas';
+import { GithubImportService } from '../../services/githubImport.service';
+
+const noteImportGithubSchema = z.object({
+  repoUrl: z.string().min(1),
+  token: z.string().nullable().optional(),
+  branch: z.string().default('main'),
+  folderPath: z.string().nullable().optional(),
+  category: z.string().nullable().optional(),
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PRIVATE'),
+});
 
 /**
  * Fastify 笔记 REST CRUD 路由（铁律六·1 渐进式迁移）。
@@ -390,6 +400,33 @@ export const registerNoteRoutes = (app: FastifyInstance): void => {
         isLiked: note.likes.length > 0,
         likes: undefined,
       });
+    },
+  );
+
+  // POST /notes/import/github —— 从 GitHub 导入/同步笔记
+  app.post(
+    '/notes/import/github',
+    {
+      preHandler: [fastifyAuthenticate],
+      schema: { body: noteImportGithubSchema },
+    },
+    async (request, reply) => {
+      const req = asAuth(request);
+      const { repoUrl, token, branch, folderPath, category, visibility } = request.body as z.infer<
+        typeof noteImportGithubSchema
+      >;
+
+      const result = await GithubImportService.importNotes({
+        userId: req.userId!,
+        repoUrl,
+        token,
+        branch,
+        folderPath,
+        category,
+        visibility,
+      });
+
+      return reply.send(result);
     },
   );
 

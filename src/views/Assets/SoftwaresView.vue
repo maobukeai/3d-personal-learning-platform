@@ -7,7 +7,6 @@ import type { LibraryTab, SortMode, ViewMode, SoftwareItem } from './softwaresSc
 import SoftwareFiltersPanel from './components/SoftwareFiltersPanel.vue';
 import SoftwareCatalog from './components/SoftwareCatalog.vue';
 import HelpRequestsForum from './components/HelpRequestsForum.vue';
-import ResourceSearchDialog from './components/ResourceSearchDialog.vue';
 import SoftwaresHeader from './components/SoftwaresHeader.vue';
 import SoftwaresToolbar from './components/SoftwaresToolbar.vue';
 import SoftwaresDetail from './components/SoftwaresDetail.vue';
@@ -79,7 +78,6 @@ const onBatchModeChange = (val: boolean) => {
     <SoftwaresHeader
       v-model:search-query="searchQuery"
       :is-loading="isLoading"
-      @open-search="isSearchOpen = true"
       @refresh="
         query.fetchSoftwares();
         query.fetchInsights();
@@ -195,13 +193,6 @@ const onBatchModeChange = (val: boolean) => {
       :selected-favorite-category="selectedFavoriteCategory"
       @update:selected-favorite-category="selectedFavoriteCategory = $event"
       @refresh-favorites="query.fetchFavorites"
-    />
-    <ResourceSearchDialog
-      v-model="isSearchOpen"
-      @success="
-        query.fetchSoftwares();
-        query.fetchInsights();
-      "
     />
   </div>
 </template>

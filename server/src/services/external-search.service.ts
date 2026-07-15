@@ -228,6 +228,43 @@ async function searchSuperHive(query: string): Promise<ExternalSearchResult[]> {
   }
 }
 
+async function searchGfxCampViaReader(query: string): Promise<ExternalSearchResult[]> {
+  try {
+    const readerUrl = `https://r.jina.ai/https://www.gfxcamp.com/?s=${encodeURIComponent(query)}`;
+    const response = await axios.get(readerUrl, {
+      headers: { Accept: 'text/plain', 'User-Agent': '3D-Learning-Platform/1.0' },
+      timeout: 15_000,
+      proxy: false,
+    });
+    const markdown = typeof response.data === 'string' ? response.data : '';
+    const results: ExternalSearchResult[] = [];
+    const seen = new Set<string>();
+    const itemPattern =
+      /##\s+\[([^\]]+)]\((https:\/\/www\.gfxcamp\.com\/[^\s)"?]+)[^)]*\)\s*\n+([^\n]+)/g;
+
+    for (const match of markdown.matchAll(itemPattern)) {
+      const title = match[1]?.trim();
+      const link = match[2]?.trim();
+      const snippet = match[3]?.trim() || '';
+      if (!title || !link || seen.has(link)) continue;
+      seen.add(link);
+      results.push({
+        title,
+        link,
+        snippet: snippet.length > 200 ? `${snippet.slice(0, 200)}...` : snippet,
+        site: 'www.gfxcamp.com',
+      });
+      if (results.length >= 10) break;
+    }
+    return results;
+  } catch (err: unknown) {
+    logger.warn(
+      `[External Search] gfxcamp.com reader fallback error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
 // 5. www.gfxcamp.com
 async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
   try {
@@ -242,7 +279,12 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
         Pragma: 'no-cache',
       },
       timeout: 8000,
+      proxy: false,
+      validateStatus: (status) => status >= 200 && status < 500,
     });
+    if (res.status !== 200 || typeof res.data !== 'string') {
+      return searchGfxCampViaReader(query);
+    }
     const $ = cheerio.load(res.data);
     const results: ExternalSearchResult[] = [];
 
@@ -293,12 +335,12 @@ async function searchGfxCamp(query: string): Promise<ExternalSearchResult[]> {
         });
     }
 
-    return results;
+    return results.length > 0 ? results : searchGfxCampViaReader(query);
   } catch (err: unknown) {
     logger.error(
       `[External Search] gfxcamp.com search error: ${err instanceof Error ? err.message : String(err)}`,
     );
-    return [];
+    return searchGfxCampViaReader(query);
   }
 }
 

@@ -831,6 +831,100 @@ async function downloadAndSaveImage(imageUrl: string, parentUrl?: string): Promi
 
 const QR_IMAGE_DOMAIN_BLOCKLIST: string[] = [];
 
+const SUPERHIVE_READER_URL = 'https://r.jina.ai/';
+
+function isSuperHiveProductUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.hostname === 'superhivemarket.com' ||
+        parsed.hostname.endsWith('.superhivemarket.com')) &&
+      /^\/products\/[^/]+/.test(parsed.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Superhive blocks server-side page requests with 403, while its public image
+ * CDN remains reachable. Jina's reader fetches the public product page and
+ * exposes its Markdown image links, letting us download the product's original
+ * preview images into the configured storage just like any normal import.
+ */
+async function scrapeSuperHiveViaReader(
+  productUrl: string,
+  productTitle?: string,
+): Promise<{ imageUrls: string[]; textParagraphs: string[] } | null> {
+  try {
+    const response = await axios.get(`${SUPERHIVE_READER_URL}${productUrl}`, {
+      headers: {
+        Accept: 'text/plain',
+        'User-Agent': '3D-Learning-Platform/1.0 (+external-resource-import)',
+      },
+      timeout: 15_000,
+      maxContentLength: 2 * 1024 * 1024,
+      proxy: false,
+    });
+    const markdown = typeof response.data === 'string' ? response.data : '';
+    if (!markdown) return null;
+
+    const imageUrls: string[] = [];
+    for (const match of markdown.matchAll(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g)) {
+      const imageUrl = match[1];
+      if (imageUrl && !isJunkOrQrImage(imageUrl)) {
+        imageUrls.push(imageUrl);
+      }
+    }
+
+    const uniqueImageUrls = [...new Set(imageUrls)].slice(0, 5);
+    // Reader output starts with marketplace navigation and product metadata.
+    // Keep only the actual product article so changelog/permission widgets are
+    // never presented as the source text.
+    const productTitleCandidates = productTitle
+      ? [productTitle, productTitle.split(' - ')[0]].filter((candidate): candidate is string =>
+          Boolean(candidate),
+        )
+      : [];
+    const titlePosition =
+      productTitleCandidates
+        .map((candidate) => markdown.toLocaleLowerCase().indexOf(candidate.toLocaleLowerCase()))
+        .find((position) => position >= 0) ?? -1;
+    const afterProductTitle = titlePosition >= 0 ? markdown.slice(titlePosition) : markdown;
+    const articleHeading = afterProductTitle.search(/\n#{1,2}\s+(?!\[)/);
+    let articleMarkdown =
+      articleHeading >= 0 ? afterProductTitle.slice(articleHeading) : afterProductTitle;
+    const articleEnd = articleMarkdown.search(
+      /\n(?:#####\s+(?:Discover more products|Available Coupons)|\[Back to top\])/i,
+    );
+    if (articleEnd >= 0) articleMarkdown = articleMarkdown.slice(0, articleEnd);
+
+    const textParagraphs = articleMarkdown
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[[^\]]*\]\([^)]*\)/g, '')
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.replace(/^#{1,6}\s*/, '').trim())
+      .filter(
+        (paragraph) =>
+          paragraph.length > 20 &&
+          !/^Image\s*\d*$/i.test(paragraph) &&
+          !/^(Title|URL Source|Published Time):/i.test(paragraph) &&
+          !/^(No changelog for this release\.?|This extension does not require special permissions\.?|Available Coupons|Details|Login to message)$/i.test(
+            paragraph,
+          ),
+      )
+      .slice(0, 30);
+
+    if (uniqueImageUrls.length === 0 && textParagraphs.length === 0) return null;
+    return { imageUrls: uniqueImageUrls, textParagraphs };
+  } catch (err: unknown) {
+    logger.warn(
+      `[Import External Superhive] Reader fallback failed for ${productUrl}: ${(err as Error).message}`,
+    );
+    return null;
+  }
+}
+
 function isJunkOrQrImage(
   src: string,
   el?: { attr: (name: string) => string | undefined },
@@ -909,6 +1003,25 @@ function isJunkOrQrImage(
   }
 
   return false;
+}
+
+function resolveExternalImageUrl(imageUrl: string, pageUrl: string): string | null {
+  const value = imageUrl.trim();
+  if (!value || value.startsWith('data:')) return null;
+  try {
+    return new URL(value.startsWith('//') ? `https:${value}` : value, pageUrl).href;
+  } catch {
+    return null;
+  }
+}
+
+function getLargestSourceFromSrcset(srcset: string | undefined): string | null {
+  if (!srcset) return null;
+  const candidates = srcset
+    .split(',')
+    .map((candidate) => candidate.trim().split(/\s+/)[0])
+    .filter((candidate): candidate is string => Boolean(candidate));
+  return candidates[candidates.length - 1] || null;
 }
 
 const IMAGE_SKIP_DOMAINS: string[] = [];
@@ -1029,27 +1142,24 @@ async function performFallbackSearchAndScrape(
               let src =
                 $(el).attr('data-src') ||
                 $(el).attr('data-original-src') ||
+                $(el).attr('data-original') ||
                 $(el).attr('data-lazy-src') ||
+                $(el).attr('data-lazyload') ||
+                $(el).attr('data-image') ||
                 $(el).attr('src');
               if (!src || src.startsWith('data:')) {
-                const srcset = $(el).attr('srcset') || $(el).attr('data-srcset');
-                if (srcset) {
-                  const match = srcset.match(/(https?:\/\/[^\s,]+)/);
-                  if (match) src = match[1];
-                }
+                src =
+                  getLargestSourceFromSrcset(
+                    $(el).attr('data-original-srcset') ||
+                      $(el).attr('data-lazy-srcset') ||
+                      $(el).attr('data-srcset') ||
+                      $(el).attr('srcset'),
+                  ) || undefined;
               }
-              if (src && imageUrls.length < 5) {
-                if (src.startsWith('//')) src = 'https:' + src;
-                else if (src.startsWith('/')) {
-                  try {
-                    const urlObj = new URL(link);
-                    src = urlObj.origin + src;
-                  } catch {
-                    /* ignore */
-                  }
-                }
-                if (!isJunkOrQrImage(src, $(el))) {
-                  imageUrls.push(src);
+              const imageUrl = src ? resolveExternalImageUrl(src, link) : null;
+              if (imageUrl && imageUrls.length < 5) {
+                if (!isJunkOrQrImage(imageUrl, $(el)) && !imageUrls.includes(imageUrl)) {
+                  imageUrls.push(imageUrl);
                 }
               }
             });
@@ -1127,11 +1237,26 @@ async function parseResourceWithAI(
   type: string,
 ) {
   try {
+    // Page bodies often contain author cards, download buttons, version lists
+    // and other chrome. They are useful for scraping, but are not facts the AI
+    // should turn into the resource introduction.
+    const summaryParagraphs = textParagraphs
+      .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+      .filter(
+        (paragraph) =>
+          paragraph.length >= 30 &&
+          paragraph.length <= 1_200 &&
+          !/^(by\b|tags?:|发布时间|发布于|作者[:：]|\[添加收藏\]|\[download\])/i.test(paragraph) &&
+          !/(wpfunction|add&postid=|点击下载|备用网址|网盘下载|免责声明|all rights reserved)/i.test(
+            paragraph,
+          ),
+      )
+      .slice(0, 12);
     const textSnippet = [
       `标题: ${title}`,
       snippet ? `引言: ${snippet}` : '',
       `正文段落:`,
-      ...textParagraphs.slice(0, 10),
+      ...summaryParagraphs,
     ]
       .filter(Boolean)
       .join('\n');
@@ -1140,6 +1265,7 @@ async function parseResourceWithAI(
 You must respond with a strictly formatted JSON object containing the metadata.
 Do not include any markdown styling like \`\`\`json or explanations. Return ONLY the raw JSON string.
 Important: If the title, description, or tags are in English, please translate/localize them to natural, clean Chinese. The tags should be translated to Chinese comma-separated keywords (e.g. '建模,材质,动画' instead of 'modeling,texture,animation').
+For translatedDescription, write a concise, polished Chinese resource overview (preferably 120-220 Chinese characters). Use only substantive product facts: what it is, its core capabilities, and who it is useful for. Ignore author/date information, navigation, tags, ads, download buttons and links, code blocks, version/download lists, calls to action, copyright text, and page-layout fragments. Do not reproduce source text, URLs, or Markdown. Do not invent unsupported facts.
 
 For type: "plugin", return:
 {
@@ -1147,14 +1273,14 @@ For type: "plugin", return:
   "compatibility": "string (e.g. 'Blender 3.x / 4.x', default '')",
   "tags": "string (comma-separated Chinese tag names, e.g. '建模,优化,材质', default '')",
   "category": "string (must be one of: 'Blender 插件', 'Three.js 插件', 'Substance 工具', '游戏引擎插件', 'Photoshop 脚本', '其他工具')",
-  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+  "translatedDescription": "string (A concise, polished Chinese overview; preferably 120-220 Chinese characters)"
 }
 
 For type: "asset" (3D Model), return:
 {
   "tags": "string (comma-separated Chinese tag names, e.g. '科幻,机器人,角色', default '')",
   "meshType": "string (must be one of: 'LOW_POLY', 'HIGH_POLY', 'CAD', 'UNKNOWN', default 'UNKNOWN')",
-  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+  "translatedDescription": "string (A concise, polished Chinese overview; preferably 120-220 Chinese characters)"
 }
 
 For type: "material", return:
@@ -1162,7 +1288,7 @@ For type: "material", return:
   "tags": "string (comma-separated Chinese tag names, e.g. '木质,程序化,写实', default '')",
   "resolution": "string (e.g. '4K', '8K', '1024x1024', default null)",
   "isProcedural": "boolean (default false)",
-  "translatedDescription": "string (A clean, localized Chinese translation/summary of the description. Max 300 words)"
+  "translatedDescription": "string (A concise, polished Chinese overview; preferably 120-220 Chinese characters)"
 }
 `;
 
@@ -2159,7 +2285,35 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
       let scrapedTextParagraphs: string[] = [];
       let scrapedImageUrls: string[] = [];
       let isFallbackScraped = false;
+      let isReaderScraped = false;
       let fallbackSourceUrl = '';
+
+      const hydrateSuperHiveImages = async (): Promise<boolean> => {
+        if (!isSuperHiveProductUrl(url)) return false;
+
+        const readerData = await scrapeSuperHiveViaReader(url, title);
+        if (!readerData) return false;
+
+        const localImageUrls: string[] = [];
+        for (const imageUrl of readerData.imageUrls) {
+          const localPath = await downloadAndSaveImage(imageUrl, url);
+          if (localPath) localImageUrls.push(localPath);
+        }
+
+        if (localImageUrls.length === 0) return false;
+
+        scrapedImageUrls = localImageUrls;
+        if (readerData.textParagraphs.length > 0) {
+          scrapedTextParagraphs = readerData.textParagraphs;
+        }
+        isFallbackScraped = true;
+        isReaderScraped = true;
+        fallbackSourceUrl = url;
+        logger.info(
+          `[Import External Superhive] Imported ${localImageUrls.length} product image(s) via reader fallback: ${url}`,
+        );
+        return true;
+      };
 
       try {
         const response = await axios.get(url, {
@@ -2200,6 +2354,22 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
           imgElements = $('img');
         }
 
+        // A number of channels expose their reliable cover only through Open
+        // Graph metadata, or defer the <img> source until the browser scrolls.
+        $(
+          'meta[property="og:image"], meta[name="twitter:image"], meta[property="twitter:image"], meta[itemprop="image"]',
+        ).each((_, el) => {
+          const imageUrl = resolveExternalImageUrl($(el).attr('content') || '', url);
+          if (
+            imageUrl &&
+            imageUrls.length < 5 &&
+            !isJunkOrQrImage(imageUrl) &&
+            !imageUrls.includes(imageUrl)
+          ) {
+            imageUrls.push(imageUrl);
+          }
+        });
+
         imgElements.each((i, el) => {
           const parent = $(el).parents(
             'footer, header, sidebar, .sidebar, #sidebar, .widget, .comments, #comments, nav, .nav, .menu, #footer, #header, .author-avatar, .widget-postlist',
@@ -2209,28 +2379,24 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
           let src =
             $(el).attr('data-src') ||
             $(el).attr('data-original-src') ||
+            $(el).attr('data-original') ||
             $(el).attr('data-lazy-src') ||
+            $(el).attr('data-lazyload') ||
+            $(el).attr('data-image') ||
             $(el).attr('src');
           if (!src || src.startsWith('data:')) {
-            const srcset = $(el).attr('srcset') || $(el).attr('data-srcset');
-            if (srcset) {
-              const match = srcset.match(/(https?:\/\/[^\s,]+)/);
-              if (match) src = match[1];
-            }
+            src =
+              getLargestSourceFromSrcset(
+                $(el).attr('data-original-srcset') ||
+                  $(el).attr('data-lazy-srcset') ||
+                  $(el).attr('data-srcset') ||
+                  $(el).attr('srcset'),
+              ) || undefined;
           }
-          if (src && imageUrls.length < 5) {
-            if (src.startsWith('//')) {
-              src = 'https:' + src;
-            } else if (src.startsWith('/')) {
-              try {
-                const urlObj = new URL(url);
-                src = urlObj.origin + src;
-              } catch {
-                /* ignore */
-              }
-            }
-            if (!isJunkOrQrImage(src, $(el))) {
-              imageUrls.push(src);
+          const imageUrl = src ? resolveExternalImageUrl(src, url) : null;
+          if (imageUrl && imageUrls.length < 5) {
+            if (!isJunkOrQrImage(imageUrl, $(el)) && !imageUrls.includes(imageUrl)) {
+              imageUrls.push(imageUrl);
             }
           }
         });
@@ -2301,48 +2467,51 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
           `[Import External] Failed to scrape webpage ${url}: ${(fetchErr as Error).message}`,
         );
 
-        logger.info(
-          `[Import External] Triggering fallback search & scrape for title: "${title}" (type: ${type})`,
-        );
-        const fallbackData = await performFallbackSearchAndScrape(title, url, type);
+        const hydratedFromSuperHive = await hydrateSuperHiveImages();
+        if (!hydratedFromSuperHive) {
+          logger.info(
+            `[Import External] Triggering fallback search & scrape for title: "${title}" (type: ${type})`,
+          );
+          const fallbackData = await performFallbackSearchAndScrape(title, url, type);
 
-        if (fallbackData) {
-          isFallbackScraped = true;
-          fallbackSourceUrl = fallbackData.fallbackUrl || '';
+          if (fallbackData) {
+            isFallbackScraped = true;
+            fallbackSourceUrl = fallbackData.fallbackUrl || '';
 
-          const localFallbackImageUrls: string[] = [];
-          for (const imgUrl of fallbackData.imageUrls) {
-            const localPath = await downloadAndSaveImage(imgUrl, fallbackData.fallbackUrl || url);
-            if (localPath) {
-              localFallbackImageUrls.push(localPath);
+            const localFallbackImageUrls: string[] = [];
+            for (const imgUrl of fallbackData.imageUrls) {
+              const localPath = await downloadAndSaveImage(imgUrl, fallbackData.fallbackUrl || url);
+              if (localPath) {
+                localFallbackImageUrls.push(localPath);
+              }
             }
-          }
 
-          scrapedTextParagraphs = fallbackData.textParagraphs;
-          scrapedImageUrls = localFallbackImageUrls;
+            scrapedTextParagraphs = fallbackData.textParagraphs;
+            scrapedImageUrls = localFallbackImageUrls;
+          }
         }
+      }
+
+      // Superhive may return a valid challenge page instead of a 403. In that
+      // case the direct scrape succeeds but yields no useful product image.
+      if (scrapedImageUrls.length === 0) {
+        await hydrateSuperHiveImages();
       }
 
       const aiData = await parseResourceWithAI(title, snippet, scrapedTextParagraphs, type);
 
       let descriptionMarkdown = `### ${title}\n\n来自源站的资源详情页面：[直接访问源站](${url})\n\n`;
-      if (snippet) {
-        descriptionMarkdown += `> ${snippet}\n\n`;
-      }
 
       if (isFallbackScraped) {
-        descriptionMarkdown += `*(注：由于原源站防爬虫限制，系统已自动从公开网络备用站点 [直接访问备用源站](${fallbackSourceUrl || url}) 抓取并补充了以下介绍与预览图)*\n\n`;
+        descriptionMarkdown += isReaderScraped
+          ? `*(注：源站限制了服务器直接访问，系统已通过公开页面读取服务生成简介并补充预览图)*\n\n`
+          : `*(注：由于原源站防爬虫限制，系统已自动从公开网络备用站点 [直接访问备用源站](${fallbackSourceUrl || url}) 生成简介并补充预览图)*\n\n`;
       }
 
       if (aiData?.translatedDescription) {
-        descriptionMarkdown += `### 📝 资源描述与介绍 (AI 翻译/润色)\n\n${aiData.translatedDescription}\n\n`;
-      } else if (scrapedTextParagraphs.length > 0) {
-        descriptionMarkdown += `### 📝 资源描述与介绍\n\n`;
-        scrapedTextParagraphs.forEach((p) => {
-          descriptionMarkdown += `${p}\n\n`;
-        });
+        descriptionMarkdown += `### ✨ AI 智能简介\n\n${aiData.translatedDescription}\n\n`;
       } else {
-        descriptionMarkdown += `*(由于源站防爬虫或网络原因限制，未能成功抓取文章内部正文与图片，请点击上方源站链接手动编辑补充)*\n\n`;
+        descriptionMarkdown += `*(暂未能生成 AI 简介；可通过上方源站链接查看完整详情。)*\n\n`;
       }
 
       if (scrapedImageUrls.length > 0) {

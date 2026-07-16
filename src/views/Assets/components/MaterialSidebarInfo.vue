@@ -10,13 +10,17 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-vue-next';
-import 'md-editor-v3/lib/preview.css';
 import { useThemeObserver } from '@/composables/useThemeObserver';
 import { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 import type { NormalizedMaterial } from '../materialAdapter';
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 const { isDark } =
   useThemeObserver(); /** * Right-column upper block for MaterialDetailPanel: author card, download * options + quick stats, management/admin actions, markdown description and * rejection reason. All state is supplied via props; interactions are emitted. */
 defineProps<{

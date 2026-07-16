@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed, type Component, defineAsyncComponent } from 'vue';
+import { ref, watch, computed, type Component } from 'vue';
 import { logError } from '@/utils/error';
-import 'md-editor-v3/lib/preview.css';
-import { useThemeObserver } from '@/composables/useThemeObserver';
-
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+import PublicMarkdown from '@/components/share/PublicMarkdown.vue';
 import { useI18n } from 'vue-i18n';
 import {
   Heart,
@@ -372,8 +369,6 @@ const handleVersionDownload = async (v: VersionItem) => {
 };
 
 const authStore = useAuthStore();
-
-const { isDark } = useThemeObserver();
 
 const shareDialogRef = ref<any>(null);
 
@@ -744,13 +739,18 @@ const loadInitialPackageFiles = () => {
 };
 
 watch(
-  [() => activeItem.value?.id, () => props.show, () => activeItem.value?.version],
+  [
+    () => activeItem.value?.id,
+    () => props.show,
+    () => activeItem.value?.version,
+    () => props.inline,
+  ],
   ([newId, newShow]) => {
-    if (newId && newShow) {
+    if (newId && (newShow || props.inline)) {
       resetExpansion();
       packageFiles.value = [];
       const loaded = loadInitialPackageFiles();
-      if (!loaded) {
+      if (!loaded && !props.inline) {
         fetchPackageFiles(newId);
       } else {
         isPackageFilesLoading.value = false;
@@ -997,12 +997,11 @@ const copyIntegrationCode = async () => {
             <div
               class="bg-white/[0.01] border border-white/5 rounded-2xl p-4 overflow-hidden plugin-markdown-content"
             >
-              <MdPreview
-                :model-value="
+              <PublicMarkdown
+                :source="
                   plugin.description || label('作者暂未填写简介。', 'No plugin description yet.')
                 "
-                :theme="isDark ? 'dark' : 'light'"
-                class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview"
+                class="!bg-transparent !text-[var(--text-secondary)] !text-xs"
               />
             </div>
           </div>

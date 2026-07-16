@@ -56,7 +56,7 @@ const loadSharedNote = async () => {
   errorMsg.value = '';
   isExpired.value = false;
   try {
-    const res = await api.get(`/api/notes/share/${shareId}?t=${Date.now()}`);
+    const res = await api.get(`/api/notes/share/${shareId}`);
     note.value = res.data.note;
     expiresAt.value = res.data.expiresAt;
     customText.value = res.data.customText;

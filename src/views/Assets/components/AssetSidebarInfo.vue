@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue';
 import { Download, Edit3, Eye, FolderOpen, Heart, Lock, Share2, Trash2 } from 'lucide-vue-next';
-import 'md-editor-v3/lib/preview.css';
 import { useThemeObserver } from '@/composables/useThemeObserver';
 import { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
 import type { AssetDetailResource } from './types';
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 const { isDark } =
   useThemeObserver(); /** * Right-column upper block for AssetDetailModal: author card, download options * (source package + preview model) with quick stats, management action buttons * and the markdown description. All state is supplied via props; interactions * are emitted. The download action carries an `isPackage` flag so the parent * can pick the correct url. */
 defineProps<{
@@ -35,7 +39,7 @@ const authStore = useAuthStore();
   <!-- Author Profile Card -->
   <div
     v-if="asset.user"
-    class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex items-center gap-3.5 text-left shrink-0"
+    class="bg-white/[0.02] border border-white/10 rounded-xl p-4 flex items-center gap-3.5 text-left shrink-0"
   >
     <div
       class="h-9 w-9 rounded-full overflow-hidden border border-white/10 bg-slate-900 flex items-center justify-center text-sm shrink-0"
@@ -58,7 +62,7 @@ const authStore = useAuthStore();
   </div>
   <!-- Download Options Box -->
   <div
-    class="bg-white/[0.02] border border-white/10 rounded-2xl p-4 flex flex-col gap-4 text-left shrink-0"
+    class="bg-white/[0.02] border border-white/10 rounded-xl p-4 flex flex-col gap-4 text-left shrink-0"
   >
     <div class="flex justify-between items-center">
       <span class="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wider">{{

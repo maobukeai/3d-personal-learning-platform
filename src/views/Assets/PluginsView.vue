@@ -19,9 +19,14 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-vue-next';
-import 'md-editor-v3/lib/preview.css';
-
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    // 将 CSS 移入动态 import 回调，避免被 Vite 静态分析拉入 /plugins 主 chunk
+    // 之前的顶层 import 'md-editor-v3/lib/preview.css' 会把 codemirror/lezer 生态 (~1.55MB) 打入私有增量
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import { useSystemStore } from '@/stores/system';

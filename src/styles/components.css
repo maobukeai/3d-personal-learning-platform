@@ -547,10 +547,10 @@ html.theme-glass .search-box input[type='text']:focus {
   padding: 0;
 }
 .modal-content[data-state='open'] {
-  animation: modal-content-in var(--duration-fast) var(--ease-standard) both;
+  animation: modal-content-in var(--duration-base) var(--ease-premium) both;
 }
 .modal-content[data-state='closed'] {
-  animation: modal-content-out var(--duration-fast) var(--ease-standard) both;
+  animation: modal-content-out var(--duration-fast) var(--ease-in) both;
 }
 
 /* ── Surface Primitives ── */
@@ -821,6 +821,32 @@ html.theme-glass .search-box input[type='text']:focus {
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
+}
+
+/* ── TaskDetailDrawer Animation (drawer-slide) ── */
+.drawer-slide-enter-active,
+.drawer-slide-leave-active {
+  transition: opacity var(--duration-base) var(--ease-premium);
+}
+.drawer-slide-enter-from,
+.drawer-slide-leave-to {
+  opacity: 0;
+}
+
+/* Slide animation for nested drawer content */
+.drawer-slide-enter-active .task-detail-content,
+.drawer-slide-leave-active .task-detail-content {
+  transition: transform var(--duration-base) var(--ease-premium);
+}
+.drawer-slide-enter-from .task-detail-content,
+.drawer-slide-leave-to .task-detail-content {
+  transform: translateX(100%);
+}
+
+/* ── Dark Mode Glass Text Contrast Enhancements ── */
+.dark .glass-real-physical {
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
 }
 
 /* ── Global Background Preferences ── */

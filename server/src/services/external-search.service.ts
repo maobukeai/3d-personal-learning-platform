@@ -239,18 +239,44 @@ async function searchGfxCampViaReader(query: string): Promise<ExternalSearchResu
     const markdown = typeof response.data === 'string' ? response.data : '';
     const results: ExternalSearchResult[] = [];
     const seen = new Set<string>();
-    const itemPattern =
-      /##\s+\[([^\]]+)]\((https:\/\/www\.gfxcamp\.com\/[^\s)"?]+)[^)]*\)\s*\n+([^\n]+)/g;
 
-    for (const match of markdown.matchAll(itemPattern)) {
-      const title = match[1]?.trim();
-      const link = match[2]?.trim();
-      const snippet = match[3]?.trim() || '';
-      if (!title || !link || seen.has(link)) continue;
-      seen.add(link);
+    const itemPattern = /##\s+\[([^\]]+)]\((https:\/\/www\.gfxcamp\.com\/[^\s)"?]+)[^)]*\)/g;
+    const matches: Array<{ title: string; link: string; index: number; endIndex: number }> = [];
+    let match;
+    while ((match = itemPattern.exec(markdown)) !== null) {
+      const title = match[1];
+      const link = match[2];
+      if (title && link) {
+        matches.push({
+          title: title.trim(),
+          link: link.trim(),
+          index: match.index,
+          endIndex: itemPattern.lastIndex,
+        });
+      }
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const current = matches[i];
+      if (!current) continue;
+      if (seen.has(current.link)) continue;
+      seen.add(current.link);
+
+      const start = current.endIndex;
+      const nextMatch = matches[i + 1];
+      const end = nextMatch ? nextMatch.index : markdown.length;
+      const rawSnippet = markdown.slice(start, end).trim();
+
+      let snippet = rawSnippet
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+        .replace(/\[[^\]]*\]\([^)]*\)/g, '')
+        .replace(/[#*`_-]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
       results.push({
-        title,
-        link,
+        title: current.title,
+        link: current.link,
         snippet: snippet.length > 200 ? `${snippet.slice(0, 200)}...` : snippet,
         site: 'www.gfxcamp.com',
       });

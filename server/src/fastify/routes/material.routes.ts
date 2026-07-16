@@ -279,7 +279,7 @@ export const registerMaterialRoutes = (app: FastifyInstance): void => {
       const request = _request as AuthReq;
       const shareId = (request.params as { shareId: string }).shareId;
       try {
-        reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        reply.header('Cache-Control', 'public, max-age=30');
         const share = await prisma.materialShare.findUnique({
           where: { id: shareId },
           include: {

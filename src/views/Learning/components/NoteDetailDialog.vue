@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, defineAsyncComponent } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { ElMessage } from '@/utils/feedbackBridge';
 import { useRouter } from 'vue-router';
 import type { User } from '@/types';
@@ -30,8 +30,7 @@ import { useI18n } from 'vue-i18n';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
 import { parseTags } from '@/utils/tags';
-
-const MarkdownEditor = defineAsyncComponent(() => import('@/components/MarkdownEditor.vue'));
+import PublicMarkdown from '@/components/share/PublicMarkdown.vue';
 
 interface Note {
   id: string;
@@ -808,9 +807,9 @@ defineExpose({ open });
 
                 <div
                   v-if="sessionSummary"
-                  class="text-[var(--text-secondary)] mt-2 whitespace-pre-wrap leading-normal"
+                  class="note-summary-markdown text-[var(--text-secondary)] mt-2 leading-normal"
                 >
-                  {{ sessionSummary }}
+                  <PublicMarkdown :source="sessionSummary" />
                 </div>
                 <div v-else-if="isSummarizing" class="mt-2.5 space-y-1.5">
                   <div
@@ -842,7 +841,7 @@ defineExpose({ open });
               class="modern-markdown-content min-h-[300px] markdown-theme-default"
               :style="{ fontSize: fontSize + 'px' }"
             >
-              <MarkdownEditor :model-value="detailNote.content" preview-only />
+              <PublicMarkdown :source="detailNote.content" />
             </div>
 
             <!-- Mobile Toolbox & Actions (Visible only on mobile) -->
@@ -1119,6 +1118,35 @@ defineExpose({ open });
 }
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* Keep AI summaries compact while retaining the same Markdown capabilities as the note body. */
+.note-summary-markdown :deep(.md-editor-preview),
+.note-summary-markdown :deep(.md-preview),
+.note-summary-markdown :deep(.mdw__preview-only) {
+  padding: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+
+.note-summary-markdown :deep(p) {
+  margin: 0 0 0.45em;
+}
+
+.note-summary-markdown :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.note-summary-markdown :deep(ul),
+.note-summary-markdown :deep(ol) {
+  margin: 0.35em 0;
+  padding-left: 1.35em;
+}
+
+.note-summary-markdown :deep(li + li) {
+  margin-top: 0.15em;
 }
 
 /* Markdown scaling and layout overrides */

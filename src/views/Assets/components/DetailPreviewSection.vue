@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { defineAsyncComponent } from 'vue';
 import { ExternalLink } from 'lucide-vue-next';
-import 'md-editor-v3/lib/preview.css';
 import { getAssetUrl } from '@/utils/api';
 import { useLabel } from '@/utils/i18n';
 import type { PluginItem } from './detailTypes';
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 interface Props {
   plugin: PluginItem;
   isDark: boolean;

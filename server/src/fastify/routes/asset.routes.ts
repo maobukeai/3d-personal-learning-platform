@@ -307,7 +307,7 @@ export const registerAssetRoutes = (app: FastifyInstance): void => {
     async (request, reply) => {
       const shareId = (request.params as { shareId: string }).shareId;
       try {
-        reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        reply.header('Cache-Control', 'public, max-age=30');
         const share = await prisma.assetShare.findUnique({
           where: { id: shareId },
           include: {
@@ -335,54 +335,13 @@ export const registerAssetRoutes = (app: FastifyInstance): void => {
           data: { viewCount: { increment: 1 } },
         });
 
-        const annotations = await prisma.assetAnnotation.findMany({
-          where: { assetId: share.assetId },
-          orderBy: { createdAt: 'asc' },
-          include: {
-            user: { select: { name: true, avatarUrl: true } },
-          },
-        });
-
-        let packageFiles: string[] = [];
-        if (share.asset.packageFilesList) {
-          try {
-            const files = JSON.parse(share.asset.packageFilesList);
-            if (Array.isArray(files)) {
-              packageFiles = files;
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-
-        if (packageFiles.length === 0 && share.asset.packageUrl) {
-          packageFiles = await getZipFileNames(share.asset.packageUrl);
-          if (packageFiles.length > 0) {
-            await prisma.asset
-              .update({
-                where: { id: share.assetId },
-                data: { packageFilesList: JSON.stringify(packageFiles) },
-              })
-              .catch((err) => {
-                logger.error(
-                  '[Asset] Failed to update packageFilesList fallback for shared asset:',
-                  err,
-                );
-              });
-          }
-        }
-
         const signedAsset = await signAssetUrls(share.asset);
         return reply.send({
           shareId: share.id,
           expiresAt: share.expiresAt,
           createdAt: share.createdAt,
           customText: share.customText,
-          asset: {
-            ...signedAsset,
-            packageFiles,
-          },
-          annotations,
+          asset: signedAsset,
         });
       } catch (error) {
         logger.error('Get public shared asset error:', error);

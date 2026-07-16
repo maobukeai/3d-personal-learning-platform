@@ -1205,12 +1205,33 @@ export const getPublicSharedPlugin = async (
   reply: FastifyReply,
 ): Promise<void> => {
   const shareId = (request.params as { shareId: string }).shareId;
-  reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  reply.header('Cache-Control', 'public, max-age=30');
   const share = await prisma.pluginShare.findUnique({
     where: { id: shareId },
-    include: {
+    select: {
+      id: true,
+      expiresAt: true,
+      customText: true,
       plugin: {
-        include: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          category: true,
+          tags: true,
+          version: true,
+          compatibility: true,
+          fileUrl: true,
+          fileSize: true,
+          previewUrl: true,
+          installGuide: true,
+          downloads: true,
+          originality: true,
+          originalLink: true,
+          license: true,
+          isFree: true,
+          bilibiliUrl: true,
+          createdAt: true,
           user: {
             select: { id: true, name: true, avatarUrl: true },
           },
@@ -1229,7 +1250,12 @@ export const getPublicSharedPlugin = async (
     return;
   }
 
-  reply.send(share);
+  reply.send({
+    shareId: share.id,
+    expiresAt: share.expiresAt,
+    customText: share.customText,
+    plugin: share.plugin,
+  });
 };
 
 // POST /api/plugins/:id/token

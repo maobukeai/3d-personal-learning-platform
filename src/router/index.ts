@@ -426,13 +426,22 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const systemStore = useSystemStore();
+  const isPublicShareRoute = to.path.startsWith('/share/');
 
-  // Fetch system settings if not already fetched
+  // Public share links must render as soon as possible. Branding can arrive in
+  // the background; waiting for it here previously serialized every first view
+  // behind a settings API request.
   if (!systemStore.isInitialized) {
-    try {
-      await systemStore.fetchSettings();
-    } catch (e) {
-      logError(e, { operation: 'router.system.init', component: 'Router' });
+    if (isPublicShareRoute) {
+      void systemStore.fetchSettings().catch((e) => {
+        logError(e, { operation: 'router.system.init.background', component: 'Router' });
+      });
+    } else {
+      try {
+        await systemStore.fetchSettings();
+      } catch (e) {
+        logError(e, { operation: 'router.system.init', component: 'Router' });
+      }
     }
   }
 

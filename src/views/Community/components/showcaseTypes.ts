@@ -71,6 +71,7 @@ export interface ShowcaseItem {
   linkedMaterials?: LinkedMaterial[] | null;
   linkedPlugins?: LinkedPlugin[] | null;
   status?: ShowcaseStatus;
+  note?: { id: string; title: string; content: string } | null;
 }
 
 export interface ShowcaseActivity {

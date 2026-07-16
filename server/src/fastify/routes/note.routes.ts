@@ -320,7 +320,7 @@ export const registerNoteRoutes = (app: FastifyInstance): void => {
     },
     async (request, reply) => {
       const { shareId } = request.params as { shareId: string };
-      reply.header('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      reply.header('Cache-Control', 'public, max-age=30');
 
       const share = await prisma.noteShare.findUnique({
         where: { id: shareId },

@@ -103,7 +103,10 @@ export default defineConfig(({ mode }) => {
     ['vendor-vue', ['vue', '@vue', '@intlify', 'vue-router', 'pinia', 'vue-i18n']],
     // P-6.2: UI component libraries in a single vendor-ui chunk
     ['vendor-ui', ['radix-vue', 'lucide-vue-next']],
-    // P-6.2: Markdown parsers (md-editor-v3 stack + marked/turndown/katex)
+    // Keep the full editor isolated from read-only public previews. Public
+    // share pages only use `marked`, while authenticated editing can load the
+    // CodeMirror-heavy md-editor-v3 stack on demand.
+    ['markdown-editor', ['md-editor-v3']],
     [
       'markdown-parser',
       [
@@ -114,12 +117,11 @@ export default defineConfig(({ mode }) => {
         'entities',
         'punycode.js',
         'xss',
-        'md-editor-v3',
         'marked',
         'turndown',
-        'katex',
       ],
     ],
+    ['markdown-math', ['katex']],
     ['codemirror-core', ['@codemirror', 'codemirror']],
     ['lezer-parser', ['@lezer', 'lezer']],
     [

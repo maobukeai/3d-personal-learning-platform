@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Box, Eye, EyeOff, BarChart3, UploadCloud, Search } from 'lucide-vue-next';
+import { Box, UploadCloud, Search } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';

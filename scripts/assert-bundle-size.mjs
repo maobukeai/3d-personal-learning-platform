@@ -143,9 +143,9 @@ const HEAVY_CHUNK_PATTERNS = [
   { prefix: 'codemirror-', label: 'Editor (CodeMirror)', relatedRoutes: ['/notes', '/work'] },
   { prefix: 'lezer-', label: 'Editor (Lezer parser)', relatedRoutes: ['/notes', '/work'] },
   {
-    prefix: 'markdown-parser-',
-    label: 'Markdown parser',
-    relatedRoutes: ['/notes', '/work', '/dashboard'],
+    prefix: 'markdown-editor-',
+    label: 'Markdown editor',
+    relatedRoutes: ['/notes', '/work'],
   },
 ];
 
@@ -159,6 +159,11 @@ const NON_HEAVY_ROUTES = [
   '/admin/feedback',
   '/tools/ai-robots',
   '/tools/email',
+  '/share/note/:shareId',
+  '/share/asset/:shareId',
+  '/share/material/:shareId',
+  '/share/plugin/:shareId',
+  '/share/software/:shareId',
 ];
 
 // 非 3D 路由 —— 这些路由的依赖树不得包含 three-* chunk (硬性失败)
@@ -237,8 +242,24 @@ function resolveDependencyTree(manifest, key, visited = new Set()) {
   return files;
 }
 
+// Route modules import the app/router through their static tree. Following
+// dynamic imports from every shared dependency would therefore traverse every
+// lazy route in the app. Only include dynamic children declared by the route
+// module itself; these are the components it can load during the first view.
+function resolvePublicShareTree(manifest, key) {
+  const visited = new Set();
+  const files = resolveDependencyTree(manifest, key, visited);
+  const routeNode = manifest[key];
+  if (Array.isArray(routeNode?.dynamicImports)) {
+    for (const dynamicImport of routeNode.dynamicImports) {
+      files.push(...resolveDependencyTree(manifest, dynamicImport, visited));
+    }
+  }
+  return files;
+}
+
 /**
- * 判断文件是否属于重型 chunk (three-* / codemirror-* / lezer-* / markdown-parser-*)
+ * 判断文件是否属于重型 chunk (three-* / codemirror-* / lezer-* / markdown-editor-*)
  */
 function detectHeavyChunk(fileName) {
   const lower = fileName.toLowerCase();
@@ -409,7 +430,9 @@ async function analyzeWithManifest(manifest) {
   // ===== 分析每条路由 chunk 的依赖树 + gzip 预算断言 =====
   for (const [route, chunkKeys] of routeToChunks.entries()) {
     for (const chunkKey of chunkKeys) {
-      const treeFiles = resolveDependencyTree(manifest, chunkKey);
+      const treeFiles = route.startsWith('/share/')
+        ? resolvePublicShareTree(manifest, chunkKey)
+        : resolveDependencyTree(manifest, chunkKey);
       const uniqueFiles = [...new Set(treeFiles)];
       // 全量体积（含首屏共享层，用于参考展示）
       let rawTotal = 0;

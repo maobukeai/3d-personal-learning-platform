@@ -870,7 +870,7 @@ async function scrapeSuperHiveViaReader(
     if (!markdown) return null;
 
     const imageUrls: string[] = [];
-    for (const match of markdown.matchAll(/!\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g)) {
+    for (const match of markdown.matchAll(/!\[[^\]]*\]\((https?:\/\/[^\s" )]+)(?:\s+[^)]*)?\)/g)) {
       const imageUrl = match[1];
       if (imageUrl && !isJunkOrQrImage(imageUrl)) {
         imageUrls.push(imageUrl);

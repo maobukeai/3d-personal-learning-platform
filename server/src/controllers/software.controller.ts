@@ -1138,11 +1138,34 @@ export const getPublicSharedSoftware = async (
   reply: FastifyReply,
 ): Promise<void> => {
   const { shareId } = request.params as { shareId: string };
+  reply.header('Cache-Control', 'public, max-age=30');
   const share = await prisma.softwareShare.findUnique({
     where: { id: shareId },
-    include: {
+    select: {
+      expiresAt: true,
+      customText: true,
       software: {
-        include: { user: { select: { id: true, name: true, avatarUrl: true } } },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          category: true,
+          tags: true,
+          version: true,
+          compatibility: true,
+          fileUrl: true,
+          fileSize: true,
+          previewUrl: true,
+          installGuide: true,
+          downloads: true,
+          originality: true,
+          originalLink: true,
+          license: true,
+          isFree: true,
+          bilibiliUrl: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, avatarUrl: true } },
+        },
       },
     },
   });

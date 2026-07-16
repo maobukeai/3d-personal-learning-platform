@@ -1985,7 +1985,8 @@ model Software {
   linkedLessonId            String?
   linkedLesson              Lesson?                   @relation("LessonSoftwares", fields: [linkedLessonId], references: [id], onDelete: SetNull)
 
-  // B绔欏垎浜笌寮€鍙戣€呭伐鍏?  bilibiliUrl               String?
+  // B站分享与开发者工具
+  bilibiliUrl               String?
   favorites                 SoftwareFavorite[]
   versions                  SoftwareVersion[]
 

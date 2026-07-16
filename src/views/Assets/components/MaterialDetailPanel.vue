@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent } from 'vue';
-import 'md-editor-v3/lib/preview.css';
+import { ref, watch, computed } from 'vue';
 import { logError } from '@/utils/error';
-import { useThemeObserver } from '@/composables/useThemeObserver';
-
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
-
-const { isDark } = useThemeObserver();
+import PublicMarkdown from '@/components/share/PublicMarkdown.vue';
 import {
   CheckCircle2,
   Download,
@@ -344,7 +339,11 @@ watch(
       packageFiles.value = [];
       selectedPreviewUrl.value = null;
       isFilesCollapsed.value = true;
-      fetchPackageFiles(newId);
+      // Public shares should not make their first paint wait for a remote ZIP listing.
+      // The detail view still loads it in the authenticated panel where it is needed.
+      if (!props.inline) {
+        void fetchPackageFiles(newId);
+      }
       fetchComments();
     }
   },
@@ -957,13 +956,12 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
               {{ label('说明', 'Description') }}
             </h4>
             <div class="bg-white/[0.01] border border-white/5 rounded-2xl p-4 overflow-hidden">
-              <MdPreview
-                :model-value="
+              <PublicMarkdown
+                :source="
                   material.description ||
                   label('作者很懒，什么都没有写。', 'No description provided.')
                 "
-                :theme="isDark ? 'dark' : 'light'"
-                class="!bg-transparent !text-[var(--text-secondary)] !text-xs dark:invert-preview"
+                class="!bg-transparent !text-[var(--text-secondary)] !text-xs"
               />
             </div>
           </div>

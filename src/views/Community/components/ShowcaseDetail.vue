@@ -5,10 +5,14 @@ import {
 } from '@/utils/format';
 import { ref, computed, watch, defineAsyncComponent } from 'vue';
 import type { Component } from 'vue';
-import 'md-editor-v3/lib/preview.css';
 import { logError, getApiErrorMessage } from '@/utils/error';
 
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 import {
   Edit3,
   Trash2,

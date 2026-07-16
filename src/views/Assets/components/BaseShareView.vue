@@ -137,7 +137,7 @@ const loadShared = async () => {
   errorMsg.value = '';
   isExpired.value = false;
   try {
-    const res = await api.get(`/api/${props.resourceType}/share/${shareId}?t=${Date.now()}`);
+    const res = await api.get(`/api/${props.resourceType}/share/${shareId}`);
     resource.value = res.data[responseField.value];
     customText.value = res.data.customText;
     if (props.trackExpiresAt) {
@@ -145,7 +145,7 @@ const loadShared = async () => {
     }
 
     // Set dynamic browser tab title
-    document.title = `${res.data[responseField.value].title} | ${systemStore.settings.PLATFORM_NAME || '3D 学习平台'}`;
+    document.title = `${(res.data as any)[responseField.value].title} | ${systemStore.settings.PLATFORM_NAME || '3D 学习平台'}`;
   } catch (error: any) {
     if (error.response?.status === 410) {
       isExpired.value = true;

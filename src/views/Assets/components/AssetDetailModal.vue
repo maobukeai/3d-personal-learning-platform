@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, watch, computed, defineAsyncComponent } from 'vue';
-import 'md-editor-v3/lib/preview.css';
 import { logError } from '@/utils/error';
 import { useThemeObserver } from '@/composables/useThemeObserver';
 
-const MdPreview = defineAsyncComponent(() => import('md-editor-v3').then((m) => m.MdPreview));
+const MdPreview = defineAsyncComponent(() =>
+  import('md-editor-v3').then((m) => {
+    import('md-editor-v3/lib/preview.css');
+    return m.MdPreview;
+  }),
+);
 
 const { isDark } = useThemeObserver();
 import {

@@ -12,7 +12,11 @@ set -Eeuo pipefail
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVER_DIR="$APP_DIR/server"
 WEBSITE_DIR="$APP_DIR/website"
+WEBSITE_OUTPUT_DIR="$WEBSITE_DIR/.output"
+WEBSITE_STAGING_DIR="$WEBSITE_DIR/.output-next"
+WEBSITE_PREVIOUS_DIR="$WEBSITE_DIR/.output-previous"
 PM2_APP_NAME="${PM2_APP_NAME:-3d-lms-api}"
+OFFICIAL_SITE_APP_NAME="${OFFICIAL_SITE_APP_NAME:-3d-lms-official-site}"
 NODE_BUILD_MEMORY_MB="${NODE_BUILD_MEMORY_MB:-1536}"
 SWAP_SIZE="${SWAP_SIZE:-2G}"
 # Skip frontend type-checking by default to keep memory use within the
@@ -90,9 +94,46 @@ build_official_site() {
   npm config set registry https://registry.npmmirror.com
   npm ci --include=dev --no-audit --no-fund
 
-  log "-> Building official site (Nuxt SSR)..."
-  npm run build
-  log "✓ Official site build complete: website/.output"
+  log "-> Building official site (Nuxt SSR) into an isolated staging directory..."
+  rm -rf "$WEBSITE_STAGING_DIR"
+  NITRO_OUTPUT_DIR="$WEBSITE_STAGING_DIR" npm run build
+  if [ ! -f "$WEBSITE_STAGING_DIR/server/index.mjs" ]; then
+    log "Official site build is incomplete: missing $WEBSITE_STAGING_DIR/server/index.mjs"
+    return 1
+  fi
+  log "Official site staging build complete: website/.output-next"
+}
+
+activate_official_site() {
+  if [ ! -d "$WEBSITE_STAGING_DIR" ]; then
+    return
+  fi
+
+  log "-> Activating the prebuilt official site release..."
+  rm -rf "$WEBSITE_PREVIOUS_DIR"
+  if pm2 list | grep -q "$OFFICIAL_SITE_APP_NAME"; then
+    pm2 stop "$OFFICIAL_SITE_APP_NAME"
+  fi
+  if [ -d "$WEBSITE_OUTPUT_DIR" ]; then
+    mv "$WEBSITE_OUTPUT_DIR" "$WEBSITE_PREVIOUS_DIR"
+  fi
+  mv "$WEBSITE_STAGING_DIR" "$WEBSITE_OUTPUT_DIR"
+}
+
+rollback_official_site() {
+  if [ ! -d "$WEBSITE_PREVIOUS_DIR" ]; then
+    return
+  fi
+
+  log "Official site verification failed; restoring the previous build..."
+  pm2 stop "$OFFICIAL_SITE_APP_NAME" >/dev/null 2>&1 || true
+  rm -rf "$WEBSITE_OUTPUT_DIR"
+  mv "$WEBSITE_PREVIOUS_DIR" "$WEBSITE_OUTPUT_DIR"
+  (cd "$APP_DIR" && pm2 startOrReload ecosystem.config.cjs --only "$OFFICIAL_SITE_APP_NAME" --update-env) || true
+}
+
+finalize_official_site() {
+  rm -rf "$WEBSITE_PREVIOUS_DIR"
 }
 
 install_server_dependencies() {
@@ -138,21 +179,28 @@ reload_service() {
 }
 
 verify_service() {
-  log "-> Verifying the API health endpoint..."
+  log "-> Verifying API and official-site health endpoints..."
   local attempts=20
   local delay_seconds=2
-  local health_url="${HEALTHCHECK_URL:-http://127.0.0.1:${PORT:-3001}/health}"
+  local api_health_url="${HEALTHCHECK_URL:-http://127.0.0.1:${PORT:-3001}/health}"
+  local website_health_url="${WEBSITE_HEALTHCHECK_URL:-http://127.0.0.1:${OFFICIAL_SITE_PORT:-3002}/}"
+  local url
 
-  for ((attempt = 1; attempt <= attempts; attempt++)); do
-    if curl --fail --silent --show-error --max-time 5 "$health_url" >/dev/null; then
-      log "API health check passed."
-      return 0
+  for url in "$api_health_url" "$website_health_url"; do
+    local passed=0
+    for ((attempt = 1; attempt <= attempts; attempt++)); do
+      if curl --fail --silent --show-error --max-time 5 "$url" >/dev/null; then
+        log "Health check passed: $url"
+        passed=1
+        break
+      fi
+      sleep "$delay_seconds"
+    done
+    if [ "$passed" -ne 1 ]; then
+      log "Service did not become healthy after $((attempts * delay_seconds)) seconds: $url"
+      return 1
     fi
-    sleep "$delay_seconds"
   done
-
-  log "API did not become healthy after $((attempts * delay_seconds)) seconds: $health_url"
-  return 1
 }
 
 main() {
@@ -188,8 +236,12 @@ main() {
   fi
 
   echo "================================================"
-  reload_service
-  verify_service
+  activate_official_site
+  if ! reload_service || ! verify_service; then
+    rollback_official_site
+    return 1
+  fi
+  finalize_official_site
 
   echo "================================================"
   echo "🎉 部署完成！你的 3D Learning Platform 已经跑起来了！"

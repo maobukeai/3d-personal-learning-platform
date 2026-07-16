@@ -31,6 +31,7 @@ export const readPositiveInt = (value: string | undefined, fallback: number): nu
 
 export const config = {
   PORT: readPositiveInt(process.env.PORT, 3001),
+  HOST: process.env.HOST?.trim() || '0.0.0.0',
   JWT_SECRET: (() => {
     const secret = process.env.JWT_SECRET;
     if (

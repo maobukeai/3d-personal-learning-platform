@@ -671,9 +671,9 @@ const startFastifyInternal = async (): Promise<void> => {
     await fapp.ready();
     logger.info('Fastify server ready for testing');
   } else {
-    const port = config.PORT;
-    await fapp.listen({ port, host: '0.0.0.0' });
-    logger.info(`Fastify server started on port ${port}`);
+    const { HOST: host, PORT: port } = config;
+    await fapp.listen({ port, host });
+    logger.info(`Fastify server started on ${host}:${port}`);
   }
 };
 

@@ -93,3 +93,5 @@ server/scripts/list_functions.ts
 # Website build outputs
 website/.nuxt/
 website/.output/
+website/.output-next/
+website/.output-previous/

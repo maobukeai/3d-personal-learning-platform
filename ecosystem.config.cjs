@@ -13,6 +13,7 @@ module.exports = {
       max_memory_restart: '1G',
       env: {
         NODE_ENV: 'production',
+        HOST: '127.0.0.1',
         PORT: '3001',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
@@ -50,6 +51,8 @@ module.exports = {
       max_memory_restart: '512M',
       env: {
         NODE_ENV: 'production',
+        HOST: '127.0.0.1',
+        NITRO_HOST: '127.0.0.1',
         PORT: '3002',
         // 「进入平台」按钮跳转地址，改成你的主平台正式域名
         NUXT_PUBLIC_APP_BASE: 'https://mao.591595.xyz',

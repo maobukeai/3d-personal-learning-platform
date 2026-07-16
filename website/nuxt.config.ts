@@ -17,6 +17,9 @@ export default defineNuxtConfig({
     },
   },
   nitro: {
+    output: {
+      dir: process.env.NITRO_OUTPUT_DIR || '.output',
+    },
     compressPublicAssets: true,
     routeRules: {
       '/api/**': { proxy: 'http://127.0.0.1:3001/api/**' },

@@ -123,6 +123,9 @@ replace_code() {
       --exclude 'server/.env' \
       --exclude 'node_modules/' \
       --exclude 'server/node_modules/' \
+      --exclude 'website/.output/' \
+      --exclude 'website/.output-next/' \
+      --exclude 'website/.output-previous/' \
       --exclude 'logs/' \
       --exclude 'server/uploads/' \
       "$SRC_DIR/" "$APP_DIR/"

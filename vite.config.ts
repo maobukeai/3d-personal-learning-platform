@@ -102,7 +102,43 @@ export default defineConfig(({ mode }) => {
     // P-6.2: Consolidate Vue ecosystem into a single vendor-vue chunk
     ['vendor-vue', ['vue', '@vue', '@intlify', 'vue-router', 'pinia', 'vue-i18n']],
     // P-6.2: UI component libraries in a single vendor-ui chunk
-    ['vendor-ui', ['radix-vue', 'lucide-vue-next']],
+    [
+      'vendor-ui',
+      [
+        'radix-vue',
+        'lucide-vue-next',
+        '@floating-ui',
+        '@internationalized',
+        '@tanstack',
+        '@vueuse',
+        'aria-hidden',
+        'defu',
+        'fast-deep-equal',
+        'nanoid',
+      ],
+    ],
+    // TipTap and ProseMirror are editor-only. Keeping them out of the generic
+    // fallback chunk prevents the global Radix components from pulling the
+    // entire rich-text editor into the first-page dependency graph.
+    [
+      'tiptap-editor',
+      [
+        '@tiptap',
+        'prosemirror-changeset',
+        'prosemirror-commands',
+        'prosemirror-dropcursor',
+        'prosemirror-gapcursor',
+        'prosemirror-history',
+        'prosemirror-inputrules',
+        'prosemirror-keymap',
+        'prosemirror-model',
+        'prosemirror-schema-list',
+        'prosemirror-state',
+        'prosemirror-tables',
+        'prosemirror-transform',
+        'prosemirror-view',
+      ],
+    ],
     // Keep the full editor isolated from read-only public previews. Public
     // share pages only use `marked`, while authenticated editing can load the
     // CodeMirror-heavy md-editor-v3 stack on demand.

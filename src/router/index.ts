@@ -505,33 +505,45 @@ router.afterEach(() => {
 // Only prefetch auth-required views when the user is already logged in
 router.isReady().then(() => {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-    window.requestIdleCallback(() => {
-      const authStore = useAuthStore();
+    const connection = (
+      navigator as Navigator & {
+        connection?: { effectiveType?: string; saveData?: boolean };
+      }
+    ).connection;
+    const isConstrainedConnection =
+      connection?.saveData === true ||
+      ['slow-2g', '2g', '3g'].includes(connection?.effectiveType || '');
 
-      // Public views — always safe to prefetch
-      const publicPrefetch = [
-        () => import('@/views/Learning/AcademyView.vue'),
-        () => import('@/views/Community/ShowcaseView.vue'),
-        () => import('@/views/Community/ExploreTeamsView.vue'),
-      ];
+    if (isConstrainedConnection) return;
 
-      // Auth-required views — only prefetch if the user is already logged in
-      const authPrefetch = authStore.isAuthenticated
-        ? [
-            () => import('@/views/Dashboard/DashboardView.vue'),
-            () => import('@/views/Assets/ResourceCenterView.vue'),
-            () => import('@/views/Assets/AssetsView.vue'),
-            () => import('@/views/Tasks/TaskBoard.vue'),
-            () => import('@/views/Community/DiscussionsView.vue'),
-            () => import('@/views/Learning/RoadmapsView.vue'),
-            () => import('@/views/Settings/SettingsView.vue'),
-          ]
-        : [];
+    window.setTimeout(() => {
+      window.requestIdleCallback(
+        () => {
+          const authStore = useAuthStore();
 
-      [...publicPrefetch, ...authPrefetch].forEach((load) => {
-        load().catch(() => {});
-      });
-    });
+          // Public views — always safe to prefetch
+          const publicPrefetch = [
+            () => import('@/views/Learning/AcademyView.vue'),
+            () => import('@/views/Community/ShowcaseView.vue'),
+            () => import('@/views/Community/ExploreTeamsView.vue'),
+          ];
+
+          // Auth-required views — only prefetch if the user is already logged in
+          const authPrefetch = authStore.isAuthenticated
+            ? [
+                () => import('@/views/Assets/ResourceCenterView.vue'),
+                () => import('@/views/Assets/AssetsView.vue'),
+                () => import('@/views/Tasks/TaskBoard.vue'),
+              ]
+            : [];
+
+          [...publicPrefetch, ...authPrefetch].forEach((load) => {
+            load().catch(() => {});
+          });
+        },
+        { timeout: 4000 },
+      );
+    }, 8000);
   }
 });
 

@@ -1,0 +1,11 @@
+/var/www/3d-lms/logs/*.log {
+    daily
+    maxsize 10M
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+}

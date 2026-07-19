@@ -1,7 +1,12 @@
 import { logger } from '../utils/logger';
-import axios, { type AxiosError, type AxiosProxyConfig } from 'axios';
+import axios from 'axios';
 import prisma from './prisma';
 import { decryptSecret, encryptSecret } from '../utils/secret-field';
+import {
+  resolveAxiosErrorMessage,
+  resolveAxiosErrorStatus,
+  parseProxy,
+} from './microsoftGraph.helper';
 
 interface SendMailParams {
   to: string;
@@ -9,57 +14,7 @@ interface SendMailParams {
   content: string;
 }
 
-/** Extracts a human-readable error message from an Axios error. */
-const resolveAxiosErrorMessage = (error: unknown, fallback: string): string => {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const axiosErr = error as AxiosError<{
-      error_description?: string;
-      error?: { message?: string };
-    }>;
-    const desc = axiosErr.response?.data?.error_description;
-    if (desc) return desc;
-    const msg = axiosErr.response?.data?.error?.message;
-    if (msg) return msg;
-  }
-  if (error instanceof Error) return error.message;
-  return String(error) || fallback;
-};
-
-/** Extracts the HTTP status code from an Axios error, if available. */
-const resolveAxiosErrorStatus = (error: unknown): number | undefined => {
-  if (error && typeof error === 'object' && 'response' in error) {
-    const axiosErr = error as AxiosError;
-    return axiosErr.response?.status;
-  }
-  return undefined;
-};
-
 export class MicrosoftGraphService {
-  /**
-   * Helper to parse a proxy URL string into an Axios-compatible proxy configuration object
-   */
-  private static parseProxy(proxyUrl: string | null): AxiosProxyConfig | undefined {
-    if (!proxyUrl) return undefined;
-    try {
-      const url = new URL(proxyUrl);
-      const config: AxiosProxyConfig = {
-        protocol: url.protocol.replace(':', ''),
-        host: url.hostname,
-        port: parseInt(url.port, 10) || (url.protocol === 'https:' ? 443 : 80),
-      };
-      if (url.username) {
-        config.auth = {
-          username: decodeURIComponent(url.username),
-          password: decodeURIComponent(url.password || ''),
-        };
-      }
-      return config;
-    } catch (e) {
-      logger.error('MicrosoftGraphService: Error parsing proxy URL', e);
-      return undefined;
-    }
-  }
-
   /**
    * Refreshes the Access Token for a Microsoft Account using its Client ID and Refresh Token
    */
@@ -79,7 +34,7 @@ export class MicrosoftGraphService {
       params.append('refresh_token', decryptSecret(account.refreshToken) || account.refreshToken);
       params.append('scope', 'https://graph.microsoft.com/.default');
 
-      const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account.proxy));
 
       const response = await axios.post(
         'https://login.microsoftonline.com/common/oauth2/v2.0/token',
@@ -122,7 +77,7 @@ export class MicrosoftGraphService {
     } catch (error) {
       const responseStatus = resolveAxiosErrorStatus(error);
       const errorMsg = resolveAxiosErrorMessage(error, 'Unknown error refreshing token');
-      logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg);
+      logger.error(`MicrosoftGraphService: Refresh failed for ${account.email}:`, errorMsg, error);
 
       const isOAuthError =
         responseStatus !== undefined && responseStatus >= 400 && responseStatus < 500;
@@ -188,7 +143,7 @@ export class MicrosoftGraphService {
 
     try {
       const token = await this.getValidAccessToken(accountId);
-      const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account.proxy));
 
       // Use /me/mailFolders instead of /me, as personal accounts (Outlook/Hotmail) can return 401 UnknownError on /me
       const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
@@ -213,7 +168,11 @@ export class MicrosoftGraphService {
       return response.data as Record<string, unknown>;
     } catch (error) {
       const errorMsg = resolveAxiosErrorMessage(error, 'Connection test failed');
-      logger.error(`MicrosoftGraphService: Test connection failed for ${account.email}:`, errorMsg);
+      logger.error(
+        `MicrosoftGraphService: Test connection failed for ${account.email}:`,
+        errorMsg,
+        error,
+      );
 
       await prisma.microsoftEmailAccount.update({
         where: { id: accountId },
@@ -233,7 +192,7 @@ export class MicrosoftGraphService {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       const response = await axios.get('https://graph.microsoft.com/v1.0/me/mailFolders', {
         headers: { Authorization: `Bearer ${token}` },
@@ -244,6 +203,7 @@ export class MicrosoftGraphService {
       logger.error(
         `MicrosoftGraphService: Fetch folders failed for ${accountId}:`,
         error instanceof Error ? error.message : error,
+        error,
       );
       throw new Error(resolveAxiosErrorMessage(error, 'Failed to fetch folders'));
     }
@@ -260,7 +220,7 @@ export class MicrosoftGraphService {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       // Fetch headers and basic body preview
       const response = await axios.get(
@@ -279,6 +239,7 @@ export class MicrosoftGraphService {
       logger.error(
         `MicrosoftGraphService: Fetch messages failed for folder ${folderId} inside ${accountId}:`,
         error instanceof Error ? error.message : String(error),
+        error,
       );
       throw new Error(resolveAxiosErrorMessage(error, 'Failed to fetch messages'));
     }
@@ -295,7 +256,7 @@ export class MicrosoftGraphService {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       await axios.patch(
         `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
@@ -312,6 +273,7 @@ export class MicrosoftGraphService {
       logger.error(
         `MicrosoftGraphService: Mark message read failed for message ${messageId}:`,
         error instanceof Error ? error.message : String(error),
+        error,
       );
       throw new Error(resolveAxiosErrorMessage(error, 'Failed to mark message read'));
     }
@@ -324,7 +286,7 @@ export class MicrosoftGraphService {
     try {
       const token = await this.getValidAccessToken(accountId);
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
-      const proxyConfig = this.parseProxy(decryptSecret(account?.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       // 1. Fetch message details to find its parentFolderId
       const msgRes = await axios.get(
@@ -370,6 +332,7 @@ export class MicrosoftGraphService {
       logger.error(
         `MicrosoftGraphService: Delete message failed for message ${messageId}:`,
         error instanceof Error ? error.message : String(error),
+        error,
       );
       throw new Error(resolveAxiosErrorMessage(error, 'Failed to delete message'));
     }
@@ -439,7 +402,7 @@ export class MicrosoftGraphService {
 
     try {
       const token = await this.getValidAccessToken(accountId);
-      const proxyConfig = this.parseProxy(decryptSecret(account.proxy));
+      const proxyConfig = parseProxy(decryptSecret(account.proxy));
 
       await axios.post('https://graph.microsoft.com/v1.0/me/sendMail', emailPayload, {
         headers: {
@@ -461,7 +424,11 @@ export class MicrosoftGraphService {
       });
     } catch (error) {
       const errorMsg = resolveAxiosErrorMessage(error, 'Failed to send mail');
-      logger.error(`MicrosoftGraphService: Send mail failed for ${account.email}:`, errorMsg);
+      logger.error(
+        `MicrosoftGraphService: Send mail failed for ${account.email}:`,
+        errorMsg,
+        error,
+      );
       throw new Error(errorMsg);
     }
   }

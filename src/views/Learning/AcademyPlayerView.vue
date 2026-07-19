@@ -25,7 +25,7 @@ import { logError } from '@/utils/error';
 
 const ModelViewer = defineAsyncComponent(() => import('@/components/ModelViewer.vue'));
 
-import SafeHtml from '@/components/SafeHtml.vue';
+import TutorialRichContent from '@/components/TutorialRichContent.vue';
 import Modal from '@/components/ui/Modal.vue';
 
 interface ModelHotspot {
@@ -360,7 +360,7 @@ onUnmounted(() => {
     style="background-color: var(--bg-app); color: var(--text-primary)"
   >
     <!-- Main Player Area -->
-    <div class="flex-1 flex flex-col relative overflow-hidden">
+    <div class="flex-1 min-h-0 min-w-0 flex flex-col relative overflow-hidden">
       <!-- Player Top Nav -->
       <div
         class="mobile-row h-12 flex items-center justify-between px-3 sm:px-4.5 border-b backdrop-blur-md z-20 transition-colors duration-300"
@@ -419,7 +419,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Content Renderer -->
-      <div class="flex-1 relative bg-black flex items-center justify-center">
+      <div class="flex-1 min-h-0 relative bg-black flex items-center justify-center">
         <div v-if="isLoading" class="flex flex-col items-center gap-4">
           <div
             class="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"
@@ -541,7 +541,7 @@ onUnmounted(() => {
                 class="prose dark:prose-invert prose-sm max-w-none leading-relaxed transition-colors duration-300"
                 style="color: var(--text-secondary)"
               >
-                <SafeHtml :html="currentLesson.content || ''" />
+                <TutorialRichContent :html="currentLesson.content || ''" />
               </div>
               <div class="pt-6 flex justify-center">
                 <button

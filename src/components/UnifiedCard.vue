@@ -234,6 +234,7 @@ const compatibilityInfo = computed(() => {
         :src="previewUrl"
         :alt="title"
         loading="lazy"
+        decoding="async"
         class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
       />
       <div v-else class="flex flex-col items-center justify-center gap-1.5 text-slate-400">

@@ -50,6 +50,8 @@ const emit = defineEmits<{
             v-if="asset.thumbnail"
             :src="getAssetUrl(asset.thumbnail)"
             :alt="asset.title"
+            loading="lazy"
+            decoding="async"
             class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <ImageIcon v-else class="h-6 w-6 text-slate-400" />

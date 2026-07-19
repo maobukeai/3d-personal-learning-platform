@@ -6,6 +6,7 @@ import { AppError } from '../../utils/error';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
 import { fastifyAuthenticate, type SafeUser } from '../auth/fastify-auth';
 import { lessonSchema } from '../../utils/schemas';
+import { deleteTutorialLessonWithImages } from '../../services/tutorial-content.service';
 
 /**
  * Fastify 课程章节（Lesson）路由（铁律六·1 渐进式迁移）。
@@ -216,7 +217,7 @@ export const registerLessonRoutes = (app: FastifyInstance): void => {
         deleteCloudOrLocalFileByUrl(lessonExists.videoUrl).catch(() => {});
       }
 
-      await prisma.lesson.delete({ where: { id } });
+      await deleteTutorialLessonWithImages(id);
       return reply.send({ message: 'Lesson deleted successfully' });
     },
   );

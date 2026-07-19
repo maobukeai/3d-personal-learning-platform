@@ -1,0 +1,1 @@
+ALTER TABLE `Lesson` MODIFY `content` LONGTEXT NULL;

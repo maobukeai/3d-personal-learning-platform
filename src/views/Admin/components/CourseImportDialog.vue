@@ -8,6 +8,7 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import type { Category, Lesson } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
+import TutorialPackageImportPanel from './TutorialPackageImportPanel.vue';
 
 interface ParsedCourseMetadata {
   title: string;
@@ -29,12 +30,14 @@ const externalUrl = ref('');
 const isParsing = ref(false);
 const parsedMetadata = ref<ParsedCourseMetadata | null>(null);
 const selectedCategoryId = ref('');
+const activeMode = ref<'tutorial' | 'external'>('tutorial');
 
 const open = () => {
   externalUrl.value = '';
   parsedMetadata.value = null;
   selectedCategoryId.value = '';
   isParsing.value = false;
+  activeMode.value = 'tutorial';
   visible.value = true;
 };
 
@@ -85,7 +88,28 @@ defineExpose({ open });
     size="lg"
     @close="visible = false"
   >
-    <div class="space-y-6 py-1">
+    <div class="mb-5 grid grid-cols-2 gap-2 rounded-xl p-1" style="background: var(--bg-app)">
+      <button
+        type="button"
+        class="rounded-lg px-3 py-2 text-sm font-bold transition-colors"
+        :class="activeMode === 'tutorial' ? 'bg-accent text-white' : 'text-slate-400'"
+        @click="activeMode = 'tutorial'"
+      >
+        ZIP 教程包
+      </button>
+      <button
+        type="button"
+        class="rounded-lg px-3 py-2 text-sm font-bold transition-colors"
+        :class="activeMode === 'external' ? 'bg-accent text-white' : 'text-slate-400'"
+        @click="activeMode = 'external'"
+      >
+        外部链接
+      </button>
+    </div>
+
+    <TutorialPackageImportPanel v-if="activeMode === 'tutorial'" @saved="emit('saved')" />
+
+    <div v-else class="space-y-6 py-1">
       <div>
         <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">{{
           $t('admin.course_or_project_link')
@@ -175,7 +199,7 @@ defineExpose({ open });
       </div>
     </div>
 
-    <template #footer>
+    <template v-if="activeMode === 'external'" #footer>
       <div class="flex items-center gap-3">
         <button
           type="button"

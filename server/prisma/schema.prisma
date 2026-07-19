@@ -464,7 +464,7 @@ model CourseCategory {
 model Lesson {
   id                        String                    @id @default(uuid())
   title                     String
-  content                   String?                   // Markdown or HTML
+  content                   String?                   @db.LongText // Markdown or HTML
   videoUrl                  String?
   hotspots                  String?                   // JSON string for 3D hotspots
   sceneConfig               String?                   // JSON string for environment, lighting, post-processing
@@ -478,11 +478,51 @@ model Lesson {
   linkedMaterials           Material[]                @relation("LessonMaterials")
   linkedPlugins             Plugin[]                  @relation("LessonPlugins")
   linkedSoftwares           Software[]                @relation("LessonSoftwares")
+  tutorialSections          TutorialSection[]
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
 
   @@index([courseId])
   @@index([courseId, order])
+}
+
+model TutorialSection {
+  id                        String                    @id @default(uuid())
+  title                     String
+  startTime                 Float                     @default(0)
+  endTime                   Float                     @default(0)
+  order                     Int
+  lessonId                  String
+  lesson                    Lesson                    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  steps                     TutorialStep[]
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  @@index([lessonId, order])
+}
+
+model TutorialStep {
+  id                        String                    @id @default(uuid())
+  title                     String
+  description               String                    @db.Text
+  startTime                 Float                     @default(0)
+  endTime                   Float                     @default(0)
+  screenshotTime            Float?
+  order                     Int
+  shortcuts                 Json?
+  parameters                Json?
+  warnings                  Json?
+  imageUrl                  String?                   @db.Text
+  imageKey                  String?
+  imageSize                 Int?
+  storageConfigId           String?
+  sectionId                 String
+  section                   TutorialSection           @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+
+  @@index([sectionId, order])
+  @@index([storageConfigId])
 }
 
 model Enrollment {

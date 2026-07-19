@@ -116,11 +116,21 @@ const handleClear = () => {
           error
             ? '!border-red-500/50 focus:!ring-red-500/20 focus:!border-red-500'
             : 'focus:ring-2 focus:ring-accent/20 focus:border-accent',
-          $slots.prefix || (icon && iconPosition === 'left') ? '!pl-10' : '!pl-4',
+          $slots.prefix || (icon && iconPosition === 'left')
+            ? !inputClass.includes('pl-')
+              ? '!pl-10'
+              : ''
+            : !inputClass.includes('pl-')
+              ? '!pl-4'
+              : '',
           $slots.suffix || type === 'password' || clearable || (icon && iconPosition === 'right')
-            ? '!pr-12'
-            : '!pr-4',
-          '!py-3',
+            ? !inputClass.includes('pr-')
+              ? '!pr-12'
+              : ''
+            : !inputClass.includes('pr-')
+              ? '!pr-4'
+              : '',
+          !inputClass.includes('py-') ? '!py-3' : '',
           inputClass,
         ]"
         @input="handleInput"

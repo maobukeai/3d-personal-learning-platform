@@ -2715,13 +2715,7 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
       config: { rateLimit: { max: 120, timeWindow: '1 minute' } },
     },
     async (request, reply) => {
-      const {
-        filename,
-        key,
-        size,
-        mimetype: _mimetype,
-        fieldname,
-      } = request.body as {
+      const { filename, key, size, mimetype, fieldname } = request.body as {
         filename: string;
         key: string;
         size: number | string;
@@ -2736,7 +2730,7 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
         if (!active) {
           return reply.status(400).send({ error: '未启用云存储配置' });
         }
-        const { raw } = active;
+        const { raw, config } = active;
 
         const allowed = await checkQuota(raw, numericSize);
         if (!allowed) {
@@ -2744,6 +2738,18 @@ export const registerResourceRoutes = (app: FastifyInstance): void => {
         }
 
         await incrementConfigUsedBytes(raw.id, numericSize);
+
+        try {
+          await storageService.applyCacheControlMetadata(config, key, mimetype);
+        } catch (cacheMetadataError) {
+          logger.warn(
+            `Unable to apply R2 cache metadata for ${key}: ${
+              cacheMetadataError instanceof Error
+                ? cacheMetadataError.message
+                : String(cacheMetadataError)
+            }`,
+          );
+        }
 
         const publicUrlBase = raw.publicUrl.replace(/\/$/, '');
         const fileUrl = `${publicUrlBase}/${key}`;

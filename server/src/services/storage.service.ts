@@ -26,6 +26,7 @@ import {
   resolveCloudflareAccountId,
   resolveCloudflareApiToken,
 } from '../utils/cloudflare-r2';
+import { getR2ObjectCacheControl, resolveR2ContentType } from '../utils/r2-cache-control';
 
 // Re-export for backward compatibility — consumers should import from utils/crypto directly.
 export { decryptSecretIfNeeded, ENCRYPTED_VALUE_RE };
@@ -110,10 +111,12 @@ export class StorageService {
     mimetype: string,
   ): Promise<string> {
     const client = this.getS3Client(config);
+    const resolvedContentType = resolveR2ContentType(key, mimetype);
     const command = new CreateMultipartUploadCommand({
       Bucket: config.bucketName,
       Key: key,
-      ContentType: mimetype,
+      ContentType: resolvedContentType,
+      CacheControl: getR2ObjectCacheControl(key, resolvedContentType),
     });
     const res = await client.send(command);
     return res.UploadId!;
@@ -207,6 +210,44 @@ export class StorageService {
       eTag: response.ETag,
       status: range ? 206 : 200,
     };
+  }
+
+  /**
+   * Rewrites an object's HTTP cache metadata without downloading it through the app server.
+   * R2 performs the copy inside the bucket, so large models never traverse the Hong Kong host.
+   */
+  public async applyCacheControlMetadata(
+    config: StorageConfigData,
+    key: string,
+    contentType?: string,
+  ): Promise<void> {
+    const client = this.getS3Client(config);
+    const head = await client.send(
+      new HeadObjectCommand({
+        Bucket: config.bucketName,
+        Key: key,
+      }),
+    );
+    const resolvedContentType = resolveR2ContentType(key, contentType || head.ContentType);
+    const encodedKey = key
+      .split('/')
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+
+    await client.send(
+      new CopyObjectCommand({
+        Bucket: config.bucketName,
+        Key: key,
+        CopySource: `${config.bucketName}/${encodedKey}`,
+        MetadataDirective: 'REPLACE',
+        CacheControl: getR2ObjectCacheControl(key, resolvedContentType),
+        ContentType: resolvedContentType,
+        ContentDisposition: head.ContentDisposition,
+        ContentEncoding: head.ContentEncoding,
+        ContentLanguage: head.ContentLanguage,
+        Metadata: head.Metadata,
+      }),
+    );
   }
 
   /**
@@ -871,6 +912,7 @@ export class StorageService {
         Key: key,
         Body: jsonContent,
         ContentType: 'application/json',
+        CacheControl: getR2ObjectCacheControl(key, 'application/json'),
       });
       await client.send(command);
       let baseUrl = config.publicUrl.endsWith('/')
@@ -898,11 +940,13 @@ export class StorageService {
   ): Promise<string> {
     try {
       const client = this.getS3Client(config);
+      const resolvedContentType = resolveR2ContentType(key, mimetype);
       const command = new PutObjectCommand({
         Bucket: config.bucketName,
         Key: key,
         Body: buffer,
-        ContentType: mimetype,
+        ContentType: resolvedContentType,
+        CacheControl: getR2ObjectCacheControl(key, resolvedContentType),
       });
       await client.send(command);
       let baseUrl = config.publicUrl.endsWith('/')

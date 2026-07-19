@@ -104,6 +104,8 @@ function getDifficultyClass(diff?: string) {
             <img
               :src="getAssetUrl(course.thumbnail) || defaultCourseCover"
               :alt="course.title"
+              loading="lazy"
+              decoding="async"
               class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             />
             <div
@@ -194,6 +196,8 @@ function getDifficultyClass(diff?: string) {
             <img
               :src="getAssetUrl(res.previewUrl) || defaultResourceCovers.asset"
               :alt="res.title"
+              loading="lazy"
+              decoding="async"
               class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             />
             <div
@@ -273,6 +277,8 @@ function getDifficultyClass(diff?: string) {
             <img
               :src="getAssetUrl(res.previewUrl) || defaultResourceCovers.material"
               :alt="res.title"
+              loading="lazy"
+              decoding="async"
               class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             />
             <div
@@ -350,6 +356,8 @@ function getDifficultyClass(diff?: string) {
             <img
               :src="getAssetUrl(res.previewUrl) || defaultResourceCovers.plugin"
               :alt="res.title"
+              loading="lazy"
+              decoding="async"
               class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             />
             <div
@@ -429,6 +437,8 @@ function getDifficultyClass(diff?: string) {
             <img
               :src="getAssetUrl(res.previewUrl) || defaultResourceCovers.software"
               :alt="res.title"
+              loading="lazy"
+              decoding="async"
               class="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
             />
             <div

@@ -9,6 +9,11 @@ import { AppError } from '../../utils/error';
 import { createPaginationMeta, getPaginationParams } from '../../utils/pagination';
 import { streamLLMChat, AIServiceConfig, AIChatMessage } from '../../services/ai.service';
 import { getAIModelById, settingsService } from '../../services/settings.service';
+import { invalidatePublicCache, PUBLIC_CACHE_KEYS } from '../../utils/public-cache';
+import {
+  deleteCoursesWithTutorialImages,
+  deleteTutorialLessonWithImages,
+} from '../../services/tutorial-content.service';
 
 type AdminRequest = FastifyRequest & {
   body: any;
@@ -77,6 +82,7 @@ export const createCourseWithLessons = async (req: AdminRequest, reply: FastifyR
       });
     });
 
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.status(201).send(result);
   } catch (error) {
     throw error;
@@ -107,6 +113,7 @@ export const createCourseCategory = async (req: AdminRequest, reply: FastifyRepl
     const category = await prisma.courseCategory.create({
       data: { name, order: order ? parseInt(order) : 0 },
     });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.status(201).send(category);
   } catch (error) {
     throw error;
@@ -121,6 +128,7 @@ export const updateCourseCategory = async (req: AdminRequest, reply: FastifyRepl
       where: { id },
       data: { name, order: order !== undefined ? parseInt(order) : undefined },
     });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.send(category);
   } catch (error) {
     throw error;
@@ -131,6 +139,7 @@ export const deleteCourseCategory = async (req: AdminRequest, reply: FastifyRepl
   const id = req.params.id as string;
   try {
     await prisma.courseCategory.delete({ where: { id } });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.send({ message: 'Category deleted successfully' });
   } catch (error) {
     throw error;
@@ -178,6 +187,7 @@ export const createCourse = async (req: AdminRequest, reply: FastifyReply) => {
         status: status || 'PUBLISHED',
       },
     });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.status(201).send(course);
   } catch (error) {
     throw error;
@@ -192,6 +202,7 @@ export const updateCourse = async (req: AdminRequest, reply: FastifyReply) => {
       where: { id },
       data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
     });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.send(course);
   } catch (error) {
     throw error;
@@ -201,7 +212,8 @@ export const updateCourse = async (req: AdminRequest, reply: FastifyReply) => {
 export const deleteCourse = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
-    await prisma.course.delete({ where: { id } });
+    await deleteCoursesWithTutorialImages([id]);
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
     reply.send({ message: 'Course deleted successfully' });
   } catch (error) {
     throw error;
@@ -236,9 +248,8 @@ export const batchDeleteCourses = async (req: AdminRequest, reply: FastifyReply)
       throw new AppError('Course ids are required', 400);
     }
 
-    const result = await prisma.course.deleteMany({
-      where: { id: { in: ids } },
-    });
+    const result = await deleteCoursesWithTutorialImages(ids);
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.courseCategories);
 
     reply.send({ deleted: result.count });
   } catch (error) {
@@ -303,7 +314,7 @@ export const updateLesson = async (req: AdminRequest, reply: FastifyReply) => {
 export const deleteLesson = async (req: AdminRequest, reply: FastifyReply) => {
   const id = req.params.id as string;
   try {
-    await prisma.lesson.delete({ where: { id } });
+    await deleteTutorialLessonWithImages(id);
     reply.send({ message: 'Lesson deleted successfully' });
   } catch (error) {
     throw error;

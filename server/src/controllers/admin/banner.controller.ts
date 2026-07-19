@@ -3,6 +3,7 @@ import prisma from '../../services/prisma';
 import { AppError } from '../../utils/error';
 import { logger } from '../../utils/logger';
 import { deleteCloudOrLocalFileByUrl } from '../../utils/file';
+import { invalidatePublicCache, PUBLIC_CACHE_KEYS } from '../../utils/public-cache';
 
 type AdminRequest = FastifyRequest & {
   body: any;
@@ -46,6 +47,7 @@ export const createBanner = async (req: AdminRequest, reply: FastifyReply) => {
         isActive: isActive !== undefined ? Boolean(isActive) : true,
       },
     });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.activeBanners);
     reply.status(201).send(banner);
   } catch (error) {
     throw error;
@@ -84,6 +86,7 @@ export const updateBanner = async (req: AdminRequest, reply: FastifyReply) => {
       },
     });
 
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.activeBanners);
     reply.send(banner);
   } catch (error) {
     throw error;
@@ -107,6 +110,7 @@ export const deleteBanner = async (req: AdminRequest, reply: FastifyReply) => {
     }
 
     await prisma.banner.delete({ where: { id } });
+    await invalidatePublicCache(PUBLIC_CACHE_KEYS.activeBanners);
     reply.send({ message: 'Banner deleted successfully' });
   } catch (error) {
     throw error;

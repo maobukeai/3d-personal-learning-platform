@@ -23,6 +23,8 @@ import AiModelPoolToolbar from './AiModelPoolToolbar.vue';
 import AiBatchActionBar from './AiBatchActionBar.vue';
 import AiModelFamilyGroups from './AiModelFamilyGroups.vue';
 import AiDisabledGroups from './AiDisabledGroups.vue';
+import { useAiModelGroupsState } from './useAiModelGroupsState';
+
 import AiModelPoolFooter from './AiModelPoolFooter.vue';
 import AiModelFetchModal from './AiModelFetchModal.vue';
 import CategoryFormDialog from './CategoryFormDialog.vue';
@@ -510,82 +512,19 @@ const submitCategoryDialog = () => {
   categoryDialog.value.show = false;
 };
 
-const disabledGroupKeys = ref<string[]>([]);
-
-const parseDisabledGroupKeys = (value: unknown): string[] => {
-  if (Array.isArray(value)) return value.map(String).filter(Boolean);
-  if (typeof value !== 'string' || !value.trim()) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-};
-
-const restoreDisabledGroups = () => {
-  const persisted = parseDisabledGroupKeys(localSettings.AI_MODEL_DISABLED_GROUPS);
-  const legacy = parseDisabledGroupKeys(localStorage.getItem('ai_model_disabled_groups'));
-  disabledGroupKeys.value = persisted.length > 0 ? persisted : legacy;
-};
-
-const toggleGroupEnabled = (key: string, enabled: boolean) => {
-  if (enabled) {
-    disabledGroupKeys.value = disabledGroupKeys.value.filter((k) => k !== key);
-    const group = modelFamilyGroups.value.find((g) => g.key === key);
-    if (group) {
-      group.models.forEach((model) => {
-        model.enabled = true;
-      });
-    }
-  } else {
-    if (!disabledGroupKeys.value.includes(key)) {
-      disabledGroupKeys.value.push(key);
-    }
-    const group = modelFamilyGroups.value.find((g) => g.key === key);
-    if (group) {
-      group.models.forEach((model) => {
-        model.enabled = false;
-      });
-    }
-  }
-  syncAiModelsToSettings();
-};
-
-watch(
+const {
   disabledGroupKeys,
-  (newKeys) => {
-    localStorage.setItem('ai_model_disabled_groups', JSON.stringify(newKeys));
-    localSettings.AI_MODEL_DISABLED_GROUPS = JSON.stringify(newKeys);
-  },
-  { deep: true },
+  expandedModelFamilyGroups,
+  parseDisabledGroupKeys,
+  restoreDisabledGroups,
+  toggleGroupEnabled,
+  toggleModelFamilyGroup,
+  expandGroupKey,
+} = useAiModelGroupsState(
+  localSettings,
+  computed(() => modelFamilyGroups.value),
+  () => syncAiModelsToSettings(),
 );
-
-watch(
-  () => localSettings.AI_MODEL_DISABLED_GROUPS,
-  (value) => {
-    const incoming = parseDisabledGroupKeys(value);
-    if (JSON.stringify(incoming) !== JSON.stringify(disabledGroupKeys.value)) {
-      disabledGroupKeys.value = incoming;
-    }
-  },
-);
-
-const LOCAL_STORAGE_KEY = 'admin_ai_expanded_family_groups';
-const expandedModelFamilyGroups = ref<string[]>(
-  JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]'),
-);
-
-const toggleModelFamilyGroup = (key: string) => {
-  if (expandedModelFamilyGroups.value.includes(key)) {
-    expandedModelFamilyGroups.value = expandedModelFamilyGroups.value.filter(
-      (item) => item !== key,
-    );
-  } else {
-    expandedModelFamilyGroups.value.push(key);
-  }
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(expandedModelFamilyGroups.value));
-};
 
 const modelFamilyGroups = computed<ModelFamilyGroup[]>(() => {
   const groups = new Map<string, AiModelConfig[]>();

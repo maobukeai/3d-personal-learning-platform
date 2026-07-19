@@ -15,11 +15,18 @@ import redisService from '../services/redis.service';
 import { deleteCloudOrLocalFileByUrl } from '../utils/file';
 import { withRowLock } from '../utils/dbLock';
 import { withRedlock } from '../utils/withRedlock';
+import {
+  applyShortPublicCacheHeaders,
+  getOrSetPublicCache,
+  PUBLIC_CACHE_KEYS,
+} from '../utils/public-cache';
+import { deleteCoursesWithTutorialImages } from '../services/tutorial-content.service';
 
 export const getAllCourses = async (
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> => {
+  applyShortPublicCacheHeaders(reply);
   const { categoryId, search, difficulty, sort } = request.query as {
     categoryId?: string;
     search?: string;
@@ -83,12 +90,15 @@ export const getCourseCategories = async (
   reply: FastifyReply,
 ): Promise<void> => {
   try {
-    const categories = await prisma.courseCategory.findMany({
-      orderBy: { order: 'asc' },
-      include: {
-        _count: { select: { courses: true } },
-      },
-    });
+    applyShortPublicCacheHeaders(reply);
+    const categories = await getOrSetPublicCache(PUBLIC_CACHE_KEYS.courseCategories, () =>
+      prisma.courseCategory.findMany({
+        orderBy: { order: 'asc' },
+        include: {
+          _count: { select: { courses: true } },
+        },
+      }),
+    );
     reply.send(categories);
   } catch (error) {
     throw error;
@@ -354,7 +364,7 @@ export const deleteCourse = async (request: FastifyRequest, reply: FastifyReply)
       }
     }
 
-    await prisma.course.delete({ where: { id } });
+    await deleteCoursesWithTutorialImages([id]);
 
     await auditService.log({
       userId: request.userId as string,

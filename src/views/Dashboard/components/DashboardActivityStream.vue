@@ -35,7 +35,13 @@ const emit = defineEmits<{
           @click="emit('navigate', feed.route)"
         >
           <span class="feed-visual">
-            <img v-if="feed.imageUrl" :src="getAssetUrl(feed.imageUrl)" :alt="feed.title" />
+            <img
+              v-if="feed.imageUrl"
+              :src="getAssetUrl(feed.imageUrl)"
+              :alt="feed.title"
+              loading="lazy"
+              decoding="async"
+            />
             <UserAvatar v-else-if="feed.user" :user="feed.user" size="xs" />
             <component :is="feed.icon" v-else class="h-4 w-4" />
           </span>

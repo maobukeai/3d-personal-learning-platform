@@ -74,6 +74,8 @@ const emit = defineEmits<{
       <img
         v-if="team.avatarUrl"
         :src="team.avatarUrl"
+        loading="lazy"
+        decoding="async"
         class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         alt="Team Cover"
       />

@@ -1,23 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-  Mail,
-  Plus,
-  RefreshCw,
-  Trash2,
-  Inbox,
-  Send,
-  AlertTriangle,
-  FileText,
-  ChevronRight,
-  Globe,
-  CheckCircle,
-  Edit,
-  Copy,
-  Shield,
-} from 'lucide-vue-next';
+import { Mail, Plus, RefreshCw, Trash2, Shield, Search } from 'lucide-vue-next';
 import type { EmailAccount } from './email-types';
+import EmailAccountCard from './EmailAccountCard.vue';
+import EmailFolderList from './EmailFolderList.vue';
+import Input from '@/components/ui/Input.vue';
 
 interface Props {
   accounts: EmailAccount[];
@@ -32,12 +20,11 @@ interface Props {
 
 const props = defineProps<Props>();
 
-defineEmits<{
+const emit = defineEmits<{
   (e: 'refresh'): void;
   (e: 'openImport'): void;
   (e: 'openAdd'): void;
   (e: 'toggleMultiSelect'): void;
-  (e: 'toggleSelectAll'): void;
   (e: 'toggleSelectAccount', id: string): void;
   (e: 'batchTest'): void;
   (e: 'batchDelete'): void;
@@ -49,19 +36,35 @@ defineEmits<{
   (e: 'copyEmail', email: string): void;
 }>();
 
-const { t, locale } = useI18n();
+const { locale } = useI18n();
 
-const foldersList = [
-  { id: 'inbox', name: t('tools.email.folders.inbox'), icon: Inbox },
-  { id: 'sentitems', name: t('tools.email.folders.sentitems'), icon: Send },
-  { id: 'drafts', name: t('tools.email.folders.drafts'), icon: FileText },
-  { id: 'junkemail', name: t('tools.email.folders.junkemail'), icon: AlertTriangle },
-  { id: 'deleteditems', name: t('tools.email.folders.deleteditems'), icon: Trash2 },
-];
+// Search Query for Email Accounts
+const searchQuery = ref('');
 
-const isAllSelected = computed(() => {
-  return props.accounts.length > 0 && props.selectedAccountIds.length === props.accounts.length;
+const filteredAccounts = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return props.accounts;
+  return props.accounts.filter((acc) => acc.email.toLowerCase().includes(query));
 });
+
+// Check if all filtered accounts are selected
+const isAllSelected = computed(() => {
+  if (filteredAccounts.value.length === 0) return false;
+  return filteredAccounts.value.every((acc) => props.selectedAccountIds.includes(acc.id));
+});
+
+// Toggle select all only for filtered accounts
+const toggleSelectAllFiltered = () => {
+  const allSelected = isAllSelected.value;
+  filteredAccounts.value.forEach((acc) => {
+    const isSelected = props.selectedAccountIds.includes(acc.id);
+    if (allSelected && isSelected) {
+      emit('toggleSelectAccount', acc.id);
+    } else if (!allSelected && !isSelected) {
+      emit('toggleSelectAccount', acc.id);
+    }
+  });
+};
 
 const copyTooltip = computed(() => {
   return locale.value === 'en-US' ? 'Copy Email' : '复制邮箱';
@@ -112,6 +115,19 @@ const copyTooltip = computed(() => {
           <Plus class="w-3.5 h-3.5" /> {{ $t('tools.email.add_account') }}
         </button>
       </div>
+
+      <!-- Search Input -->
+      <div v-if="accounts.length > 0" class="mt-1">
+        <Input
+          v-model="searchQuery"
+          :placeholder="locale === 'en-US' ? 'Search email...' : '搜索邮箱...'"
+          :icon="Search"
+          icon-position="left"
+          clearable
+          :glass="false"
+          input-class="!py-1.5 !pl-8.5 !pr-9 text-xs font-semibold"
+        />
+      </div>
     </div>
 
     <!-- Scrollable Accounts List -->
@@ -125,18 +141,18 @@ const copyTooltip = computed(() => {
               type="checkbox"
               :checked="isAllSelected"
               class="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              @change="$emit('toggleSelectAll')"
+              @change="toggleSelectAllFiltered"
             />
             <span
               >{{ $t('tools.email.all_selected') }} ({{ selectedAccountIds.length }}/{{
-                accounts.length
+                filteredAccounts.length
               }})</span
             >
           </div>
-          <span v-else>{{ $t('tools.email.bound_accounts', { n: accounts.length }) }}</span>
+          <span v-else>{{ $t('tools.email.bound_accounts', { n: filteredAccounts.length }) }}</span>
 
           <button
-            v-if="accounts.length > 0"
+            v-if="filteredAccounts.length > 0"
             type="button"
             class="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors"
             @click="$emit('toggleMultiSelect')"
@@ -148,7 +164,7 @@ const copyTooltip = computed(() => {
         </div>
 
         <!-- Batch Action Buttons -->
-        <div v-if="isMultiSelectMode && accounts.length > 0" class="flex gap-2 mb-3 px-1">
+        <div v-if="isMultiSelectMode && filteredAccounts.length > 0" class="flex gap-2 mb-3 px-1">
           <button
             type="button"
             :disabled="selectedAccountIds.length === 0 || isBatchTesting"
@@ -178,164 +194,38 @@ const copyTooltip = computed(() => {
           <p class="text-[10px] mt-1">{{ $t('tools.email.add_first_tip') }}</p>
         </div>
 
+        <div
+          v-else-if="filteredAccounts.length === 0"
+          class="py-8 px-4 text-center text-xs text-slate-400"
+        >
+          {{ locale === 'en-US' ? 'No emails matched your search' : '没有找到匹配的邮箱' }}
+        </div>
+
         <ul v-else class="flex flex-col gap-1.5">
-          <li v-for="acc in accounts" :key="acc.id">
-            <div
-              class="group w-full text-left p-2.5 rounded-xl border transition-all duration-200 cursor-pointer flex flex-col gap-1.5"
-              :class="[
-                selectedAccountId === acc.id && !isMultiSelectMode
-                  ? 'bg-indigo-50/70 border-indigo-200 dark:bg-indigo-950/20 dark:border-indigo-900/40'
-                  : selectedAccountIds.includes(acc.id) && isMultiSelectMode
-                    ? 'bg-indigo-50/30 border-indigo-200/60 dark:bg-indigo-950/10 dark:border-indigo-900/30'
-                    : 'bg-white dark:bg-slate-950 border-slate-200/60 dark:border-slate-900 hover:border-slate-300 dark:hover:border-slate-800',
-              ]"
-              @click="
-                isMultiSelectMode
-                  ? $emit('toggleSelectAccount', acc.id)
-                  : $emit('selectAccount', acc.id)
-              "
-            >
-              <!-- Email & Connection Indicator -->
-              <div class="flex items-center justify-between gap-1.5">
-                <div class="flex items-center gap-2 truncate flex-1">
-                  <input
-                    v-if="isMultiSelectMode"
-                    type="checkbox"
-                    :checked="selectedAccountIds.includes(acc.id)"
-                    class="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 shrink-0 cursor-pointer"
-                    @click.stop="$emit('toggleSelectAccount', acc.id)"
-                  />
-                  <span
-                    class="font-medium text-xs truncate"
-                    :class="
-                      selectedAccountId === acc.id && !isMultiSelectMode
-                        ? 'text-indigo-900 dark:text-indigo-300 font-semibold'
-                        : 'text-slate-800 dark:text-slate-200'
-                    "
-                  >
-                    {{ acc.email }}
-                  </span>
-                  <Tooltip :content="copyTooltip" placement="top">
-                    <button
-                      type="button"
-                      class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded transition-colors shrink-0 opacity-0 group-hover:opacity-100 duration-200 ml-auto cursor-pointer"
-                      @click.stop="$emit('copyEmail', acc.email)"
-                    >
-                      <Copy class="w-3.5 h-3.5" />
-                    </button>
-                  </Tooltip>
-                </div>
-
-                <!-- Status Dot -->
-                <Tooltip
-                  :content="acc.statusMessage || (acc.status === 'ACTIVE' ? '正常' : '异常')"
-                  placement="right"
-                >
-                  <span class="shrink-0 flex items-center">
-                    <span
-                      class="w-2 h-2 rounded-full ring-2"
-                      :class="[
-                        acc.status === 'ACTIVE'
-                          ? 'bg-emerald-500 ring-emerald-500/10'
-                          : acc.status === 'EXPIRED'
-                            ? 'bg-amber-500 ring-amber-500/10'
-                            : 'bg-rose-500 ring-rose-500/10',
-                      ]"
-                    ></span>
-                  </span>
-                </Tooltip>
-              </div>
-
-              <!-- Daily sends & Limits telemetry -->
-              <div class="flex flex-col gap-1">
-                <div class="flex justify-between text-[10px] text-slate-400 font-medium">
-                  <span>{{ $t('tools.email.sent_today', { sent: acc.sentCountToday }) }}</span>
-                  <span>{{ $t('tools.email.limit_cap', { limit: acc.dailyLimit }) }}</span>
-                </div>
-                <div class="w-full h-1 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                  <div
-                    class="h-full rounded-full transition-all duration-300"
-                    :class="acc.sentCountToday >= acc.dailyLimit ? 'bg-rose-500' : 'bg-indigo-500'"
-                    :style="{
-                      width: `${Math.min(100, (acc.sentCountToday / acc.dailyLimit) * 100)}%`,
-                    }"
-                  ></div>
-                </div>
-              </div>
-
-              <!-- Proxy & Quick Operations -->
-              <div
-                class="flex items-center justify-between text-[10px] text-slate-400 mt-0.5 border-t border-slate-100/50 dark:border-slate-900 pt-1.5"
-              >
-                <span
-                  class="truncate flex items-center gap-1 max-w-[120px]"
-                  :title="acc.proxy || '未挂载代理'"
-                >
-                  <Globe class="w-3 h-3 text-slate-400" />
-                  {{ acc.proxy ? acc.proxy.split('@').pop() : 'Direct' }}
-                </span>
-
-                <div
-                  v-if="!isMultiSelectMode"
-                  class="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                >
-                  <button
-                    type="button"
-                    class="p-0.5 hover:bg-indigo-100/50 dark:hover:bg-indigo-950/50 text-indigo-500 rounded transition-colors"
-                    :title="$t('tools.email.verify_token_tooltip')"
-                    @click.stop="$emit('testConnection', acc)"
-                  >
-                    <CheckCircle class="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="p-0.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 rounded transition-colors"
-                    title="编辑账号 / 更新 Token"
-                    @click.stop="$emit('editAccount', acc)"
-                  >
-                    <Edit class="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    class="p-0.5 hover:bg-rose-100/50 dark:hover:bg-rose-950/50 text-rose-500 rounded transition-colors"
-                    :title="$t('tools.email.unbind_token_tooltip')"
-                    @click.stop="$emit('deleteAccount', acc)"
-                  >
-                    <Trash2 class="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
+          <li v-for="acc in filteredAccounts" :key="acc.id">
+            <EmailAccountCard
+              :acc="acc"
+              :selected-account-id="selectedAccountId"
+              :is-multi-select-mode="isMultiSelectMode"
+              :selected-account-ids="selectedAccountIds"
+              :copy-tooltip="copyTooltip"
+              @toggle-select-account="emit('toggleSelectAccount', $event)"
+              @select-account="emit('selectAccount', $event)"
+              @copy-email="emit('copyEmail', $event)"
+              @test-connection="emit('testConnection', $event)"
+              @edit-account="emit('editAccount', $event)"
+              @delete-account="emit('deleteAccount', $event)"
+            />
           </li>
         </ul>
       </div>
 
       <!-- Folder Lists -->
-      <div v-show="selectedAccountId" class="border-t border-slate-100 dark:border-slate-900 pt-4">
-        <div class="px-2 mb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase">
-          {{ $t('tools.email.email_folders_label') }}
-        </div>
-        <ul class="flex flex-col gap-0.5">
-          <li v-for="folder in foldersList" :key="folder.id">
-            <button
-              type="button"
-              class="w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 text-left"
-              :class="[
-                currentFolder === folder.id
-                  ? 'bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-semibold'
-                  : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-900/50 hover:text-slate-800 dark:hover:text-slate-200',
-              ]"
-              @click="$emit('changeFolder', folder.id)"
-            >
-              <div class="flex items-center gap-2">
-                <component :is="folder.icon" class="w-4 h-4 text-slate-400" />
-                <span>{{ folder.name }}</span>
-              </div>
-              <ChevronRight v-show="currentFolder === folder.id" class="w-3 h-3 text-slate-300" />
-            </button>
-          </li>
-        </ul>
-      </div>
+      <EmailFolderList
+        :selected-account-id="selectedAccountId"
+        :current-folder="currentFolder"
+        @change-folder="emit('changeFolder', $event)"
+      />
     </div>
 
     <!-- Quick Banner Support -->

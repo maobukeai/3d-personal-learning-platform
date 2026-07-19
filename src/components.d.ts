@@ -117,6 +117,8 @@ declare module 'vue' {
     TiptapMarkdownEditor: typeof import('./components/editor/TiptapMarkdownEditor.vue')['default']
     ToastContainer: typeof import('./components/feedback/ToastContainer.vue')['default']
     Tooltip: typeof import('./components/ui/Tooltip.vue')['default']
+    TutorialImageCaption: typeof import('./components/TutorialImageCaption.vue')['default']
+    TutorialRichContent: typeof import('./components/TutorialRichContent.vue')['default']
     UnifiedCard: typeof import('./components/UnifiedCard.vue')['default']
     UserAvatar: typeof import('./components/UserAvatar.vue')['default']
     UserProfileDialog: typeof import('./components/UserProfileDialog.vue')['default']

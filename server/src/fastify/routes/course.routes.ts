@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AppError } from '../../utils/error';
 import { fastifyAuthenticate, fastifyOptionalAuthenticate } from '../auth/fastify-auth';
 import * as courseController from '../../controllers/course.controller';
+import { registerTutorialPackageRoutes } from './tutorial-package.routes';
 import {
   courseSchema,
   enrollCourseSchema,
@@ -47,6 +48,7 @@ const requireAdmin = (request: FastifyRequest): void => {
 };
 
 export const registerCourseRoutes = (app: FastifyInstance): void => {
+  registerTutorialPackageRoutes(app);
   // GET /courses —— 课程列表（公开浏览，可选鉴权）
   app.get(
     '/courses',

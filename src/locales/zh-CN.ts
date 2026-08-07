@@ -21,7 +21,6 @@ import { errorZh } from './modules/error';
 import { supportZh } from './modules/support';
 import { notificationsZh } from './modules/notifications';
 import { toolsZh } from './modules/tools';
-import { adminZh } from './modules/admin';
 
 export default {
   common: commonZh,
@@ -47,5 +46,5 @@ export default {
   support: supportZh,
   notifications: notificationsZh,
   tools: toolsZh,
-  admin: adminZh,
+  admin: {},
 };

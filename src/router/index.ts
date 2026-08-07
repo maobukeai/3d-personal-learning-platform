@@ -2,6 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { logError } from '@/utils/error';
+import { loadAdminLocaleMessages } from '@/i18n';
+import { preferences } from '@/utils/preferences';
 
 const MainLayout = () => import('@/layouts/MainLayout.vue');
 
@@ -265,6 +267,11 @@ const router = createRouter({
               component: () => import('@/views/Learning/NotesView.vue'),
             },
             {
+              path: 'learning/sheet',
+              name: 'SmartSheet',
+              component: () => import('@/views/Learning/SmartSheet/SmartSheetView.vue'),
+            },
+            {
               path: 'notifications',
               name: 'Notifications',
               component: () => import('@/views/NotificationsView.vue'),
@@ -427,6 +434,12 @@ router.beforeEach(async (to) => {
   const authStore = useAuthStore();
   const systemStore = useSystemStore();
   const isPublicShareRoute = to.path.startsWith('/share/');
+
+  // Dynamically load admin i18n locale messages when visiting admin routes
+  if (to.path.startsWith('/admin') || to.meta.requiresAdmin) {
+    const currentLocale = preferences.getLanguage();
+    void loadAdminLocaleMessages(currentLocale);
+  }
 
   // Public share links must render as soon as possible. Branding can arrive in
   // the background; waiting for it here previously serialized every first view

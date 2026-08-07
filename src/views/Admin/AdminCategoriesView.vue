@@ -73,7 +73,7 @@ const categoryForm = ref({
 const fetchAssetCategories = async () => {
   try {
     const { data } = await api.get('/api/admin/asset-categories');
-    assetCategories.value = data;
+    assetCategories.value = Array.isArray(data) ? data : data?.data || [];
   } catch (error) {
     logError(error, { operation: 'admin.fetchAssetCategories', component: 'AdminCategoriesView' });
   }
@@ -82,7 +82,7 @@ const fetchAssetCategories = async () => {
 const fetchCourseCategories = async () => {
   try {
     const { data } = await api.get('/api/admin/course-categories');
-    courseCategories.value = data;
+    courseCategories.value = Array.isArray(data) ? data : data?.data || [];
   } catch (error) {
     logError(error, { operation: 'admin.fetchCourseCategories', component: 'AdminCategoriesView' });
   }

@@ -21,6 +21,7 @@ import {
   PUBLIC_CACHE_KEYS,
 } from '../utils/public-cache';
 import { deleteCoursesWithTutorialImages } from '../services/tutorial-content.service';
+import { logger } from '../utils/logger';
 
 export const getAllCourses = async (
   request: FastifyRequest,
@@ -318,67 +319,66 @@ export const updateCourse = async (request: FastifyRequest, reply: FastifyReply)
     difficulty?: string;
     status?: string;
   };
-  try {
-    const oldCourse = await prisma.course.findUnique({ where: { id } });
-    if (!oldCourse) throw new AppError('Course not found', 404);
+  const oldCourse = await prisma.course.findUnique({ where: { id } });
+  if (!oldCourse) throw new AppError('Course not found', 404);
 
-    const course = await prisma.course.update({
-      where: { id },
-      data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
-    });
+  const course = await prisma.course.update({
+    where: { id },
+    data: { title, description, thumbnail, categoryId: categoryId || null, difficulty, status },
+  });
 
-    await auditService.log({
-      userId: request.userId as string,
-      action: AuditAction.UPDATE_COURSE,
-      module: AuditModule.COURSE,
-      description: `Updated course: ${course.title}`,
-      oldValue: oldCourse,
-      newValue: course,
-      req: request as unknown as AuditRequest,
-    });
+  await auditService.log({
+    userId: request.userId as string,
+    action: AuditAction.UPDATE_COURSE,
+    module: AuditModule.COURSE,
+    description: `Updated course: ${course.title}`,
+    oldValue: oldCourse,
+    newValue: course,
+    req: request as unknown as AuditRequest,
+  });
 
-    reply.send(course);
-  } catch (error) {
-    throw error;
-  }
+  reply.send(course);
 };
 
 export const deleteCourse = async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
   const { id } = request.params as { id: string };
-  try {
-    const course = await prisma.course.findUnique({
-      where: { id },
-      include: { lessons: true },
+  const course = await prisma.course.findUnique({
+    where: { id },
+    include: { lessons: true },
+  });
+  if (!course) throw new AppError('Course not found', 404);
+
+  if (course.thumbnail) {
+    deleteCloudOrLocalFileByUrl(course.thumbnail).catch((err) => {
+      logger.warn(`[deleteCourse] Failed to delete thumbnail from R2: ${course.thumbnail}`, err);
     });
-    if (!course) throw new AppError('Course not found', 404);
+  }
 
-    if (course.thumbnail) {
-      deleteCloudOrLocalFileByUrl(course.thumbnail).catch(() => {});
-    }
-
-    if (course.lessons && course.lessons.length > 0) {
-      for (const lesson of course.lessons) {
-        if (lesson.videoUrl) {
-          deleteCloudOrLocalFileByUrl(lesson.videoUrl).catch(() => {});
-        }
+  if (course.lessons && course.lessons.length > 0) {
+    for (const lesson of course.lessons) {
+      if (lesson.videoUrl) {
+        deleteCloudOrLocalFileByUrl(lesson.videoUrl).catch((err) => {
+          logger.warn(
+            `[deleteCourse] Failed to delete lesson video from R2: ${lesson.videoUrl}`,
+            err,
+          );
+        });
       }
     }
-
-    await deleteCoursesWithTutorialImages([id]);
-
-    await auditService.log({
-      userId: request.userId as string,
-      action: AuditAction.DELETE_COURSE,
-      module: AuditModule.COURSE,
-      description: `Deleted course: ${course.title}`,
-      oldValue: course,
-      req: request as unknown as AuditRequest,
-    });
-
-    reply.send({ message: 'Course deleted successfully' });
-  } catch (error) {
-    throw error;
   }
+
+  await deleteCoursesWithTutorialImages([id]);
+
+  await auditService.log({
+    userId: request.userId as string,
+    action: AuditAction.DELETE_COURSE,
+    module: AuditModule.COURSE,
+    description: `Deleted course: ${course.title}`,
+    oldValue: course,
+    req: request as unknown as AuditRequest,
+  });
+
+  reply.send({ message: 'Course deleted successfully' });
 };
 
 export const enrollInCourse = async (

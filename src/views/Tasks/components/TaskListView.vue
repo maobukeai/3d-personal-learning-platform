@@ -16,6 +16,8 @@ import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
 import UserAvatar from '@/components/UserAvatar.vue';
 
+import TaskSubtaskChecklist from './list/TaskSubtaskChecklist.vue';
+
 import { TaskStatus } from '@/types/task';
 import type {
   UserType,
@@ -917,142 +919,12 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                   </div>
 
                   <!-- Collapsible Subtasks Checklist Container -->
-                  <div
+                  <TaskSubtaskChecklist
                     v-if="expandedTasks[task.id]"
-                    class="col-span-12 pl-12 pr-4 py-3 bg-slate-50/30 dark:bg-white/1 space-y-2 border-t border-b border-slate-100/50 dark:border-white/5"
-                    @click.stop
-                  >
-                    <div class="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">
-                      {{ t('tasks.subtaskList') }}
-                    </div>
-
-                    <!-- Subtask Checklist Rows -->
-                    <div class="space-y-1.5">
-                      <div
-                        v-for="(sub, index) in parseSubtasks(task.subtasks)"
-                        :key="sub.id"
-                        class="flex items-center justify-between py-1.5 px-2 bg-slate-100/50 dark:bg-white/2 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors text-xs text-slate-600 dark:text-slate-300"
-                      >
-                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                          <!-- Subtask Checklist checkbox -->
-                          <button
-                            type="button"
-                            class="w-4 h-4 rounded-full border flex items-center justify-center transition-colors shrink-0"
-                            :class="
-                              sub.done
-                                ? 'border-emerald-500 bg-emerald-500/10'
-                                : 'border-slate-300 dark:border-slate-600 hover:border-emerald-500 hover:bg-emerald-500/10'
-                            "
-                            @click.stop="toggleSubtaskInline(task, index)"
-                          >
-                            <CheckCircle2
-                              class="w-3 h-3 transition-colors"
-                              :class="
-                                sub.done
-                                  ? 'text-emerald-500'
-                                  : 'text-transparent hover:text-emerald-500'
-                              "
-                            />
-                          </button>
-
-                          <!-- Subtask title text -->
-                          <span
-                            class="truncate font-medium text-xs cursor-pointer hover:text-accent hover:underline transition-all"
-                            :class="
-                              sub.done ? 'line-through text-slate-400 dark:text-slate-500' : ''
-                            "
-                            @click.stop="openDetailDrawer(task, sub.id)"
-                          >
-                            {{ sub.text }}
-                          </span>
-                        </div>
-
-                        <!-- Subtask Actions -->
-                        <div class="flex items-center gap-3 shrink-0 ml-4">
-                          <!-- Subtask Assignee -->
-                          <Dropdown align="right" width-class="w-48">
-                            <template #trigger>
-                              <span
-                                class="inline-flex items-center gap-1 cursor-pointer hover:text-accent text-[10px] text-slate-400"
-                              >
-                                <template v-if="sub.assigneeId">
-                                  <img
-                                    v-if="getUserById(sub.assigneeId, task)?.avatarUrl"
-                                    alt=""
-                                    :src="getUserById(sub.assigneeId, task)?.avatarUrl || undefined"
-                                    class="w-3.5 h-3.5 rounded-full object-cover shrink-0"
-                                  />
-                                  <span class="max-w-[70px] truncate">{{
-                                    getUserById(sub.assigneeId, task)?.name ||
-                                    t('common.unknownMember')
-                                  }}</span>
-                                </template>
-                                <span
-                                  v-else
-                                  class="text-slate-400 text-[10px] hover:text-accent font-semibold"
-                                  >+ {{ t('tasks.assignMember') }}</span
-                                >
-                              </span>
-                            </template>
-                            <template #content>
-                              <button
-                                type="button"
-                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs text-rose-500 hover:bg-rose-500/10 border-none bg-transparent cursor-pointer transition-colors"
-                                @click="handleSubtaskAssigneeCommand(task, Number(index), '')"
-                              >
-                                {{ t('tasks.clearMember') }}
-                              </button>
-                              <div class="h-[1px] my-1 bg-slate-100 dark:bg-white/10"></div>
-                              <button
-                                v-for="m in getMembersForSubtask(task)"
-                                :key="m.id"
-                                type="button"
-                                class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors flex items-center gap-2"
-                                @click="handleSubtaskAssigneeCommand(task, Number(index), m.id)"
-                              >
-                                <img
-                                  v-if="m.avatarUrl"
-                                  alt=""
-                                  :src="m.avatarUrl"
-                                  class="w-5 h-5 rounded-lg object-cover"
-                                />
-                                <span>{{ m.name }}</span>
-                              </button>
-                            </template>
-                          </Dropdown>
-
-                          <!-- Delete button -->
-                          <button
-                            type="button"
-                            class="p-1 hover:bg-rose-500/10 hover:text-rose-500 text-slate-400 rounded-md transition-all shrink-0"
-                            @click.stop="removeSubtaskInline(task, index)"
-                          >
-                            <X class="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Inline Quick Add Subtask -->
-                    <div class="relative flex items-center max-w-md pt-2 mt-1">
-                      <input
-                        v-model="newSubtaskTexts[task.id]"
-                        type="text"
-                        :placeholder="t('tasks.quickAddSubtaskPlaceholder')"
-                        class="w-full px-2.5 py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-xs focus:outline-none transition-all pr-8"
-                        style="color: var(--text-primary)"
-                        @keyup.enter="addSubtaskInline(task)"
-                      />
-                      <button
-                        v-show="newSubtaskTexts[task.id]?.trim()"
-                        type="button"
-                        class="absolute right-1.5 p-1 bg-accent/10 hover:bg-accent hover:text-white text-accent rounded-md transition-all"
-                        @click="addSubtaskInline(task)"
-                      >
-                        <Plus class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                    :task="task"
+                    :team-members="getMembersForSubtask(task)"
+                    @refresh="(updatedTask) => emit('refresh', updatedTask)"
+                  />
                 </template>
 
                 <!-- Inline Quick Add row inside List Group -->

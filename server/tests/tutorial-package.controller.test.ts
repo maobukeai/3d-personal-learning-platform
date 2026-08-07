@@ -28,7 +28,7 @@ jest.mock('../src/services/tutorial-image.storage', () => ({
   storeTutorialImage: mockStoreTutorialImage,
 }));
 
-import { replaceStepImage } from '../src/controllers/tutorial-package.controller';
+import { replaceStepImage } from '../src/controllers/tutorial-package-image.controller';
 
 const currentStep = {
   id: 'step-1',

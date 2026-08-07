@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue';
+import { ref, watch, onUnmounted, type Ref } from 'vue';
 import type { ModelFamilyGroup } from './AiSettingsTab.types';
 
 export const EXPANDED_GROUPS_STORAGE_KEY = 'admin_ai_expanded_family_groups';
@@ -21,7 +21,15 @@ export function useAiModelGroupsState(
   syncAiModelsToSettings: () => void,
 ) {
   const disabledGroupKeys = ref<string[]>([]);
-  let isUserAction = false;
+  // 使用超时机制：2秒内视为用户操作，避免标志永久阻断服务端数据同步
+  let userActionTimeout: ReturnType<typeof setTimeout> | null = null;
+  const markUserAction = () => {
+    if (userActionTimeout) clearTimeout(userActionTimeout);
+    userActionTimeout = setTimeout(() => {
+      userActionTimeout = null;
+    }, 2000);
+  };
+  const isUserAction = () => userActionTimeout !== null;
 
   const restoreDisabledGroups = () => {
     const persisted = parseDisabledGroupKeys(localSettings.AI_MODEL_DISABLED_GROUPS);
@@ -35,7 +43,7 @@ export function useAiModelGroupsState(
   };
 
   const toggleGroupEnabled = (key: string, enabled: boolean) => {
-    isUserAction = true;
+    markUserAction();
     if (enabled) {
       disabledGroupKeys.value = disabledGroupKeys.value.filter((k) => k !== key);
       const group = modelFamilyGroups.value.find((g) => g.key === key);
@@ -75,7 +83,7 @@ export function useAiModelGroupsState(
     (value) => {
       const incoming = parseDisabledGroupKeys(value);
       // If user toggled locally in this session, don't let empty server response override local user action
-      if (incoming.length === 0 && disabledGroupKeys.value.length > 0 && !isUserAction) {
+      if (incoming.length === 0 && disabledGroupKeys.value.length > 0 && !isUserAction()) {
         // Keep disabledGroupKeys and sync back to localSettings
         localSettings.AI_MODEL_DISABLED_GROUPS = JSON.stringify(disabledGroupKeys.value);
         return;
@@ -87,8 +95,9 @@ export function useAiModelGroupsState(
   );
 
   // Accordion Expand/Collapse state
+  // 使用安全解析函数，避免 localStorage 被篹改时抛出 SyntaxError
   const expandedModelFamilyGroups = ref<string[]>(
-    JSON.parse(localStorage.getItem(EXPANDED_GROUPS_STORAGE_KEY) || '[]'),
+    parseDisabledGroupKeys(localStorage.getItem(EXPANDED_GROUPS_STORAGE_KEY)),
   );
 
   const toggleModelFamilyGroup = (key: string) => {
@@ -114,6 +123,10 @@ export function useAiModelGroupsState(
       );
     }
   };
+
+  onUnmounted(() => {
+    if (userActionTimeout) clearTimeout(userActionTimeout);
+  });
 
   return {
     disabledGroupKeys,

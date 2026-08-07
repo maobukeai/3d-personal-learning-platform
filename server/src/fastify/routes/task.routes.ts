@@ -10,7 +10,7 @@ import { awardPoints, deductPoints, PointsAction } from '../../services/points.s
 import { logTaskActivity } from '../../services/taskActivity.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
 import { TaskStatus } from '../../types/task';
-import { taskSchema } from '../../utils/schemas';
+import { taskSchema, createTaskSchema } from '../../utils/schemas';
 import { fastifyAuthenticate, fastifyResolveWorkspace } from '../auth/fastify-auth';
 import { fastifyUpload } from '../middlewares/fastify-upload.middleware';
 import type { UploadedFile } from '../../types/upload';
@@ -339,7 +339,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
     '/',
     {
       ...auth,
-      schema: { body: taskSchema },
+      schema: { body: createTaskSchema },
     },
     async (request, reply) => {
       const userId = requireUserId(request);

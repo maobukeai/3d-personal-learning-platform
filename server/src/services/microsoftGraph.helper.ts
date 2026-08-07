@@ -13,8 +13,28 @@ export const resolveAxiosErrorMessage = (error: unknown, fallback: string): stri
     const msg = axiosErr.response?.data?.error?.message;
     if (msg) return msg;
   }
-  if (error instanceof Error) return error.message;
-  return String(error) || fallback;
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  const causeObj = error instanceof Error ? error.cause : (error as any)?.cause;
+  const targetErrors =
+    error && typeof error === 'object' && 'errors' in error && Array.isArray((error as any).errors)
+      ? (error as any).errors
+      : causeObj &&
+          typeof causeObj === 'object' &&
+          'errors' in causeObj &&
+          Array.isArray(causeObj.errors)
+        ? causeObj.errors
+        : null;
+
+  if (targetErrors) {
+    const innerMsgs = targetErrors
+      .map((e: any) => e?.message)
+      .filter(Boolean)
+      .join(', ');
+    if (innerMsgs) return innerMsgs;
+  }
+  return (error ? String(error) : '') || fallback;
 };
 
 /** Extracts the HTTP status code from an Axios error, if available. */

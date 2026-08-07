@@ -23,7 +23,6 @@ import { errorEn } from './modules/error';
 import { supportEn } from './modules/support';
 import { notificationsEn } from './modules/notifications';
 import { toolsEn } from './modules/tools';
-import { adminEn } from './modules/admin';
 
 export default {
   common: commonEn,
@@ -49,5 +48,5 @@ export default {
   support: supportEn,
   notifications: notificationsEn,
   tools: toolsEn,
-  admin: adminEn,
+  admin: {},
 } satisfies I18nMessages;

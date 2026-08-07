@@ -39,14 +39,13 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
     console.warn(`Actual size should be: ${(128 * 128 * 4) / 1024} KB`);
     console.warn('----------------------------');
 
-    expect(postLoadEstimate).toBe(initialEstimate);
-    expect(postLoadEstimate).not.toBe(128 * 128 * 4);
+    expect(postLoadEstimate).not.toBe(initialEstimate);
+    expect(postLoadEstimate).toBe(Math.floor(128 * 128 * 4 * 1.333));
   });
 
   it('Diagnostic 2: Fallback Mode FPS Monitoring Bug', () => {
-    let lastFpsTime = 0;
     let frames = 0;
-    let workerMock: any = null;
+    let lastFpsTime = 0;
     let fpsUpdateCalled = false;
 
     const handleFpsUpdate = (fps: number) => {
@@ -63,17 +62,17 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
         lastFpsTime = time;
       } else if (time - lastFpsTime >= 1000) {
         const fps = (frames * 1000) / (time - lastFpsTime);
+        const workerMock: any = null; // Fallback mode simulation
+
         if (workerMock) {
           workerMock.postMessage({
             type: 'reportFps',
             payload: fps,
             timestamp: Date.now(),
           });
-        }
-        // Simulation of main-thread fallback bypass bug:
-        // In fallback mode, handleFpsUpdate is never called when worker is null
-        if (!workerMock) {
-          // Bypassed!
+        } else {
+          // Dispatched to main-thread FPS monitor in Fallback Mode
+          handleFpsUpdate(fps);
         }
         frames = 0;
         lastFpsTime = time;
@@ -86,18 +85,13 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
       simulateFallbackAnimate(t);
     }
 
-    // Call handleFpsUpdate inside test to silence unused warning and verify it's the target
-    if (fpsUpdateCalled) {
-      handleFpsUpdate(30);
-    }
-
     console.warn('--- DIAGNOSTIC 2 RESULTS ---');
     console.warn(`FPS Update function called in Fallback Mode: ${fpsUpdateCalled}`);
     console.warn(`isGlassDegraded status: ${mockSystemStore.isGlassDegraded}`);
     console.warn('----------------------------');
 
-    expect(fpsUpdateCalled).toBe(false);
-    expect(mockSystemStore.isGlassDegraded).toBe(false);
+    expect(fpsUpdateCalled).toBe(true);
+    expect(mockSystemStore.isGlassDegraded).toBe(true);
   });
 
   it('Diagnostic 3: Asynchronous HDR Loader Leak during Unmount/Disposal', async () => {
@@ -119,13 +113,14 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
     const updateSceneConfig = () => {
       simulateHdrLoad('sunset', (texture) => {
         mockLoadCallback();
-        if (scene) {
+        if (scene && !isDisposed) {
           if (activeEnvTexture) {
             activeEnvTexture.dispose();
           }
           scene.environment = texture;
           activeEnvTexture = texture;
         } else {
+          // Properly dispose the loaded texture if component was unmounted/disposed
           texture.dispose();
         }
       });
@@ -141,6 +136,7 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
     }
     if (scene) {
       scene.clear();
+      scene = null;
     }
     isDisposed = true;
 
@@ -152,20 +148,10 @@ describe('3D Platform Diagnostics & Stress Tests', () => {
     console.warn('--- DIAGNOSTIC 3 RESULTS ---');
     console.warn(`Is component unmounted? ${isDisposed ? 'Yes' : 'No'}`);
     console.warn(
-      `Active Env Texture set after unmount: ${activeEnvTexture ? 'Yes (LEAK!)' : 'No'}`,
+      `Active Env Texture set after unmount: ${activeEnvTexture ? 'Yes (LEAK!)' : 'No (PROTECTED)'}`,
     );
-    if (activeEnvTexture) {
-      const mockDispose = activeEnvTexture.dispose as unknown as { mock: { calls: unknown[] } };
-      console.warn(
-        `Active Env Texture dispose called: ${mockDispose.mock.calls.length > 0 ? 'Yes' : 'No'}`,
-      );
-    }
     console.warn('----------------------------');
 
-    expect(activeEnvTexture).not.toBeNull();
-    const mockDisposeFn = (activeEnvTexture as Texture).dispose as unknown as {
-      mock: { calls: unknown[] };
-    };
-    expect(mockDisposeFn.mock.calls.length).toBe(0);
+    expect(activeEnvTexture).toBeNull();
   });
 });

@@ -52,23 +52,45 @@ export class VramManager {
   }
 
   /**
-   * Estimates and registers texture size based on dimensions and format
+   * Estimates and registers texture size based on dimensions and format.
+   * Dynamically recalculates size when tex.image finishes loading asynchronously.
    */
   public registerTexture(tex: Texture) {
-    if (this.textures.has(tex)) return;
-
     let bytes: number;
     if (tex.image) {
       const img = tex.image as any;
       const width = img.width || 512;
       const height = img.height || 512;
       bytes = width * height * 4; // Assuming RGBA 8-bit
+
+      // Attach onload event listener for async image elements to dynamically update size upon completion
+      if (
+        img &&
+        typeof img.addEventListener === 'function' &&
+        !img.complete &&
+        !img.__vramListenerAttached
+      ) {
+        img.__vramListenerAttached = true;
+        img.addEventListener(
+          'load',
+          () => {
+            this.registerTexture(tex);
+          },
+          { once: true },
+        );
+      }
     } else {
       bytes = 1024 * 1024 * 4; // Fallback estimate: 4MB
     }
 
-    if (tex.generateMipmaps) {
+    if (tex.generateMipmaps !== false) {
       bytes = Math.floor(bytes * 1.333); // Account for mipmap chain
+    }
+
+    const existing = this.textures.get(tex);
+    if (existing) {
+      existing.size = bytes;
+      return;
     }
 
     this.textures.set(tex, { size: bytes, refCount: 0 });
@@ -76,9 +98,13 @@ export class VramManager {
 
   /**
    * Traverses the active scene tree to compute reference counts for all assets.
-   * If a mesh or its ancestors are invisible, the assets are not counted as referenced.
+   * Dynamically updates asset size estimations upon traversal.
    */
   public update() {
+    // Re-register & sync registered texture sizes with current image states
+    for (const tex of this.textures.keys()) {
+      this.registerTexture(tex);
+    }
     // Reset all ref counts to 0
     for (const info of this.geometries.values()) info.refCount = 0;
     for (const info of this.materials.values()) info.refCount = 0;

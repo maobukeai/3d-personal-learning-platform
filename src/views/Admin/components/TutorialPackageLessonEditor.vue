@@ -20,12 +20,15 @@ const sync = () => {
   lessonForm.title = props.lesson.title;
   lessonForm.order = props.lesson.order;
   for (const section of props.lesson.tutorialSections) {
-    sectionDrafts[section.id] = {
-      title: section.title,
-      order: section.order,
-      startTime: section.startTime,
-      endTime: section.endTime,
-    };
+    // 只初始化尚不存在的 key，避免覆盖用户正在编辑的草稿
+    if (!sectionDrafts[section.id]) {
+      sectionDrafts[section.id] = {
+        title: section.title,
+        order: section.order,
+        startTime: section.startTime,
+        endTime: section.endTime,
+      };
+    }
   }
 };
 watch(() => props.lesson, sync, { immediate: true, deep: true });
@@ -109,6 +112,7 @@ const addStep = (section: TutorialSection) =>
       <div
         v-for="section in lesson.tutorialSections"
         :key="section.id"
+        v-if="sectionDrafts[section.id]"
         class="space-y-3 rounded-xl border p-3"
         style="border-color: var(--border-base)"
       >

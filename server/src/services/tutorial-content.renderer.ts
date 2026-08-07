@@ -27,6 +27,10 @@ const escapeHtml = (value: unknown): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 
+/** 仅转义 HTML 属性中的危险字符，保留 & 符号（避免破坏含查询参数的预签名 URL） */
+const escapeAttr = (value: string): string =>
+  value.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const asArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
 
 const clock = (seconds: number): string => {
@@ -40,7 +44,7 @@ const renderStep = (step: RenderStep): string => {
   const parameters = asArray<TutorialParameter>(step.parameters);
   const warnings = asArray<string>(step.warnings);
   return `<article class="tutorial-step" style="display:grid;grid-template-columns:minmax(180px,28%) 1fr;gap:18px;padding:16px;margin:12px 0;border:1px solid var(--border-base);border-radius:14px;background:var(--bg-elevated)">
-    ${step.imageUrl ? `<figure style="margin:0"><img src="${escapeHtml(step.imageUrl)}" alt="${escapeHtml(step.title)}" style="display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px" /></figure>` : '<div></div>'}
+    ${step.imageUrl ? `<figure style="margin:0"><img src="${escapeAttr(step.imageUrl)}" alt="${escapeHtml(step.title)}" style="display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px" /></figure>` : '<div></div>'}
     <div>
       <header style="display:flex;justify-content:space-between;gap:12px"><h3 style="margin:0 0 8px">${step.order}. ${escapeHtml(step.title)}</h3><time style="white-space:nowrap;color:var(--text-muted)">${clock(step.startTime)} - ${clock(step.endTime)}</time></header>
       <p>${escapeHtml(step.description)}</p>

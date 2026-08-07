@@ -100,7 +100,7 @@ const fetchBanners = async () => {
   try {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/banners');
-    banners.value = data;
+    banners.value = Array.isArray(data) ? data : data?.data || [];
     fetchManagementInsights(true);
   } catch {
     ElMessage.error('获取轮播图列表失败');

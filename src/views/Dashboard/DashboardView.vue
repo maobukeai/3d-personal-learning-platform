@@ -169,6 +169,13 @@ const unifiedFeed = computed<FeedItem[]>(() => {
     .slice(0, 8);
 });
 
+function normalizeArray(resData: any): any[] {
+  if (Array.isArray(resData)) return resData;
+  if (Array.isArray(resData?.items)) return resData.items;
+  if (Array.isArray(resData?.data)) return resData.data;
+  return [];
+}
+
 function navigateTo(route?: string) {
   if (!route) return;
   if (/^https?:\/\//i.test(route)) {
@@ -285,30 +292,36 @@ async function fetchDashboardData() {
     activeEnrollment.value =
       enrollmentsRes?.data?.[0] ?? workbench.value?.learning.activeCourse ?? null;
     activityLog.value = activityRes?.data ?? [];
-    recentAssets.value = (assetsRes?.data ?? []).slice(0, 6);
+    recentAssets.value = normalizeArray(assetsRes?.data).slice(0, 6);
 
-    const selectedTasks = tasksRes?.data ?? [];
-    const allTasks = allTasksRes?.data ?? [];
+    const selectedTasks = normalizeArray(tasksRes?.data);
+    const allTasks = normalizeArray(allTasksRes?.data);
     recentTasks.value = (selectedTasks.length > 0 ? selectedTasks : allTasks).slice(0, 6);
 
-    recentProjects.value = (projectsRes?.data ?? []).slice(0, 6).map((project) => ({
-      id: project.id,
-      title: project.title,
-      progress: project.progress ?? 0,
-      color: project.color || 'bg-accent',
-      status: project.status || 'IN_PROGRESS',
-      dueDate: project.dueDate,
-      updatedAt: project.updatedAt,
-      memberCount: project.members?.length ?? 1,
-    }));
+    recentProjects.value = normalizeArray(projectsRes?.data)
+      .slice(0, 6)
+      .map((project: any) => ({
+        id: project.id,
+        title: project.title,
+        progress: project.progress ?? 0,
+        color: project.color || 'bg-accent',
+        status: project.status || 'IN_PROGRESS',
+        dueDate: project.dueDate,
+        updatedAt: project.updatedAt,
+        memberCount: project.members?.length ?? 1,
+      }));
 
-    recentCourses.value = [...(coursesRes?.data || [])]
+    recentCourses.value = [...normalizeArray(coursesRes?.data)]
       .sort((a, b) => Number(Boolean(b.thumbnail)) - Number(Boolean(a.thumbnail)))
       .slice(0, 6);
 
-    const feedItems = resourcesRes?.data?.items || [];
-    const prioritizePreview = (items: any[]) =>
-      [...items].sort((a, b) => Number(Boolean(b.previewUrl)) - Number(Boolean(a.previewUrl)));
+    const feedItems = normalizeArray(resourcesRes?.data);
+    const prioritizePreview = (items: any) => {
+      const list = Array.isArray(items) ? items : [];
+      return [...list].sort(
+        (a, b) => Number(Boolean(b.previewUrl)) - Number(Boolean(a.previewUrl)),
+      );
+    };
     discoveryAssets.value = prioritizePreview(
       feedItems.filter((item: any) => item.kind === 'asset'),
     ).slice(0, 6);
@@ -332,13 +345,13 @@ async function fetchDashboardData() {
 
 async function fetchLeaderboard() {
   const response = await api.get<LeaderboardMember[]>('/api/auth/leaderboard').catch(() => null);
-  leaderboard.value = response?.data?.slice(0, 5) ?? [];
+  leaderboard.value = normalizeArray(response?.data).slice(0, 5);
 }
 
 async function fetchActiveBanners() {
   try {
     const { data } = await api.get<ActiveBanner[]>('/api/banners');
-    activeBanners.value = data;
+    activeBanners.value = normalizeArray(data);
   } catch (error) {
     logError(error, { operation: 'dashboard.fetchBanners', component: 'DashboardView' });
   }

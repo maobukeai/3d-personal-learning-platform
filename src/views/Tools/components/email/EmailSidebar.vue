@@ -6,6 +6,7 @@ import type { EmailAccount } from './email-types';
 import EmailAccountCard from './EmailAccountCard.vue';
 import EmailFolderList from './EmailFolderList.vue';
 import Input from '@/components/ui/Input.vue';
+import Tooltip from '@/components/ui/Tooltip.vue';
 
 interface Props {
   accounts: EmailAccount[];

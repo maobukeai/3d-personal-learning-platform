@@ -3,6 +3,7 @@ import sharp from 'sharp';
 import prisma from './prisma';
 import { storageService } from './storage.service';
 import { AppError } from '../utils/error';
+import { logger } from '../utils/logger';
 import { getDecryptedActiveStorageConfig } from '../utils/s3-upload-helper';
 import { gbToBytes } from '../utils/quota';
 import { buildDecryptedStorageConfig } from '../utils/crypto';
@@ -20,7 +21,8 @@ export async function storeTutorialImage(
       .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 80, effort: 5 })
       .toBuffer();
-  } catch {
+  } catch (sharpError) {
+    logger.warn('[storeTutorialImage] sharp image conversion failed', { sharpError });
     throw new AppError('参考图无法读取或格式不受支持', 400, 'INVALID_TUTORIAL_IMAGE');
   }
 
@@ -45,12 +47,22 @@ export async function storeTutorialImage(
     const url = await storageService.uploadBuffer(selected.config, webp, key, 'image/webp');
     return { url, key, size: webp.length, storageConfigId: selected.raw.id };
   } catch (error) {
-    const reverted = await prisma.storageConfig.updateMany({
-      where: { id: selected.raw.id, usedBytes: { gte: webp.length } },
-      data: { usedBytes: { decrement: webp.length } },
-    });
-    if (!reverted.count) {
-      await prisma.storageConfig.update({ where: { id: selected.raw.id }, data: { usedBytes: 0 } });
+    try {
+      const reverted = await prisma.storageConfig.updateMany({
+        where: { id: selected.raw.id, usedBytes: { gte: webp.length } },
+        data: { usedBytes: { decrement: webp.length } },
+      });
+      if (!reverted.count) {
+        logger.warn(
+          '[storeTutorialImage] Quota rollback skipped: usedBytes already below upload size. Skipping to avoid corrupting concurrent uploads.',
+          { storageConfigId: selected.raw.id, size: webp.length },
+        );
+      }
+    } catch (rollbackErr) {
+      logger.error('[storeTutorialImage] Quota rollback itself failed', {
+        rollbackErr,
+        storageConfigId: selected.raw.id,
+      });
     }
     throw error;
   }
@@ -71,7 +83,10 @@ export async function deleteTutorialImage(image: {
       data: { usedBytes: { decrement: image.imageSize } },
     });
     if (!decremented.count) {
-      await prisma.storageConfig.update({ where: { id: config.id }, data: { usedBytes: 0 } });
+      logger.warn(
+        '[deleteTutorialImage] Quota restore skipped: usedBytes already below image size',
+        { storageConfigId: config.id, size: image.imageSize },
+      );
     }
   }
 }

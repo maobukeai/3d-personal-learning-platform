@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, nextTick } from 'vue';
 import {
   CheckCircle2,
   Copy,
@@ -16,7 +16,8 @@ import { parseTags, getTagClass } from '@/utils/tags';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { isAxiosError } from 'axios';
-import type { Task, TaskUpdatePayload, Subtask as BaseSubtask } from '@/types/task';
+import { TaskStatus } from '@/types/task';
+import type { Task, TaskUpdatePayload, Subtask, SubtaskComment } from '@/types/task';
 import Modal from '@/components/ui/Modal.vue';
 import Select from '@/components/ui/Select.vue';
 import SelectOption from '@/components/ui/SelectOption.vue';
@@ -57,20 +58,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-interface SubtaskComment {
-  id: string;
-  content: string;
-  userId: string;
-  userName: string;
-  userAvatarUrl?: string | null;
-  createdAt: string;
-}
-
-interface Subtask extends BaseSubtask {
-  description?: string;
-  comments?: SubtaskComment[];
-}
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
@@ -208,6 +195,16 @@ const activitiesRef = ref<InstanceType<typeof TaskActivities> | null>(null);
 
 const handleSubtasksUpdate = (newSubtasks: Subtask[]) => {
   drawerSubtasks.value = newSubtasks;
+  if (newSubtasks.length > 0) {
+    const allDone = newSubtasks.every((s) => s.done);
+    if (allDone && drawerForm.value.status !== TaskStatus.DONE) {
+      drawerForm.value.status = TaskStatus.DONE;
+      ElMessage.success('所有子任务已完成，已自动更新主任务为已完成！');
+    } else if (!allDone && drawerForm.value.status === TaskStatus.DONE) {
+      drawerForm.value.status = TaskStatus.IN_PROGRESS;
+      ElMessage.info('有子任务重新开启，主任务已自动恢复为进行中');
+    }
+  }
   triggerSave();
 };
 

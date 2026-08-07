@@ -1,4 +1,5 @@
 export const notesZh = {
+  sortLabel: '排序方式',
   title: '我的笔记',
   searchPlaceholder: '搜索笔记...',
   newNote: '新建笔记',
@@ -158,6 +159,7 @@ export const notesZh = {
 };
 
 export const notesEn = {
+  sortLabel: 'Sort by',
   title: 'My Notes',
   searchPlaceholder: 'Search notes...',
   newNote: 'New Note',

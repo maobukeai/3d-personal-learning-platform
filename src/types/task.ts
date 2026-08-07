@@ -57,11 +57,25 @@ export interface Team {
   members: TeamMember[];
 }
 
+export interface SubtaskComment {
+  id: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string | null;
+  userAvatarUrl?: string | null;
+  text?: string;
+  content?: string;
+  createdAt: string;
+}
+
 export interface Subtask {
   id: string;
   text: string;
   done: boolean;
   assigneeId?: string | null;
+  description?: string;
+  comments?: SubtaskComment[];
+  images?: string[];
 }
 
 export interface Task {

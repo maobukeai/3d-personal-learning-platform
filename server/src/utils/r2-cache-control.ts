@@ -43,7 +43,7 @@ export const getR2ObjectCacheControl = (key: string, contentType: string): strin
 
   if (
     MUTABLE_DOCUMENT_PATTERN.test(normalizedKey) ||
-    (normalizedType === 'application/json' && !normalizedType.startsWith('model/'))
+    (normalizedType === 'application/json' && !normalizedKey.endsWith('.gltf'))
   ) {
     return R2_SHORT_CACHE_CONTROL;
   }

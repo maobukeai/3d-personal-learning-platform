@@ -78,9 +78,11 @@ const fetchData = async () => {
         .get('/api/admin/activation-codes', { params: { page: 1, limit: 200 } })
         .catch(() => ({ data: [] })),
     ]);
-    plans.value = plansRes.data;
-    subscriptions.value = subsRes.data;
-    activationCodes.value = Array.isArray(codesRes.data) ? codesRes.data : codesRes.data.data;
+    plans.value = Array.isArray(plansRes.data) ? plansRes.data : plansRes.data?.data || [];
+    subscriptions.value = Array.isArray(subsRes.data) ? subsRes.data : subsRes.data?.data || [];
+    activationCodes.value = Array.isArray(codesRes.data)
+      ? codesRes.data
+      : codesRes.data?.data || [];
     fetchManagementInsights(true);
   } catch {
     ElMessage.error(t('admin.failed_to_get_data'));
@@ -92,7 +94,7 @@ const fetchData = async () => {
 const fetchUsers = async () => {
   try {
     const res = await api.get('/api/admin/users', { params: { page: 1, limit: 200 } });
-    users.value = Array.isArray(res.data) ? res.data : res.data.data;
+    users.value = Array.isArray(res.data) ? res.data : res.data?.data || [];
   } catch {
     ElMessage.error(t('admin.failed_to_get_user'));
   }

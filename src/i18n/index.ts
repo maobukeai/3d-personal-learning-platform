@@ -32,8 +32,26 @@ export const loadLocaleMessages = async (locale: LocalePreference) => {
   }
 };
 
+const loadedAdminLocales = new Set<LocalePreference>();
+
+export const loadAdminLocaleMessages = async (locale: LocalePreference) => {
+  if (!loadedAdminLocales.has(locale)) {
+    try {
+      const adminModule = await import('../locales/modules/admin');
+      const adminMessages = locale === 'en-US' ? adminModule.adminEn : adminModule.adminZh;
+      i18n.global.mergeLocaleMessage(locale, { admin: adminMessages });
+      loadedAdminLocales.add(locale);
+    } catch (e) {
+      console.error('[i18n] Failed to load admin locale package:', e);
+    }
+  }
+};
+
 export const setLocale = async (locale: LocalePreference) => {
   await loadLocaleMessages(locale);
+  if (loadedAdminLocales.size > 0) {
+    await loadAdminLocaleMessages(locale);
+  }
   i18n.global.locale.value = locale;
   preferences.setLanguage(locale);
   document.documentElement.lang = locale;

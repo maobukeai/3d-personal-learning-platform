@@ -16,6 +16,7 @@ export const sidebarZh = {
   settings: '设置',
   dashboard: '工作台概览',
   notes: '我的笔记',
+  smartSheet: '多维备忘录',
   groups: {
     quickNav: '快速访问',
     learning: '我的学习',
@@ -56,6 +57,7 @@ export const sidebarEn = {
   settings: 'Settings',
   dashboard: 'Dashboard',
   notes: 'My Notes',
+  smartSheet: 'Smart Sheet',
   groups: {
     quickNav: 'Quick Access',
     learning: 'My Learning',

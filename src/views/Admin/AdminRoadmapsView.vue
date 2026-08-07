@@ -103,7 +103,7 @@ const fetchRoadmaps = async () => {
   try {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/roadmaps', { params: { page: 1, limit: 100 } });
-    roadmaps.value = Array.isArray(data) ? data : data.data;
+    roadmaps.value = Array.isArray(data) ? data : data?.data || [];
     fetchManagementInsights(true);
   } catch (error) {
     logError(error, { operation: 'admin.fetchRoadmaps', component: 'AdminRoadmapsView' });

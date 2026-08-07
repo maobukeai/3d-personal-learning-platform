@@ -1,5 +1,6 @@
 import { logger } from '../utils/logger';
 import axios from 'axios';
+import https from 'https';
 import prisma from './prisma';
 import { decryptSecret, encryptSecret } from '../utils/secret-field';
 import {
@@ -8,11 +9,55 @@ import {
   parseProxy,
 } from './microsoftGraph.helper';
 
+// TODO(P2-refactor): 文件 481 行，超过 300 行红线。
+// 待拆分为：microsoftGraph.token.service.ts / microsoftGraph.mail.service.ts / microsoftGraph.account.service.ts
+
+// Use a dedicated axios instance to avoid polluting global axios defaults.
+// Forces IPv4 and keep-alive without affecting other services.
+const graphAxios = axios.create({
+  httpsAgent: new https.Agent({ family: 4, keepAlive: true }),
+});
+
 interface SendMailParams {
   to: string;
   subject: string;
   content: string;
 }
+
+class RefreshQueue {
+  private activeCount = 0;
+  private queue: (() => Promise<void>)[] = [];
+  private maxConcurrency = 3;
+
+  public async add<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const run = async () => {
+        this.activeCount++;
+        try {
+          await new Promise((r) => setTimeout(r, 500));
+          const result = await fn();
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        } finally {
+          this.activeCount--;
+          this.next();
+        }
+      };
+      this.queue.push(run);
+      this.next();
+    });
+  }
+
+  private next() {
+    if (this.activeCount < this.maxConcurrency && this.queue.length > 0) {
+      const nextFn = this.queue.shift()!;
+      nextFn();
+    }
+  }
+}
+
+const refreshQueue = new RefreshQueue();
 
 export class MicrosoftGraphService {
   /**
@@ -36,18 +81,20 @@ export class MicrosoftGraphService {
 
       const proxyConfig = parseProxy(decryptSecret(account.proxy));
 
-      const response = await axios.post(
-        'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-        params.toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent':
-              account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      const response = await refreshQueue.add(() =>
+        axios.post(
+          'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+          params.toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'User-Agent':
+                account.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+            proxy: proxyConfig,
+            timeout: 15000,
           },
-          proxy: proxyConfig,
-          timeout: 10000,
-        },
+        ),
       );
 
       const data = response.data;
@@ -223,8 +270,9 @@ export class MicrosoftGraphService {
       const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       // Fetch headers and basic body preview
-      const response = await axios.get(
-        `https://graph.microsoft.com/v1.0/me/mailFolders/${folderId}/messages?$top=${limit}&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,hasAttachments,isRead`,
+      const safeFolderId = encodeURIComponent(folderId);
+      const response = await graphAxios.get(
+        `https://graph.microsoft.com/v1.0/me/mailFolders/${safeFolderId}/messages?$top=${limit}&$select=id,subject,bodyPreview,body,from,toRecipients,receivedDateTime,hasAttachments,isRead`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -258,8 +306,9 @@ export class MicrosoftGraphService {
       const account = await prisma.microsoftEmailAccount.findUnique({ where: { id: accountId } });
       const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
-      await axios.patch(
-        `https://graph.microsoft.com/v1.0/me/messages/${messageId}`,
+      const safeMessageIdPatch = encodeURIComponent(messageId);
+      await graphAxios.patch(
+        `https://graph.microsoft.com/v1.0/me/messages/${safeMessageIdPatch}`,
         { isRead },
         {
           headers: {
@@ -289,8 +338,9 @@ export class MicrosoftGraphService {
       const proxyConfig = parseProxy(decryptSecret(account?.proxy));
 
       // 1. Fetch message details to find its parentFolderId
-      const msgRes = await axios.get(
-        `https://graph.microsoft.com/v1.0/me/messages/${messageId}?$select=parentFolderId`,
+      const safeMessageId = encodeURIComponent(messageId);
+      const msgRes = await graphAxios.get(
+        `https://graph.microsoft.com/v1.0/me/messages/${safeMessageId}?$select=parentFolderId`,
         {
           headers: { Authorization: `Bearer ${token}` },
           proxy: proxyConfig,
@@ -299,7 +349,7 @@ export class MicrosoftGraphService {
       const parentFolderId = msgRes.data?.parentFolderId;
 
       // 2. Fetch the resolved ID of the well-known 'deleteditems' folder
-      const delFolderRes = await axios.get(
+      const delFolderRes = await graphAxios.get(
         'https://graph.microsoft.com/v1.0/me/mailFolders/deleteditems?$select=id',
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -310,14 +360,14 @@ export class MicrosoftGraphService {
 
       if (parentFolderId && parentFolderId === deletedItemsFolderId) {
         // Already in Deleted Items - perform permanent delete
-        await axios.delete(`https://graph.microsoft.com/v1.0/me/messages/${messageId}`, {
+        await graphAxios.delete(`https://graph.microsoft.com/v1.0/me/messages/${safeMessageId}`, {
           headers: { Authorization: `Bearer ${token}` },
           proxy: proxyConfig,
         });
       } else {
         // Move to Deleted Items (soft delete)
-        await axios.post(
-          `https://graph.microsoft.com/v1.0/me/messages/${messageId}/move`,
+        await graphAxios.post(
+          `https://graph.microsoft.com/v1.0/me/messages/${safeMessageId}/move`,
           { destinationId: 'deleteditems' },
           {
             headers: {

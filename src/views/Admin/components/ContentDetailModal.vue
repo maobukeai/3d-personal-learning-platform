@@ -5,7 +5,7 @@ import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
 import AdminContentStatusBadge from './AdminContentStatusBadge.vue';
-import type { ContentItem, PageConfig } from '../AdminContentsView.vue';
+import type { ContentItem, PageConfig } from '../composables/useAdminContents';
 
 const props = defineProps<{
   modelValue: boolean;

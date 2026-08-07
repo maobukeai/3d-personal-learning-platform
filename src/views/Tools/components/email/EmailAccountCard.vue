@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Globe, Copy, CheckCircle, Edit, Trash2 } from 'lucide-vue-next';
+import Tooltip from '@/components/ui/Tooltip.vue';
 import type { EmailAccount } from './email-types';
 
 defineProps<{
@@ -94,9 +95,13 @@ defineEmits<{
       <div class="w-full h-1 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
         <div
           class="h-full rounded-full transition-all duration-300"
-          :class="acc.sentCountToday >= acc.dailyLimit ? 'bg-rose-500' : 'bg-indigo-500'"
+          :class="
+            acc.dailyLimit > 0 && acc.sentCountToday >= acc.dailyLimit
+              ? 'bg-rose-500'
+              : 'bg-indigo-500'
+          "
           :style="{
-            width: `${Math.min(100, (acc.sentCountToday / acc.dailyLimit) * 100)}%`,
+            width: `${acc.dailyLimit > 0 ? Math.min(100, (acc.sentCountToday / acc.dailyLimit) * 100) : 0}%`,
           }"
         ></div>
       </div>

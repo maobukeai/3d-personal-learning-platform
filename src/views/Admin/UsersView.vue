@@ -439,18 +439,17 @@ const fetchUsers = async (page: number = pagination.value.page) => {
       },
     });
     const payload = response.data;
-    users.value = Array.isArray(payload) ? payload : payload.data;
+    const list = Array.isArray(payload) ? payload : payload?.data || [];
+    users.value = list;
     pagination.value = Array.isArray(payload)
       ? { page, limit: pagination.value.limit, total: payload.length, totalPages: 1 }
-      : payload.pagination || {
+      : payload?.pagination || {
           page,
           limit: pagination.value.limit,
-          total: payload.data.length,
+          total: list.length,
           totalPages: 1,
         };
-    selectedIds.value = selectedIds.value.filter((id) =>
-      users.value.some((user) => user.id === id),
-    );
+    selectedIds.value = selectedIds.value.filter((id) => list.some((user) => user.id === id));
     if (detailUser.value) {
       const fresh = users.value.find((user) => user.id === detailUser.value?.id);
       if (fresh) detailUser.value = fresh;

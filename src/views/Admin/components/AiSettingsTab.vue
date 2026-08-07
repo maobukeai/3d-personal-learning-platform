@@ -18,6 +18,8 @@ import type {
   ModelFamilyGroup,
   CategoryDialogState,
 } from './AiSettingsTab.types';
+
+const LOCAL_STORAGE_KEY = 'ai_settings_expanded_groups';
 import AiSettingsHeader from './AiSettingsHeader.vue';
 import AiModelPoolToolbar from './AiModelPoolToolbar.vue';
 import AiBatchActionBar from './AiBatchActionBar.vue';

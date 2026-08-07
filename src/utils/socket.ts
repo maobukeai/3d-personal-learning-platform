@@ -52,7 +52,7 @@ class SocketService {
 
     this.socket = io(SOCKET_URL, {
       withCredentials: true,
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionAttempts: this.maxReconnectAttempts,
       reconnectionDelay: 1000,

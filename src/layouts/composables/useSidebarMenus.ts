@@ -38,6 +38,7 @@ import {
   FolderCog,
   Globe2,
   HardDrive,
+  TableProperties,
 } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import { useAuthStore } from '@/stores/auth';
@@ -340,6 +341,7 @@ export function useSidebarMenus() {
           { name: t('sidebar.roadmaps'), icon: MapPin, path: '/roadmaps' },
           { name: t('sidebar.academy'), icon: GraduationCap, path: '/academy' },
           { name: t('sidebar.notes'), icon: Notebook, path: '/notes' },
+          { name: t('sidebar.smartSheet'), icon: TableProperties, path: '/learning/sheet' },
         ],
       },
       {
@@ -407,13 +409,13 @@ export function useSidebarMenus() {
           name: label('指挥', 'Command'),
           icon: Gauge,
           path: '/admin/command-center',
-          active: (path) => path === '/admin/command-center' || path === '/admin/dashboard',
+          active: (path: string) => path === '/admin/command-center' || path === '/admin/dashboard',
         },
         {
           name: label('用户', 'Users'),
           icon: Users,
           path: '/admin/users',
-          active: (path) => path.startsWith('/admin/users'),
+          active: (path: string) => path.startsWith('/admin/users'),
         },
         {
           name: label('审核', 'Review'),
@@ -424,7 +426,7 @@ export function useSidebarMenus() {
             workspaceStore.adminStats.pendingMaterials +
             workspaceStore.adminStats.pendingShowcases +
             workspaceStore.adminStats.pendingPlugins,
-          active: (path) =>
+          active: (path: string) =>
             path.startsWith('/admin/audits') ||
             path.startsWith('/admin/assets') ||
             path.startsWith('/admin/materials'),
@@ -433,7 +435,7 @@ export function useSidebarMenus() {
           name: label('课程', 'Courses'),
           icon: GraduationCap,
           path: '/admin/courses',
-          active: (path) =>
+          active: (path: string) =>
             path.startsWith('/admin/courses') ||
             path.startsWith('/admin/roadmaps') ||
             path.startsWith('/admin/categories'),
@@ -442,7 +444,7 @@ export function useSidebarMenus() {
           name: label('设置', 'Settings'),
           icon: Settings,
           path: '/admin/settings',
-          active: (path) => path.startsWith('/admin/settings'),
+          active: (path: string) => path.startsWith('/admin/settings'),
         },
       ];
     }
@@ -452,19 +454,19 @@ export function useSidebarMenus() {
         name: label('工作台', 'Home'),
         icon: LayoutDashboard,
         path: '/dashboard',
-        active: (path) => path === '/dashboard' || path.startsWith('/dashboard'),
+        active: (path: string) => path === '/dashboard' || path.startsWith('/dashboard'),
       },
       {
         name: label('学院', 'Learn'),
         icon: GraduationCap,
         path: '/academy',
-        active: (path) => path.startsWith('/academy') || path.startsWith('/roadmaps'),
+        active: (path: string) => path.startsWith('/academy') || path.startsWith('/roadmaps'),
       },
       {
         name: label('展示', 'Works'),
         icon: MonitorPlay,
         path: '/showcase',
-        active: (path) =>
+        active: (path: string) =>
           path.startsWith('/showcase') ||
           path.startsWith('/assets') ||
           path.startsWith('/my-works'),
@@ -473,14 +475,14 @@ export function useSidebarMenus() {
         name: label('社区', 'Community'),
         icon: MessageSquare,
         path: '/discussions',
-        active: (path) => path.startsWith('/discussions'),
+        active: (path: string) => path.startsWith('/discussions'),
       },
       {
         name: label('消息', 'Messages'),
         icon: MessageCircle,
         path: '/messages',
         badge: authStore.unreadMessagesCount,
-        active: (path) => path.startsWith('/messages'),
+        active: (path: string) => path.startsWith('/messages'),
       },
     ];
   });

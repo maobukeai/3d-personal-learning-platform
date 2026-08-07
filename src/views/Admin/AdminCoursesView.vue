@@ -143,8 +143,8 @@ const fetchCourses = async () => {
   try {
     isLoading.value = true;
     const { data } = await api.get('/api/admin/courses');
-    courses.value = data;
-    const existingIds = new Set(courses.value.map((course) => course.id));
+    courses.value = Array.isArray(data) ? data : data?.courses || data?.data || [];
+    const existingIds = new Set((courses.value || []).map((course) => course.id));
     selectedCourseIds.value = new Set(
       Array.from(selectedCourseIds.value).filter((id) => existingIds.has(id)),
     );
@@ -159,7 +159,7 @@ const fetchCourses = async () => {
 const fetchCategories = async () => {
   try {
     const { data } = await api.get('/api/admin/course-categories');
-    categories.value = data;
+    categories.value = Array.isArray(data) ? data : data?.categories || data?.data || [];
   } catch (error) {
     logError(error, { operation: 'admin.fetchCourseCategories', component: 'AdminCoursesView' });
   }

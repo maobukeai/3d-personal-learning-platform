@@ -181,8 +181,7 @@ const openUserProfile = (userId: string) => {
       <div
         v-for="col in activeColumns"
         :key="col.id"
-        class="task-board-column flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border"
-        style="background-color: var(--bg-card); border-color: var(--border-base)"
+        class="task-board-column flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border glass-real-physical"
       >
         <!-- Column Header -->
         <div
@@ -220,8 +219,8 @@ const openUserProfile = (userId: string) => {
           group="tasks"
           item-key="id"
           class="flex-1 overflow-y-auto space-y-1 sm:space-y-2 px-1 sm:px-3 pb-3 scrollbar-hide min-h-[100px]"
-          :animation="200"
-          ghost-class="opacity-50"
+          :animation="250"
+          ghost-class="drag-ghost"
           :delay="100"
           :delay-on-touch-only="true"
           :touch-start-threshold="5"
@@ -282,3 +281,13 @@ const openUserProfile = (userId: string) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.drag-ghost {
+  opacity: 0.3 !important;
+  transform: scale(0.95);
+  box-shadow: 0 0 0 2px var(--accent) !important;
+  border-radius: var(--radius-section) !important;
+  pointer-events: none;
+}
+</style>

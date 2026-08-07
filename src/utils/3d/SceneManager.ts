@@ -39,6 +39,8 @@ export class SceneManager {
   public axesHelper: AxesHelper | null = null;
   private container: HTMLElement;
   private envTexture: Texture | null = null;
+  private isDisposed = false;
+  private currentHdrAbortController: AbortController | null = null;
 
   constructor(container: HTMLElement, autoRotate = false) {
     this.container = container;
@@ -132,21 +134,49 @@ export class SceneManager {
       if (config.lights?.color) this.directionalLight.color.set(config.lights.color);
     }
 
-    // Environment map texture loading with clean memory disposal
+    // Abort previous in-flight HDR load requests
+    if (this.currentHdrAbortController) {
+      this.currentHdrAbortController.abort();
+      this.currentHdrAbortController = null;
+    }
+
+    // Environment map texture loading with clean memory disposal & abort protection
     if (config.environment && envMaps[config.environment]) {
+      const controller = new AbortController();
+      this.currentHdrAbortController = controller;
+
       try {
         const { HDRLoader } = await import('three/examples/jsm/loaders/HDRLoader.js');
-        new HDRLoader().load(envMaps[config.environment], (texture) => {
-          // Dispose the previous environment texture to prevent GPU texture leakage
-          if (this.envTexture) {
-            this.envTexture.dispose();
-          }
-          this.envTexture = texture;
-          texture.mapping = EquirectangularReflectionMapping;
-          this.scene.environment = texture;
-        });
+        if (this.isDisposed || controller.signal.aborted) return;
+
+        new HDRLoader().load(
+          envMaps[config.environment],
+          (texture) => {
+            if (this.isDisposed || controller.signal.aborted) {
+              texture.dispose();
+              return;
+            }
+
+            if (this.envTexture) {
+              this.envTexture.dispose();
+            }
+            this.envTexture = texture;
+            texture.mapping = EquirectangularReflectionMapping;
+            if (this.scene) {
+              this.scene.environment = texture;
+            }
+          },
+          undefined,
+          (err) => {
+            if (!controller.signal.aborted) {
+              console.error('Failed to load HDR environment map:', err);
+            }
+          },
+        );
       } catch (err) {
-        console.error('Failed to load HDR environment map:', err);
+        if (!controller.signal.aborted) {
+          console.error('Failed to load HDR environment map:', err);
+        }
       }
     }
 
@@ -195,6 +225,12 @@ export class SceneManager {
   }
 
   public dispose() {
+    this.isDisposed = true;
+    if (this.currentHdrAbortController) {
+      this.currentHdrAbortController.abort();
+      this.currentHdrAbortController = null;
+    }
+
     if (this.gridHelper) {
       this.scene.remove(this.gridHelper);
       this.gridHelper.dispose();
@@ -222,7 +258,9 @@ export class SceneManager {
     if (this.envTexture) {
       this.envTexture.dispose();
       this.envTexture = null;
-      this.scene.environment = null;
+      if (this.scene) {
+        this.scene.environment = null;
+      }
     }
 
     if (this.renderer) {

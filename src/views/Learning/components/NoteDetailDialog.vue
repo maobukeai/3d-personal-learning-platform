@@ -1013,61 +1013,66 @@ defineExpose({ open });
             </div>
 
             <!-- Comments List -->
-            <div v-loading="loadingComments" class="space-y-4">
-              <div
-                v-if="comments.length === 0"
-                class="text-center py-6 text-xs text-[var(--text-muted)]"
-              >
-                {{ t('notes.noCommentsYet') }}
+            <div class="space-y-4 relative">
+              <div v-if="loadingComments" class="flex justify-center py-6">
+                <Loader2 class="w-5 h-5 animate-spin text-[var(--sidebar-accent)]" />
               </div>
-              <div
-                v-for="item in comments"
-                :key="item.id"
-                class="flex items-start gap-2.5 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-all duration-200"
-              >
-                <UserAvatar
-                  :user="item.user"
-                  size="sm"
-                  class="shrink-0 w-6 h-6 cursor-pointer hover:opacity-85 transition-opacity"
-                  @click="handleShowUserProfile(item.user.id)"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center justify-between">
-                    <span
-                      class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
-                      @click="handleShowUserProfile(item.user.id)"
-                    >
-                      {{ item.user.name }}
-                      <span
-                        v-if="item.userId === detailNote.userId"
-                        class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
-                        >{{ t('notes.author') }}</span
-                      >
-                    </span>
-                    <div class="flex items-center gap-2">
-                      <span class="text-[10px] text-[var(--text-muted)]">{{
-                        new Date(item.createdAt).toLocaleString('zh-CN')
-                      }}</span>
-                      <button
-                        v-if="
-                          item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'
-                        "
-                        type="button"
-                        class="p-1 text-[var(--text-muted)] hover:text-red-500 rounded transition-all cursor-pointer bg-transparent border-0"
-                        :title="t('notes.deleteComment')"
-                        @click="handleDeleteComment(item.id)"
-                      >
-                        <Trash2 class="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  <p
-                    class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
-                  >
-                    {{ item.content }}
-                  </p>
+              <template v-else>
+                <div
+                  v-if="comments.length === 0"
+                  class="text-center py-6 text-xs text-[var(--text-muted)]"
+                >
+                  {{ t('notes.noCommentsYet') }}
                 </div>
-              </div>
+                <div
+                  v-for="item in comments"
+                  :key="item.id"
+                  class="flex items-start gap-2.5 p-2.5 rounded-xl border border-[var(--border-base)] bg-slate-50 dark:bg-white/[0.02] hover:bg-slate-100/50 dark:hover:bg-white/[0.04] transition-all duration-200"
+                >
+                  <UserAvatar
+                    :user="item.user"
+                    size="sm"
+                    class="shrink-0 w-6 h-6 cursor-pointer hover:opacity-85 transition-opacity"
+                    @click="handleShowUserProfile(item.user.id)"
+                  />
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                      <span
+                        class="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer hover:text-accent transition-colors"
+                        @click="handleShowUserProfile(item.user.id)"
+                      >
+                        {{ item.user.name }}
+                        <span
+                          v-if="item.userId === detailNote.userId"
+                          class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
+                          >{{ t('notes.author') }}</span
+                        >
+                      </span>
+                      <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-[var(--text-muted)]">{{
+                          new Date(item.createdAt).toLocaleString('zh-CN')
+                        }}</span>
+                        <button
+                          v-if="
+                            item.userId === authStore.user?.id || authStore.user?.role === 'ADMIN'
+                          "
+                          type="button"
+                          class="p-1 text-[var(--text-muted)] hover:text-red-500 rounded transition-all cursor-pointer bg-transparent border-0"
+                          :title="t('notes.deleteComment')"
+                          @click="handleDeleteComment(item.id)"
+                        >
+                          <Trash2 class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <p
+                      class="text-xs text-[var(--text-secondary)] mt-1.5 whitespace-pre-wrap leading-relaxed"
+                    >
+                      {{ item.content }}
+                    </p>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
 

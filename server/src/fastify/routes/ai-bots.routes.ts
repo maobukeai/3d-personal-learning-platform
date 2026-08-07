@@ -752,7 +752,7 @@ export const registerAiBotRoutes = (app: FastifyInstance): void => {
 
     return reply.send({
       entitlement,
-      integrations: integrations.map((integration) =>
+      integrations: integrations.map((integration: any) =>
         toPublicIntegration(integration, modelOptions),
       ),
     });
@@ -887,7 +887,11 @@ export const registerAiBotRoutes = (app: FastifyInstance): void => {
       const { id } = request.params as { id: string };
       const integration = await getOwnedIntegration(id, userId);
       const entitlement = await getAiBotEntitlement(userId);
-      const runbook = await buildAiBotIntegrationRunbook(integration, entitlement);
+      const runbook = await buildAiBotIntegrationRunbook(
+        integration,
+        entitlement,
+        request.headers.host || 'localhost',
+      );
 
       return reply.send({ runbook, entitlement });
     },
@@ -963,8 +967,9 @@ export const registerAiBotRoutes = (app: FastifyInstance): void => {
       const userId = requireUserId(request);
       const { id } = request.params as { id: string };
       const integration = await getOwnedIntegration(id, userId);
+      const entitlement = await getAiBotEntitlement(userId);
       const { days } = request.query as { days?: string | number };
-      const insights = await buildAiBotEvolutionInsights(integration, days);
+      const insights = await buildAiBotEvolutionInsights(integration, entitlement, days);
 
       return reply.send({ insights });
     },
@@ -1011,8 +1016,8 @@ export const registerAiBotRoutes = (app: FastifyInstance): void => {
       await assertCanUseAiBot(userId);
 
       const input = normalizePromptOptimizationInput(asRecord(request.body));
-      const optimization = await optimizeAiBotPrompt(integration, input);
       const entitlement = await getAiBotEntitlement(userId);
+      const optimization = await optimizeAiBotPrompt(integration, input, entitlement);
 
       return reply.send({
         success: true,

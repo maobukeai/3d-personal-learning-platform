@@ -180,10 +180,14 @@ export const softwareSchema = z.object({
 });
 
 export const taskSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(150, 'Title cannot exceed 150 characters'),
+  title: z
+    .string()
+    .min(1, 'Title is required')
+    .max(150, 'Title cannot exceed 150 characters')
+    .optional(),
   description: z.string().optional().nullable(),
   status: z.string().optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']).optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT', 'NONE']).optional(),
   tags: z.string().optional().nullable(),
   subtasks: z.string().optional().nullable(),
   dueDate: z.string().optional().nullable(),
@@ -206,6 +210,10 @@ export const taskSchema = z.object({
     .refine((val) => val === undefined || val === null || val >= 0, {
       message: 'Time spent must be at least 0',
     }),
+});
+
+export const createTaskSchema = taskSchema.extend({
+  title: z.string().min(1, 'Title is required').max(150, 'Title cannot exceed 150 characters'),
 });
 
 export const enrollCourseSchema = z.object({

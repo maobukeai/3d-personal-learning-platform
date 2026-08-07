@@ -448,7 +448,13 @@ defineExpose({ open });
       </div>
     </template>
 
-    <div v-loading="loading" class="mobile-adaptive grid grid-cols-1 md:grid-cols-12 gap-5 py-0.5">
+    <div class="mobile-adaptive grid grid-cols-1 md:grid-cols-12 gap-5 py-0.5 relative">
+      <div
+        v-if="loading"
+        class="absolute inset-0 bg-[var(--bg-card)]/60 backdrop-blur-xs z-20 flex items-center justify-center"
+      >
+        <Loader2 class="w-6 h-6 animate-spin text-[var(--sidebar-accent)]" />
+      </div>
       <!-- Left Column: Settings (7 cols) -->
       <div class="md:col-span-7 space-y-4">
         <!-- Note Summary Box -->

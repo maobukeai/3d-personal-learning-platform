@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import type { AxiosProgressEvent } from 'axios';
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { fetchManagementInsights } from './adminManagementInsights';
 import MirrorSourceDialog from './components/MirrorSourceDialog.vue';
 import MirrorSyncLogsDialog from './components/MirrorSyncLogsDialog.vue';
@@ -734,20 +734,24 @@ const filteredSources = computed(() => {
   });
 });
 
-onMounted(() => {
-  fetchSources().then(() => {
-    const hasSyncing = sources.value.some((s) => s.syncStatus === 'SYNCING');
+onMounted(async () => {
+  try {
+    await fetchSources();
+    const list = sources.value || [];
+    const hasSyncing = list.some((s) => s.syncStatus === 'SYNCING');
     if (hasSyncing) {
       startPolling();
     }
     const sourceId = route.query.sourceId as string;
     if (sourceId) {
-      const source = sources.value.find((s) => s.id === sourceId);
+      const source = list.find((s) => s.id === sourceId);
       if (source) {
         toggleResourcePanel(source);
       }
     }
-  });
+  } catch (error) {
+    logError(error, { operation: 'admin.mirrorOnMounted', component: 'AdminMirrorView' });
+  }
 });
 
 const importFileInput = ref<HTMLInputElement | null>(null);

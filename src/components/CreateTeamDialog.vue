@@ -20,12 +20,12 @@ const systemStore = useSystemStore();
 
 const teamName = ref('');
 const teamDescription = ref('');
-const teamCategory = ref(systemStore.settings.TEAM_CATEGORIES[0] || '');
+const teamCategory = ref(systemStore.settings?.TEAM_CATEGORIES?.[0] || '');
 const teamType = ref('public');
 const loading = ref(false);
 
 const categories = computed(() =>
-  systemStore.settings.TEAM_CATEGORIES.map((cat) => ({
+  (systemStore.settings?.TEAM_CATEGORIES || []).map((cat) => ({
     label: cat,
     value: cat,
   })),

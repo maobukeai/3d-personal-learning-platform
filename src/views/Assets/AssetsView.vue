@@ -38,6 +38,12 @@ import AssetContentPanel from './components/AssetContentPanel.vue';
 const PublishWorkDialog = defineAsyncComponent(() => import('@/components/PublishWorkDialog.vue'));
 const AssetDetailModal = defineAsyncComponent(() => import('./components/AssetDetailModal.vue'));
 const EditWorkDialog = defineAsyncComponent(() => import('./components/EditWorkDialog.vue'));
+const HelpRequestDetailModal = defineAsyncComponent(
+  () => import('./components/HelpRequestDetailModal.vue'),
+);
+const HelpRequestPostModal = defineAsyncComponent(
+  () => import('./components/HelpRequestPostModal.vue'),
+);
 import { normalizeAssetWork } from './myWorksModel';
 import type { UnifiedWork } from './myWorksModel';
 import Modal from '@/components/ui/Modal.vue';

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { getApiErrorMessage } from '@/utils/error';
+import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Mail, Lock, User, Chrome, Github, ArrowRight } from 'lucide-vue-next';
@@ -26,8 +26,12 @@ let timer: ReturnType<typeof setInterval> | null = null;
 const logoLoadFailed = ref(false);
 
 onMounted(async () => {
-  if (!systemStore.isInitialized) {
-    await systemStore.fetchSettings();
+  try {
+    if (!systemStore.isInitialized) {
+      await systemStore.fetchSettings();
+    }
+  } catch (error) {
+    logError(error, { operation: 'auth.fetchSettingsOnMount', component: 'RegisterView' });
   }
 });
 

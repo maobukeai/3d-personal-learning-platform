@@ -224,14 +224,14 @@ const fetchTeams = async (page = pagination.value.page) => {
         ),
       };
     } else {
-      teams.value = response.data.data;
-      pagination.value = response.data.pagination;
-      summary.value = response.data.summary;
-      categories.value = response.data.filters?.categories || [];
+      teams.value = Array.isArray(response.data?.data) ? response.data.data : [];
+      pagination.value = response.data?.pagination || pagination.value;
+      summary.value = response.data?.summary || summary.value;
+      categories.value = response.data?.filters?.categories || [];
     }
 
     selectedIds.value = selectedIds.value.filter((id) =>
-      teams.value.some((team) => team.id === id),
+      (teams.value || []).some((team) => team.id === id),
     );
 
     if (detailDialogVisible.value && detailTeam.value) {

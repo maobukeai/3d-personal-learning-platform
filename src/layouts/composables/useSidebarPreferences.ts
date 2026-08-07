@@ -33,7 +33,9 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
   const hasLocalPreferenceChange = ref(false);
   const lastAvailableKeys = ref<string[]>([]);
 
+  const MIN_SAVING_DURATION_MS = 800;
   let savePreferenceTimer: number | undefined;
+  let minSavingTimer: number | undefined;
 
   const persistSidebarPreferences = () => {
     preferences.setSidebarMode(sidebarMode.value);
@@ -41,10 +43,14 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
     if (!isAuthenticated.value) return;
 
+    isSavingPreference.value = true;
+    const saveStartTime = Date.now();
+
     if (savePreferenceTimer) window.clearTimeout(savePreferenceTimer);
+    if (minSavingTimer) window.clearTimeout(minSavingTimer);
+
     savePreferenceTimer = window.setTimeout(async () => {
       try {
-        isSavingPreference.value = true;
         await updateUserSettings([
           { key: CLOUD_MODE_KEY, value: sidebarMode.value },
           { key: CLOUD_GROUPS_KEY, value: JSON.stringify([...collapsedGroupKeys.value]) },
@@ -53,7 +59,11 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
       } catch {
         cloudPreferenceLoaded.value = false;
       } finally {
-        isSavingPreference.value = false;
+        const elapsed = Date.now() - saveStartTime;
+        const remaining = Math.max(0, MIN_SAVING_DURATION_MS - elapsed);
+        minSavingTimer = window.setTimeout(() => {
+          isSavingPreference.value = false;
+        }, remaining);
       }
     }, SAVE_DEBOUNCE_MS);
   };
@@ -233,6 +243,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
 
   onUnmounted(() => {
     if (savePreferenceTimer) window.clearTimeout(savePreferenceTimer);
+    if (minSavingTimer) window.clearTimeout(minSavingTimer);
   });
 
   return {

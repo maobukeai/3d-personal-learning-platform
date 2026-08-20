@@ -314,7 +314,7 @@ const onOpenAutoFocus = (event: Event) => {
         @pointerdown="onContentPointerDown"
         @interact-outside="onInteractOutside"
         @escape-key-down="onEscapeKeyDown"
-        @openAutoFocus="onOpenAutoFocus"
+        @open-auto-focus="onOpenAutoFocus"
       >
         <div :class="surfaceClasses" :style="surfaceStyle">
           <!-- Screen-reader-only DialogTitle (renders when no visible title) -->

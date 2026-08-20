@@ -58,7 +58,7 @@ const handleLogout = async () => {
             </span>
             <div class="mt-0.5 flex items-center">
               <span
-                class="text-[9px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/35 dark:border-amber-500/25 rounded-full px-1.5 py-0.2 select-none leading-none scale-90 origin-left"
+                class="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/35 dark:border-amber-500/25 rounded-full px-1.5 py-0.2 select-none leading-none scale-90 origin-left"
               >
                 Lv.{{ authStore.userLevel }}
               </span>

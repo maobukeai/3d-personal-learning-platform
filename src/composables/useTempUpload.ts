@@ -1,6 +1,6 @@
 import { type Ref } from 'vue';
 import api from '@/utils/api';
-import { logError, getApiErrorMessage } from '@/utils/error';
+import { logError } from '@/utils/error';
 import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';

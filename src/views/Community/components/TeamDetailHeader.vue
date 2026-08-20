@@ -160,13 +160,13 @@ const getCategoryLabel = (cat?: string | null) => {
           </h1>
           <div class="flex items-center gap-1.5 justify-center">
             <div
-              class="px-2 py-0.5 bg-accent/10 text-accent text-[9px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
+              class="px-2 py-0.5 bg-accent/10 text-accent text-[10px] sm:text-xs font-black rounded-md uppercase tracking-wider border border-accent/20"
             >
               {{ t('teamDetail.spaceLabel') }}
             </div>
             <div
               v-if="team.visibility"
-              class="px-2 py-0.5 rounded text-[9px] font-bold border"
+              class="px-2 py-0.5 rounded text-[10px] font-bold border"
               :class="
                 team.visibility === 'PUBLIC'
                   ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'

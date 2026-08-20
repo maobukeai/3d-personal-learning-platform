@@ -365,7 +365,7 @@ function highlightText(text: string | null, query: string): string {
               />
             </svg>
             <span
-              class="absolute text-[7px] font-bold font-mono"
+              class="absolute text-[10px] font-bold font-mono"
               :class="
                 liveCodes[acc.id]?.timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-400'
               "

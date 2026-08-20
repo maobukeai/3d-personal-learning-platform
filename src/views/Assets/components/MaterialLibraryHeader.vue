@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Layers, Search, Eye, EyeOff, Heart, UploadCloud } from 'lucide-vue-next';
+import { Layers, Search, Heart, UploadCloud } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';

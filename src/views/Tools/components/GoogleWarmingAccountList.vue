@@ -255,7 +255,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
           >
           <span
             :class="[
-              'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
+              'text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
               getStatusBadgeClass(acc.status),
             ]"
           >
@@ -287,7 +287,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
               >{{ listTotpCodes[acc.id].code.slice(0, 3) }}
               {{ listTotpCodes[acc.id].code.slice(3) }}</span
             >
-            <span class="text-[9px] font-mono" style="color: var(--text-muted)"
+            <span class="text-[10px] font-mono" style="color: var(--text-muted)"
               >{{ listTotpCodes[acc.id].timeLeft }}s</span
             >
             <button
@@ -311,7 +311,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
             ></div>
           </div>
           <span
-            class="text-[9px] font-mono shrink-0 w-6 text-right"
+            class="text-[10px] font-mono shrink-0 w-6 text-right"
             style="color: var(--text-muted)"
             >{{ Math.round((acc.currentDay / 14) * 100) }}%</span
           >

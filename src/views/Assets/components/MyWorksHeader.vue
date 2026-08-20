@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Eye, EyeOff, Loader2, PackageCheck, Plus, Search, Sparkles } from 'lucide-vue-next';
+import { Loader2, PackageCheck, Plus, Search, Sparkles } from 'lucide-vue-next';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import { useLabel } from '@/utils/i18n';

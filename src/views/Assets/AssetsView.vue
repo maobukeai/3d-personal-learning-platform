@@ -1,19 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  Activity,
-  Box,
-  FileArchive,
-  Grid3X3,
-  LayoutList,
-  UsersRound,
-  Plus,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  MessageSquare,
-} from 'lucide-vue-next';
+import { Activity, Box, FileArchive, Grid3X3, LayoutList, UsersRound } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api, { getAssetUrl } from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
@@ -1066,8 +1054,8 @@ onUnmounted(() => {
       >
         <AssetFilterPanel
           v-if="activeTab !== 'requests'"
-          :is-open="isFilterOpen"
           v-model:collapsed="isFilterCollapsed"
+          :is-open="isFilterOpen"
           :active-category-id="activeCategoryId"
           :selected-format="selectedFormat"
           :selected-tag="selectedTag"
@@ -1095,7 +1083,6 @@ onUnmounted(() => {
           :view-mode="viewMode"
           :is-filter-open="isFilterOpen"
           :is-filter-collapsed="isFilterCollapsed"
-          @toggle-filter-collapse="isFilterCollapsed = false"
           :is-loading="isLoading"
           :visible-assets="visibleAssets"
           :pagination="pagination"
@@ -1106,6 +1093,7 @@ onUnmounted(() => {
           :selected-ids="Array.from(selectedAssetIds)"
           :help-requests="helpRequests"
           :is-help-requests-loading="isHelpRequestsLoading"
+          @toggle-filter-collapse="isFilterCollapsed = false"
           @update:active-tab="activeTab = $event"
           @update:sort-key="sortKey = $event"
           @update:view-mode="viewMode = $event"

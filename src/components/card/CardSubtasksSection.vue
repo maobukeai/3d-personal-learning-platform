@@ -101,7 +101,7 @@ const onDragEnd = () => {
     @click.stop
   >
     <div
-      class="flex items-center justify-between text-[8px] sm:text-[9px] font-bold text-slate-400 mb-2 select-none px-0.5"
+      class="flex items-center justify-between text-[10px] sm:text-[10px] font-bold text-slate-400 mb-2 select-none px-0.5"
     >
       <span class="tracking-wide">子任务清单 ({{ subtasksProgress }})</span>
       <button
@@ -128,7 +128,7 @@ const onDragEnd = () => {
         @dragend="onDragEnd"
       >
         <div
-          class="flex items-center gap-1.5 text-[9px] sm:text-[10px] w-full group/sub p-1.5 rounded-lg transition-all hover:bg-slate-100/80 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/50 dark:hover:border-white/5"
+          class="flex items-center gap-1.5 text-[10px] sm:text-[10px] w-full group/sub p-1.5 rounded-lg transition-all hover:bg-slate-100/80 dark:hover:bg-white/5 border border-transparent hover:border-slate-200/50 dark:hover:border-white/5"
           :class="
             draggedSubtaskId === sub.id ? 'opacity-40 border border-dashed border-accent' : ''
           "
@@ -192,7 +192,7 @@ const onDragEnd = () => {
               @click="toggleSubtaskPanel(displayIdx)"
             >
               <MessageSquare class="w-2.5 h-2.5 shrink-0" />
-              <span v-if="sub.comments?.length" class="text-[7px]">{{ sub.comments.length }}</span>
+              <span v-if="sub.comments?.length" class="text-[10px]">{{ sub.comments.length }}</span>
             </button>
             <button
               type="button"
@@ -202,7 +202,7 @@ const onDragEnd = () => {
               @click="toggleSubtaskPanel(displayIdx)"
             >
               <ImageIcon class="w-2.5 h-2.5 shrink-0" />
-              <span v-if="sub.images?.length" class="text-[7px]">{{ sub.images.length }}</span>
+              <span v-if="sub.images?.length" class="text-[10px]">{{ sub.images.length }}</span>
             </button>
           </div>
         </div>
@@ -210,7 +210,7 @@ const onDragEnd = () => {
         <!-- Inline Discussion Panel -->
         <div
           v-if="activeSubtaskPanelIndex === displayIdx"
-          class="ml-4 p-2 rounded-xl border border-dashed text-[8px] sm:text-[9px] flex flex-col gap-2 glass-real-physical shadow-sm"
+          class="ml-4 p-2 rounded-xl border border-dashed text-[10px] sm:text-[10px] flex flex-col gap-2 glass-real-physical shadow-sm"
           style="border-color: var(--border-base)"
           @click.stop
         >
@@ -267,7 +267,7 @@ const onDragEnd = () => {
                 :key="cmt.id"
                 class="flex flex-col bg-slate-50/70 dark:bg-white/5 p-1.5 rounded-lg border border-slate-100/50 dark:border-white/5"
               >
-                <div class="flex items-center justify-between text-[7px] text-slate-400 mb-0.5">
+                <div class="flex items-center justify-between text-[10px] text-slate-400 mb-0.5">
                   <span class="font-bold text-slate-600 dark:text-slate-300">{{
                     cmt.userName
                   }}</span>
@@ -278,7 +278,7 @@ const onDragEnd = () => {
                     })
                   }}</span>
                 </div>
-                <p class="text-[9px] leading-snug font-medium" style="color: var(--text-primary)">
+                <p class="text-[10px] leading-snug font-medium" style="color: var(--text-primary)">
                   {{ parseCommentContent(cmt.content || cmt.text || '').text }}
                 </p>
                 <div
@@ -302,7 +302,7 @@ const onDragEnd = () => {
                 v-model="newCommentTexts[displayIdx]"
                 type="text"
                 placeholder="说点什么，回车发送..."
-                class="flex-1 px-2 py-1 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-[8px] sm:text-[9px] focus:outline-none transition-colors"
+                class="flex-1 px-2 py-1 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 border border-dashed border-slate-200 dark:border-slate-700 rounded-lg text-[10px] sm:text-[10px] focus:outline-none transition-colors"
                 style="color: var(--text-primary)"
                 @keyup.enter="handleAddComment(parsedSubtasks.findIndex((s) => s.id === sub.id))"
               />

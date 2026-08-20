@@ -32,7 +32,6 @@ import AiSettingsTab from './components/AiSettingsTab.vue';
 import StorageSettingsTab from './components/StorageSettingsTab.vue';
 import AdminHeader from './components/AdminHeader.vue';
 import Button from '@/components/ui/Button.vue';
-import Badge from '@/components/ui/Badge.vue';
 import { AlertTriangle, Download, RotateCcw, Save } from 'lucide-vue-next';
 import AdminSettingsTabs from './components/AdminSettingsTabs.vue';
 import AdminSettingsSignalCards from './components/AdminSettingsSignalCards.vue';
@@ -796,8 +795,8 @@ onMounted(() => {
         size="sm"
         :icon="Download"
         title="一键导出所有系统配置"
-        @click="exportSettings"
         class="!h-7.5 !text-xs !px-2.5"
+        @click="exportSettings"
       >
         导出配置
       </Button>
@@ -806,8 +805,8 @@ onMounted(() => {
         size="sm"
         :icon="Upload"
         title="一键从文件导入配置"
-        @click="triggerImport"
         class="!h-7.5 !text-xs !px-2.5"
+        @click="triggerImport"
       >
         导入配置
       </Button>
@@ -816,8 +815,8 @@ onMounted(() => {
         size="sm"
         :icon="RotateCcw"
         :title="$t('admin.restore_default')"
-        @click="resetToDefaults"
         class="!h-7.5 !text-xs !px-2.5"
+        @click="resetToDefaults"
       >
         {{ $t('admin.restore_default') }}
       </Button>
@@ -826,8 +825,8 @@ onMounted(() => {
         size="sm"
         :loading="isSaving"
         :icon="Save"
-        @click="saveSettings"
         class="!h-7.5 !text-xs !px-2.5"
+        @click="saveSettings"
       >
         保存配置
       </Button>

@@ -15,7 +15,6 @@ import {
   Link2,
   Lock,
   ExternalLink,
-  X,
   BookOpen,
 } from 'lucide-vue-next';
 import { useManualStore } from '@/stores/manual';
@@ -494,7 +493,7 @@ watch(resourceId, () => {
                             >
                           </div>
                           <span
-                            class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-400 shrink-0"
+                            class="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 text-slate-400 shrink-0"
                           >
                             {{ link.type }}
                           </span>
@@ -712,7 +711,7 @@ watch(resourceId, () => {
                       }}</span>
                     </div>
                     <span
-                      class="text-[9px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400"
+                      class="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400"
                     >
                       {{ link.type }}
                     </span>

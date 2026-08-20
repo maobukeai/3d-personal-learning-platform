@@ -500,7 +500,7 @@ const handleSaveRoadmap = async () => {
               <Layers class="w-3.5 h-3.5" />
               <span>{{ t('admin.learning_stage_node_design') }}</span>
               <span
-                class="px-1.5 py-0.5 text-[9px] font-extrabold rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/25"
+                class="px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-indigo-500/10 text-indigo-500 border border-indigo-500/25"
               >
                 {{ editForm.steps.length }} 节点
               </span>
@@ -629,7 +629,7 @@ const handleSaveRoadmap = async () => {
                           class="flex items-center gap-2"
                         >
                           <div
-                            class="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 text-[9px] font-black text-slate-400"
+                            class="w-4 h-4 rounded-full border border-slate-200 dark:border-slate-800 flex items-center justify-center shrink-0 text-[10px] font-black text-slate-400"
                           >
                             {{ sIdx + 1 }}
                           </div>

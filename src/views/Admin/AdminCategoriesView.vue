@@ -3,7 +3,6 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
-  Search,
   Trash2,
   Edit2,
   FolderTree,
@@ -451,10 +450,10 @@ onMounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="平台分类管理"
         subtitle="全局业务分类、显示权重与 Emoji 标识设计"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索当前分类..."
       >
         <template #title-badge>
@@ -465,8 +464,8 @@ onMounted(() => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openModal()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openModal()"
         >
           新建分类
         </Button>
@@ -475,8 +474,8 @@ onMounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchData"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchData"
         >
           刷新
         </Button>

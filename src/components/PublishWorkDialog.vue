@@ -47,9 +47,9 @@ onMounted(() => {
 <template>
   <Modal
     :show="modelValue"
-    @close="emit('update:modelValue', false)"
     title="发布创作与资源"
     size="lg"
+    @close="emit('update:modelValue', false)"
   >
     <div class="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
       <!-- Category Switcher Tabs -->
@@ -79,15 +79,18 @@ onMounted(() => {
       <!-- Specific Form Sections -->
       <PublishAssetForm
         v-if="publishCategory === 'asset'"
-        :formData="formData"
-        :assetCategories="assetCategories"
+        v-model:form-data="formData"
+        :asset-categories="assetCategories"
       />
 
-      <PublishMaterialForm v-else-if="publishCategory === 'material'" :formData="formData" />
+      <PublishMaterialForm
+        v-else-if="publishCategory === 'material'"
+        v-model:form-data="formData"
+      />
 
       <PublishPluginForm
         v-else-if="publishCategory === 'plugin' || publishCategory === 'software'"
-        :formData="formData"
+        v-model:form-data="formData"
       />
 
       <!-- Common Thumbnail Dropzone -->
@@ -109,13 +112,13 @@ onMounted(() => {
           <label
             class="flex items-center gap-1.5 text-xs text-[var(--text-primary)] cursor-pointer"
           >
-            <input type="radio" value="local" v-model="formData.downloadType" />
+            <input v-model="formData.downloadType" type="radio" value="local" />
             文件直传 (R2 云存储)
           </label>
           <label
             class="flex items-center gap-1.5 text-xs text-[var(--text-primary)] cursor-pointer"
           >
-            <input type="radio" value="external" v-model="formData.downloadType" />
+            <input v-model="formData.downloadType" type="radio" value="external" />
             第三方网盘外链
           </label>
         </div>

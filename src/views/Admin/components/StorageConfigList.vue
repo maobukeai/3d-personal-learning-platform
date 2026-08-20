@@ -91,7 +91,7 @@ const getAssetTypeLabel = (value: string) => {
               />
             </div>
             <div
-              class="flex items-center gap-1 text-[9px] truncate"
+              class="flex items-center gap-1 text-[10px] truncate"
               style="color: var(--text-muted)"
             >
               <Database class="w-2.5 h-2.5 shrink-0" />
@@ -99,7 +99,7 @@ const getAssetTypeLabel = (value: string) => {
             </div>
             <div
               v-if="config.remark"
-              class="text-[9px] font-bold text-indigo-500/80 truncate mt-0.5"
+              class="text-[10px] font-bold text-indigo-500/80 truncate mt-0.5"
               :title="config.remark"
             >
               备注: {{ config.remark }}
@@ -113,7 +113,7 @@ const getAssetTypeLabel = (value: string) => {
 
         <!-- Endpoint Detail -->
         <div
-          class="space-y-0.5 text-[9px] mb-1.5 font-mono p-1.5 rounded-md relative group/endpoint pr-6"
+          class="space-y-0.5 text-[10px] mb-1.5 font-mono p-1.5 rounded-md relative group/endpoint pr-6"
           style="background-color: var(--bg-card); color: var(--text-secondary)"
         >
           <div class="truncate">
@@ -154,7 +154,7 @@ const getAssetTypeLabel = (value: string) => {
 
         <!-- Capacity Info -->
         <div class="space-y-0.5 mb-2">
-          <div class="flex items-center justify-between text-[9px]">
+          <div class="flex items-center justify-between text-[10px]">
             <span style="color: var(--text-muted)">容量配额使用率</span>
             <span class="font-bold font-mono" style="color: var(--text-primary)">
               {{ getUsagePercentage(config.usedBytes, config.limitGb) }}%
@@ -179,7 +179,7 @@ const getAssetTypeLabel = (value: string) => {
 
           <!-- Numerical detail precise to decimals -->
           <div
-            class="flex items-center justify-between text-[8px]"
+            class="flex items-center justify-between text-[10px]"
             style="color: var(--text-muted)"
           >
             <span>已用: {{ formatCloudflareBytes(config.usedBytes) }}</span>
@@ -193,7 +193,7 @@ const getAssetTypeLabel = (value: string) => {
         class="flex items-center justify-between pt-1.5 border-t"
         style="border-color: var(--border-base)"
       >
-        <div class="text-[8px]" style="color: var(--text-muted)">
+        <div class="text-[10px]" style="color: var(--text-muted)">
           优先级:
           <span class="font-bold text-slate-800 dark:text-slate-200">#{{ config.priority }}</span>
         </div>

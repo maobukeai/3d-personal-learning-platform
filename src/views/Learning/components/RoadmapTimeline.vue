@@ -79,7 +79,7 @@ const selectStep = (stepId: string) => {
             class="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5"
           />
           <Zap v-else-if="getStepStatus(step, index) === 'current'" class="w-3 h-3 sm:w-4 sm:h-4" />
-          <span v-else class="text-[9px] sm:text-xs font-black">{{ Number(index) + 1 }}</span>
+          <span v-else class="text-[10px] sm:text-xs font-black">{{ Number(index) + 1 }}</span>
         </div>
 
         <!-- Flow card block -->
@@ -103,7 +103,7 @@ const selectStep = (stepId: string) => {
             <div class="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
               <div class="flex flex-wrap items-center gap-1">
                 <span
-                  class="text-[8px] sm:text-[9px] font-black uppercase tracking-widest px-1.5 sm:py-0.5 rounded"
+                  class="text-[10px] sm:text-[10px] font-black uppercase tracking-widest px-1.5 sm:py-0.5 rounded"
                   :class="{
                     'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
                       getStepStatus(step, index) === 'completed',
@@ -119,7 +119,7 @@ const selectStep = (stepId: string) => {
 
                 <span
                   v-if="activeStepId === step.id"
-                  class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse"
+                  class="text-[10px] font-black text-accent bg-accent/10 px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-pulse"
                 >
                   <Sparkle class="w-2 h-2" /> {{ t('roadmaps.focusing') }}
                 </span>

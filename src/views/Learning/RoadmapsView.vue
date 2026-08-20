@@ -412,7 +412,7 @@ onMounted(() => {
               :stroke-dashoffset="getCircumferenceProgressOffset(overallStats.overallProgress)"
             />
           </svg>
-          <span class="absolute text-[8px] sm:text-[9px] font-black text-emerald-600"
+          <span class="absolute text-[10px] sm:text-[10px] font-black text-emerald-600"
             >{{ overallStats.overallProgress }}%</span
           >
         </div>

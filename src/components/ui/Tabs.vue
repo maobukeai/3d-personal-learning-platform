@@ -160,7 +160,7 @@ onMounted(() => {
           <component :is="option.icon" v-if="option.icon" class="w-4 h-4 shrink-0" />
           <div v-if="option.hint" class="flex flex-col text-left min-w-0 flex-1">
             <span v-if="option.label" class="leading-none truncate">{{ option.label }}</span>
-            <span class="text-[9px] font-normal opacity-60 mt-1 leading-none truncate">{{
+            <span class="text-[10px] font-normal opacity-60 mt-1 leading-none truncate">{{
               option.hint
             }}</span>
           </div>

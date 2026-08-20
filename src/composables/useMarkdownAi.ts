@@ -1,6 +1,5 @@
-import { ref, reactive, computed, watch, onUnmounted, nextTick, type Ref } from 'vue';
-import { toast } from '@/utils/feedbackAdapter';
-import { createJsonHeaders, parseSSEStream, readFetchErrorMessage } from '@/utils/aiHelpers'; // ── Types ────────────────────────────────────────────────────────
+import { ref, reactive, type Ref } from 'vue';
+// ── Types ────────────────────────────────────────────────────────
 export type AIAction = 'polish' | 'extend' | 'summarize' | 'continue' | 'translate' | 'generate';
 export type WritingTone = 'balanced' | 'professional' | 'friendly' | 'academic' | 'concise';
 export type WritingLength = 'short' | 'balanced' | 'detailed';

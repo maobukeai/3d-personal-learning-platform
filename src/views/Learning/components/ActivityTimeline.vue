@@ -189,7 +189,7 @@ const topContributors = computed(() => {
               @click.stop="emit('click-avatar', note.user.id)"
             >
               <span class="hover:text-accent transition-colors">{{ note.user.name }}</span>
-              <span class="text-[9px] text-[var(--text-muted)] font-normal pointer-events-none"
+              <span class="text-[10px] text-[var(--text-muted)] font-normal pointer-events-none"
                 >• {{ formatDate(note.createdAt) }}</span
               >
             </div>
@@ -197,7 +197,7 @@ const topContributors = computed(() => {
           <!-- Right Tag -->
           <span
             v-if="note.category"
-            class="text-[8px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase shrink-0"
+            class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded-full uppercase shrink-0"
           >
             {{ note.category }}
           </span>
@@ -226,7 +226,7 @@ const topContributors = computed(() => {
           <span
             v-for="tag in parseTags(note.tags)"
             :key="tag"
-            class="px-2 py-0.5 rounded-full bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[9px] font-bold border border-[var(--border-base)]"
+            class="px-2 py-0.5 rounded-full bg-slate-50 dark:bg-white/5 text-[var(--text-muted)] text-[10px] font-bold border border-[var(--border-base)]"
           >
             #{{ tag }}
           </span>
@@ -266,7 +266,7 @@ const topContributors = computed(() => {
           <div v-if="note.userId !== authStore.user?.id" class="flex gap-2 items-center">
             <button
               type="button"
-              class="flex items-center gap-1 text-[9px] font-black text-accent hover:text-accent-dark hover:bg-accent/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
+              class="flex items-center gap-1 text-[10px] font-black text-accent hover:text-accent-dark hover:bg-accent/5 px-2 py-0.5 rounded-lg transition-all cursor-pointer"
               @click.stop="emit('clone', note)"
             >
               <Bookmark class="w-3 h-3" />
@@ -361,12 +361,12 @@ const topContributors = computed(() => {
                 >
                   <div class="flex items-center justify-between gap-2 leading-none">
                     <span
-                      class="text-[9px] font-black text-[var(--text-primary)] cursor-pointer hover:text-accent transition-colors"
+                      class="text-[10px] font-black text-[var(--text-primary)] cursor-pointer hover:text-accent transition-colors"
                       @click.stop="emit('click-avatar', c.user.id)"
                     >
                       {{ c.user?.name || '用户' }}
                     </span>
-                    <span class="text-[8px] text-[var(--text-muted)]">{{
+                    <span class="text-[10px] text-[var(--text-muted)]">{{
                       formatDate(c.createdAt)
                     }}</span>
                   </div>
@@ -437,7 +437,7 @@ const topContributors = computed(() => {
           >
             <BookOpen class="w-16 h-16" />
           </div>
-          <p class="text-[8px] font-black text-accent uppercase tracking-wider mb-1">
+          <p class="text-[10px] font-black text-accent uppercase tracking-wider mb-1">
             今日灵感寄语
           </p>
           <div v-if="props.dailyQuoteGenerated" class="mt-1">
@@ -451,7 +451,7 @@ const topContributors = computed(() => {
             </p>
             <button
               type="button"
-              class="flex items-center gap-1.5 text-[9px] font-bold text-white bg-gradient-to-r from-accent to-purple-600 hover:from-accent-dark hover:to-purple-700 active:scale-95 px-2.5 py-1 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none"
+              class="flex items-center gap-1.5 text-[10px] font-bold text-white bg-gradient-to-r from-accent to-purple-600 hover:from-accent-dark hover:to-purple-700 active:scale-95 px-2.5 py-1 rounded-lg shadow-sm hover:shadow transition-all cursor-pointer select-none disabled:opacity-50 disabled:pointer-events-none"
               :disabled="props.isGeneratingQuote"
               @click="emit('generate-daily-quote')"
             >
@@ -470,20 +470,20 @@ const topContributors = computed(() => {
 
       <!-- Today Stats -->
       <div class="space-y-2 pt-1.5">
-        <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">
           动态看板
         </p>
         <div class="grid grid-cols-2 gap-2">
           <div
             class="bg-slate-50 dark:bg-white/[0.02] border border-[var(--border-base)] p-2 rounded-xl border-dashed"
           >
-            <p class="text-[8px] text-[var(--text-muted)] mb-0.5">全站动态</p>
+            <p class="text-[10px] text-[var(--text-muted)] mb-0.5">全站动态</p>
             <p class="text-xs font-black text-[var(--text-primary)]">{{ props.totalNotes }} 条</p>
           </div>
           <div
             class="bg-slate-50 dark:bg-white/[0.02] border border-[var(--border-base)] p-2 rounded-xl border-dashed"
           >
-            <p class="text-[8px] text-[var(--text-muted)] mb-0.5">标签话题</p>
+            <p class="text-[10px] text-[var(--text-muted)] mb-0.5">标签话题</p>
             <p class="text-xs font-black text-[var(--text-primary)]">{{ props.tags.length }} 个</p>
           </div>
         </div>
@@ -491,7 +491,7 @@ const topContributors = computed(() => {
 
       <!-- Top Contributors (活跃学霸榜) -->
       <div v-if="topContributors.length" class="space-y-2 pt-1.5">
-        <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">
           活跃学霸榜
         </p>
         <div class="flex flex-col gap-1.5">
@@ -511,7 +511,7 @@ const topContributors = computed(() => {
                   class="hover:ring-1 hover:ring-accent transition-all"
                 />
                 <span
-                  class="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-accent/80 text-white flex items-center justify-center font-bold text-[8px] border border-white dark:border-slate-800 scale-90"
+                  class="absolute -top-1 -left-1 w-4 h-4 rounded-full bg-accent/80 text-white flex items-center justify-center font-bold text-[10px] border border-white dark:border-slate-800 scale-90"
                 >
                   {{ idx + 1 }}
                 </span>
@@ -524,7 +524,7 @@ const topContributors = computed(() => {
               </span>
             </div>
             <span
-              class="text-[8px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded-full shrink-0 border border-accent/10"
+              class="text-[10px] font-black text-accent bg-accent/5 px-2 py-0.5 rounded-full shrink-0 border border-accent/10"
             >
               {{ item.count }} 动态
             </span>
@@ -534,7 +534,7 @@ const topContributors = computed(() => {
 
       <!-- Tag cloud -->
       <div class="space-y-2 pt-1.5">
-        <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">
           热门标签话题
         </p>
         <div class="flex flex-wrap gap-1">
@@ -542,7 +542,7 @@ const topContributors = computed(() => {
             v-for="t in props.tags.slice(0, 12)"
             :key="t"
             type="button"
-            class="px-2 py-0.5 rounded-full bg-slate-50 dark:bg-white/5 text-[var(--text-secondary)] text-[9px] font-bold border border-[var(--border-base)] hover:border-accent hover:text-accent transition-all cursor-pointer animate-fade-in"
+            class="px-2 py-0.5 rounded-full bg-slate-50 dark:bg-white/5 text-[var(--text-secondary)] text-[10px] font-bold border border-[var(--border-base)] hover:border-accent hover:text-accent transition-all cursor-pointer animate-fade-in"
             :class="[props.filterTag === t ? '!border-accent !text-accent bg-accent/5' : '']"
             @click="emit('filter-tag', props.filterTag === t ? '' : t)"
           >
@@ -556,7 +556,7 @@ const topContributors = computed(() => {
 
       <!-- Active Category List -->
       <div class="space-y-2 pt-1.5">
-        <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+        <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">
           推荐笔记本/分类
         </p>
         <div class="flex flex-col gap-1">
@@ -564,7 +564,7 @@ const topContributors = computed(() => {
             v-for="c in props.categories.slice(0, 5)"
             :key="c"
             type="button"
-            class="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[9px] font-bold transition-all text-left text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer border border-transparent"
+            class="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition-all text-left text-[var(--text-secondary)] hover:bg-slate-50 dark:hover:bg-white/5 cursor-pointer border border-transparent"
             :class="[
               props.filterCategory === c
                 ? '!border-accent !text-accent bg-accent/5 font-black'

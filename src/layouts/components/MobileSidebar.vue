@@ -98,7 +98,7 @@ const handleLogoError = () => {
             </span>
             <span
               v-if="systemStore.settings.PLATFORM_SUBTITLE"
-              class="text-[8px] font-medium truncate mt-0.5"
+              class="text-[10px] font-medium truncate mt-0.5"
               style="color: var(--text-muted)"
             >
               {{ systemStore.settings.PLATFORM_SUBTITLE }}

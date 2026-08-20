@@ -158,7 +158,7 @@ const metrics = () => {
             <Gauge class="w-3.5 h-3.5 sm:w-4.5 sm:h-4.5" />
           </div>
           <div class="space-y-0.5">
-            <h4 class="text-[8px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">
+            <h4 class="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest">
               {{ t('roadmaps.analyzerTitle') }}
             </h4>
             <p class="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -168,7 +168,7 @@ const metrics = () => {
         </div>
 
         <span
-          class="text-[8px] sm:text-xs font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full shrink-0"
+          class="text-[10px] sm:text-xs font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full shrink-0"
         >
           {{ t('roadmaps.moduleNumber', { n: activeStepIndex() + 1 }) }}
         </span>
@@ -182,7 +182,7 @@ const metrics = () => {
           {{ activeStep.title }}
         </h3>
         <p
-          class="text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2 rounded-lg border border-slate-100 dark:border-slate-800"
+          class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-white/[0.01] p-2 rounded-lg border border-slate-100 dark:border-slate-800"
         >
           {{ activeStep.description || t('roadmaps.customStageDesc') }}
         </p>
@@ -192,7 +192,7 @@ const metrics = () => {
       <div class="pt-0.5 sm:pt-1 relative z-10">
         <button
           type="button"
-          class="w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-[9px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
+          class="w-full py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg text-[10px] sm:text-xs font-black text-white transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer shadow-md"
           :class="
             isStepCompleted(activeStep.id)
               ? 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/10'
@@ -214,7 +214,7 @@ const metrics = () => {
         class="space-y-2 sm:space-y-2.5 pt-1.5 sm:pt-2.5 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
-          class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1"
+          class="flex items-center gap-1 text-[10px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1"
         >
           <TrendingUp class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
           {{ t('roadmaps.metricsTitle') }}
@@ -223,7 +223,7 @@ const metrics = () => {
         <div class="space-y-1.5 sm:space-y-2">
           <div>
             <div
-              class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-500 mb-0.5"
+              class="flex items-center justify-between text-[10px] sm:text-[10px] text-slate-500 mb-0.5"
             >
               <span>{{ t('roadmaps.difficultyMetric') }}</span>
               <span class="font-bold text-slate-700 dark:text-slate-300">
@@ -240,7 +240,7 @@ const metrics = () => {
 
           <div>
             <div
-              class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-500 mb-0.5"
+              class="flex items-center justify-between text-[10px] sm:text-[10px] text-slate-500 mb-0.5"
             >
               <span>{{ t('roadmaps.practicalMetric') }}</span>
               <span class="font-bold text-slate-700 dark:text-slate-300">
@@ -262,7 +262,7 @@ const metrics = () => {
             </span>
             <span class="font-black text-slate-700 dark:text-slate-200">
               {{ metrics().duration }}
-              <span class="text-[8px] sm:text-[10px] font-normal text-slate-400">{{
+              <span class="text-[10px] sm:text-[10px] font-normal text-slate-400">{{
                 t('roadmaps.hourUnit')
               }}</span>
             </span>
@@ -276,7 +276,7 @@ const metrics = () => {
         class="space-y-1 sm:space-y-2 pt-1.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
-          class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
+          class="flex items-center gap-1 text-[10px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
         >
           <ListTodo class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
           {{ t('roadmaps.checklistTitle') }}
@@ -303,7 +303,7 @@ const metrics = () => {
             </div>
 
             <span
-              class="text-[9px] sm:text-[11px] leading-tight sm:leading-relaxed transition-all duration-300"
+              class="text-[10px] sm:text-[11px] leading-tight sm:leading-relaxed transition-all duration-300"
               :class="
                 checkedSubTasks[task.id]
                   ? 'text-slate-400 dark:text-slate-500 line-through'
@@ -322,7 +322,7 @@ const metrics = () => {
         class="space-y-1 sm:space-y-2 pt-1.5 sm:pt-3 border-t border-slate-100 dark:border-slate-800/80 relative z-10"
       >
         <div
-          class="flex items-center gap-1 text-[8px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
+          class="flex items-center gap-1 text-[10px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest"
         >
           <GraduationCap class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-accent" />
           {{ t('roadmaps.recommendCoursesTitle') }}
@@ -348,15 +348,15 @@ const metrics = () => {
             </div>
             <div class="min-w-0 flex-1 flex flex-col justify-between">
               <h4
-                class="text-[9px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug"
+                class="text-[10px] sm:text-xs font-bold text-slate-700 dark:text-slate-200 truncate group-hover/card:text-accent transition-colors leading-snug"
               >
                 {{ course.title }}
               </h4>
               <div
-                class="flex items-center justify-between text-[8px] sm:text-[10px] text-slate-400"
+                class="flex items-center justify-between text-[10px] sm:text-[10px] text-slate-400"
               >
                 <span
-                  class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[7px] sm:text-[9px]"
+                  class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[10px] sm:text-[10px]"
                 >
                   {{
                     course.difficulty === 'BEGINNER'
@@ -367,7 +367,7 @@ const metrics = () => {
                   }}
                 </span>
                 <span
-                  class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[7px] sm:text-[9px]"
+                  class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[10px] sm:text-[10px]"
                 >
                   {{ t('roadmaps.goMaster') }} <ArrowRight class="w-2 h-2" />
                 </span>

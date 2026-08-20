@@ -202,7 +202,7 @@ const formatSize = (size?: number | null) => {
               </span>
               <span
                 v-if="v.version === props.plugin.version"
-                class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
+                class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
               >
                 {{ label('当前推送', 'Active') }}
               </span>

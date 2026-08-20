@@ -339,7 +339,7 @@ onMounted(() => {
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
                 >
                   <span
-                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    class="text-[10px] xs:text-[10px] sm:text-[10px] font-bold text-slate-400 uppercase"
                     >{{ t('academy.statsLearning') }}</span
                   >
                   <BookOpen class="hidden sm:block w-4 h-4 text-accent" />
@@ -353,7 +353,7 @@ onMounted(() => {
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
                 >
                   <span
-                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    class="text-[10px] xs:text-[10px] sm:text-[10px] font-bold text-slate-400 uppercase"
                     >{{ t('academy.statsCompleted') }}</span
                   >
                   <Trophy class="hidden sm:block w-4 h-4 text-amber-500" />
@@ -367,7 +367,7 @@ onMounted(() => {
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
                 >
                   <span
-                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    class="text-[10px] xs:text-[10px] sm:text-[10px] font-bold text-slate-400 uppercase"
                     >{{ t('academy.statsLessons') }}</span
                   >
                   <Clock class="hidden sm:block w-4 h-4 text-indigo-500" />
@@ -381,13 +381,13 @@ onMounted(() => {
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
                 >
                   <span
-                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    class="text-[10px] xs:text-[10px] sm:text-[10px] font-bold text-slate-400 uppercase"
                     >{{ t('academy.statsAverage') }}</span
                   >
                   <Target class="hidden sm:block w-4 h-4 text-emerald-500" />
                 </div>
                 <p class="text-xs sm:text-2xl font-black text-emerald-500">
-                  {{ learningStats.avgProgress }}<span class="text-[8px] sm:text-sm">%</span>
+                  {{ learningStats.avgProgress }}<span class="text-[10px] sm:text-sm">%</span>
                 </p>
               </div>
               <div class="p-1.5 sm:p-3.5 glass-card flex flex-col items-center text-center">
@@ -395,7 +395,7 @@ onMounted(() => {
                   class="flex items-center justify-center sm:justify-between w-full mb-0.5 sm:mb-1"
                 >
                   <span
-                    class="text-[7px] xs:text-[8px] sm:text-[10px] font-bold text-slate-400 uppercase"
+                    class="text-[10px] xs:text-[10px] sm:text-[10px] font-bold text-slate-400 uppercase"
                     >{{ t('academy.statsEnrollments') }}</span
                   >
                   <Flame class="hidden sm:block w-4 h-4 text-rose-500" />

@@ -323,7 +323,7 @@ defineExpose({
                   m.user.name || m.user.email
                 }}</span>
                 <span
-                  class="text-[8px] px-1 py-0.2 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded uppercase font-black tracking-wider"
+                  class="text-[10px] px-1 py-0.2 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded uppercase font-black tracking-wider"
                   >{{ m.role }}</span
                 >
               </div>
@@ -418,7 +418,7 @@ defineExpose({
               </div>
             </SelectOption>
           </Select>
-          <p class="text-[9px] sm:text-[10px] text-slate-400 mt-1.5 ml-1">
+          <p class="text-[10px] sm:text-[10px] text-slate-400 mt-1.5 ml-1">
             {{ t('projects.inviteTip') }}
           </p>
         </div>

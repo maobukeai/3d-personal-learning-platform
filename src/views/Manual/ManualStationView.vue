@@ -386,7 +386,7 @@ function handlePageJump() {
                 class="w-full h-full bg-gradient-to-br from-cyan-500/5 to-emerald-500/5 dark:from-cyan-950/20 dark:to-emerald-950/20 flex flex-col items-center justify-center text-cyan-500/50 dark:text-cyan-400/40"
               >
                 <Sparkles class="w-7 h-7 mb-1 group-hover:animate-bounce" />
-                <span class="text-[9px] uppercase tracking-wider font-black">精品资产</span>
+                <span class="text-[10px] uppercase tracking-wider font-black">精品资产</span>
               </div>
             </div>
 
@@ -450,7 +450,7 @@ function handlePageJump() {
                   <span
                     v-for="tag in parseTags(resource.tags).slice(0, 3)"
                     :key="tag"
-                    class="px-2 py-0.5 text-[9px] font-medium rounded bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
+                    class="px-2 py-0.5 text-[10px] font-medium rounded bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500"
                   >
                     #{{ tag }}
                   </span>

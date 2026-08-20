@@ -285,7 +285,7 @@ const compatibilityInfo = computed(() => {
       <div
         v-if="viewMode === 'grid' && (kind === 'work' || activeTab === 'mine') && item?.status"
         :class="[
-          'absolute right-2 top-2 z-20 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border',
+          'absolute right-2 top-2 z-20 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border',
           getStatusMeta(item.status).tone === 'success'
             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
             : getStatusMeta(item.status).tone === 'warning'
@@ -309,7 +309,7 @@ const compatibilityInfo = computed(() => {
         <!-- Version or secondary format text if work -->
         <span
           v-if="kind === 'plugin' || kind === 'software'"
-          class="text-[9px] font-bold text-indigo-500 bg-indigo-500/15 border border-indigo-500/20 px-1 py-0.2 rounded-md"
+          class="text-[10px] font-bold text-indigo-500 bg-indigo-500/15 border border-indigo-500/20 px-1 py-0.2 rounded-md"
         >
           v{{ item?.version }}
         </span>
@@ -343,7 +343,7 @@ const compatibilityInfo = computed(() => {
         <span
           v-for="tag in tagsList"
           :key="tag"
-          class="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md"
+          class="text-[10px] text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md"
         >
           #{{ tag }}
         </span>
@@ -361,7 +361,7 @@ const compatibilityInfo = computed(() => {
           <span class="truncate font-medium text-slate-700 dark:text-slate-300">{{
             categoryLabel
           }}</span>
-          <span v-if="sizeLabel" class="text-slate-300 dark:text-slate-700 font-bold text-[8px]"
+          <span v-if="sizeLabel" class="text-slate-300 dark:text-slate-700 font-bold text-[10px]"
             >•</span
           >
           <span v-if="sizeLabel">{{ sizeLabel }}</span>
@@ -466,14 +466,14 @@ const compatibilityInfo = computed(() => {
             {{ title }}
           </h2>
           <span
-            class="text-[9px] px-1 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium border border-slate-200/20"
+            class="text-[10px] px-1 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 font-medium border border-slate-200/20"
           >
             {{ formatOrVersion || categoryLabel }}
           </span>
           <div
             v-if="(kind === 'work' || activeTab === 'mine') && item?.status"
             :class="[
-              'rounded-md px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border',
+              'rounded-md px-1.5 py-0.2 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md shadow-sm border',
               getStatusMeta(item.status).tone === 'success'
                 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                 : getStatusMeta(item.status).tone === 'warning'
@@ -489,7 +489,7 @@ const compatibilityInfo = computed(() => {
           {{ description || label('暂无说明内容。', 'No description yet.') }}
         </p>
 
-        <div class="flex items-center gap-2 text-[9px] text-slate-500 dark:text-slate-400">
+        <div class="flex items-center gap-2 text-[10px] text-slate-500 dark:text-slate-400">
           <span>{{ categoryLabel }}</span>
           <span v-if="sizeLabel">•</span>
           <span v-if="sizeLabel">{{ sizeLabel }}</span>
@@ -565,7 +565,7 @@ const compatibilityInfo = computed(() => {
               kind === 'asset' || kind === 'material' || kind === 'plugin' || kind === 'software'
             "
             type="button"
-            class="px-2 py-0.5 rounded-lg text-[9px] font-semibold flex items-center gap-0.5 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
+            class="px-2 py-0.5 rounded-lg text-[10px] font-semibold flex items-center gap-0.5 bg-accent hover:bg-accent-hover text-white transition-all shadow-sm"
             :disabled="downloading"
             @click.stop="emit('download', item, $event)"
           >

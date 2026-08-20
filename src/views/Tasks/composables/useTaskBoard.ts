@@ -1,14 +1,9 @@
-import { ref, computed, watch, onActivated } from 'vue';
+import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Flame, ArrowUp, Minus, ArrowDown } from 'lucide-vue-next';
-import { toast, messageBox } from '@/utils/feedbackAdapter';
-import api from '@/utils/api';
 import { useWorkspaceStore } from '@/stores/workspace';
-import { getApiErrorMessage } from '@/utils/error';
-import { TaskStatus } from '@/types/task';
-import type { Task, UserType, Project, Team, TaskUpdatePayload, Subtask } from '@/types/task';
-import { useTaskBoardQuery } from './useTaskBoardQuery'; // --- module-scoped caches (singletons shared across TaskBoard activations) ---
+import type { Task, UserType, Project, Team } from '@/types/task';
+// --- module-scoped caches (singletons shared across TaskBoard activations) ---
 const cachedTasksByTeam = ref<Record<string, Task[]>>({});
 const cachedStatsByTeam = ref<Record<string, unknown>>({});
 const cachedTeamMembersByTeam = ref<Record<string, UserType[]>>({});

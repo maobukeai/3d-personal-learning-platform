@@ -103,7 +103,7 @@ const formatDate = (value?: string | null) => {
                 <span class="text-xs font-black text-[var(--text-primary)]">{{
                   pipelineCards[index].total
                 }}</span>
-                <span class="text-[9px] text-slate-400">总数</span>
+                <span class="text-[10px] text-slate-400">总数</span>
               </div>
             </div>
 
@@ -137,7 +137,7 @@ const formatDate = (value?: string | null) => {
 
             <!-- Stats details -->
             <div
-              class="flex justify-between items-center text-[9px] text-[var(--text-secondary)] font-bold px-0.5"
+              class="flex justify-between items-center text-[10px] text-[var(--text-secondary)] font-bold px-0.5"
             >
               <span class="text-emerald-500">通过 {{ pipelineCards[index].approved }}</span>
               <span class="text-amber-500">待审 {{ pipelineCards[index].pending }}</span>
@@ -149,7 +149,7 @@ const formatDate = (value?: string | null) => {
           <div class="flex-1 flex flex-col justify-between">
             <div>
               <div
-                class="flex items-center justify-between text-[9px] font-bold text-[var(--text-secondary)] mb-1.5"
+                class="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-1.5"
               >
                 <span>待审队列</span>
                 <Badge :variant="queue.total > 0 ? 'warning' : 'info'">
@@ -167,7 +167,7 @@ const formatDate = (value?: string | null) => {
                   <span class="truncate font-medium text-[var(--text-primary)]">{{
                     item.title || item.name || '未命名内容'
                   }}</span>
-                  <small class="text-slate-400 shrink-0 text-[9px]">{{
+                  <small class="text-slate-400 shrink-0 text-[10px]">{{
                     formatDate(item.createdAt)
                   }}</small>
                 </button>
@@ -183,7 +183,7 @@ const formatDate = (value?: string | null) => {
             <button
               v-if="queue.total > 2"
               type="button"
-              class="mt-2 text-center text-[9px] font-black text-[var(--accent)] hover:underline cursor-pointer"
+              class="mt-2 text-center text-[10px] font-black text-[var(--accent)] hover:underline cursor-pointer"
               @click="emit('navigate', queue.route)"
             >
               全部 {{ queue.total }} 个待审...
@@ -209,7 +209,7 @@ const formatDate = (value?: string | null) => {
           :key="item.label"
           class="border border-base rounded-lg p-2 bg-subtle"
         >
-          <span class="text-[9px] text-slate-500 font-bold block">{{ item.label }}</span>
+          <span class="text-[10px] text-slate-500 font-bold block">{{ item.label }}</span>
           <b class="text-base font-black block mt-0.5 text-[var(--text-primary)]">{{
             item.value
           }}</b>

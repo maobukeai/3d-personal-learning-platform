@@ -64,19 +64,19 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
           </h2>
           <span
             v-if="roadmap.projectId"
-            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] sm:text-[10px] font-black rounded-full shrink-0"
           >
             <FolderOpen class="w-2.5 h-2.5" /> {{ t('roadmaps.projectRoadmap') }}
           </span>
           <span
             v-else-if="roadmap.creatorId === null"
-            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] sm:text-[10px] font-black rounded-full shrink-0"
           >
             <Sparkles class="w-2 h-2" /> {{ t('roadmaps.officialRecommend') }}
           </span>
           <span
             v-else
-            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-accent/10 text-accent text-[8px] sm:text-[10px] font-black rounded-full shrink-0"
+            class="inline-flex items-center gap-0.5 px-1.5 py-0.2 bg-accent/10 text-accent text-[10px] sm:text-[10px] font-black rounded-full shrink-0"
           >
             <User class="w-2 h-2" /> {{ t('roadmaps.myLearningPlan') }}
           </span>
@@ -87,7 +87,7 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
           <button
             v-if="roadmap.projectId"
             type="button"
-            class="p-1 px-1.5 sm:px-2.5 rounded bg-accent hover:opacity-90 text-[8px] sm:text-[11px] font-black text-white transition-all flex items-center gap-1 cursor-pointer shadow-md shadow-accent/10 border-none animate-in fade-in"
+            class="p-1 px-1.5 sm:px-2.5 rounded bg-accent hover:opacity-90 text-[10px] sm:text-[11px] font-black text-white transition-all flex items-center gap-1 cursor-pointer shadow-md shadow-accent/10 border-none animate-in fade-in"
             @click="emit('enter-project')"
           >
             <FolderOpen class="w-2.5 h-2.5" />
@@ -95,7 +95,7 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
           </button>
           <button
             type="button"
-            class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/5 border border-slate-200/50 dark:border-slate-800 text-[8px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-0.5 cursor-pointer shadow-sm"
+            class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/5 border border-slate-200/50 dark:border-slate-800 text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-all flex items-center gap-0.5 cursor-pointer shadow-sm"
             @click="emit('export')"
           >
             <Download class="w-2.5 h-2.5" />
@@ -104,7 +104,7 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
           <template v-if="roadmap.creatorId !== null">
             <button
               type="button"
-              class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/10 hover:bg-slate-500/20 text-[8px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all flex items-center gap-0.5 cursor-pointer"
+              class="p-1 px-1.5 sm:px-2 rounded bg-slate-500/10 hover:bg-slate-500/20 text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all flex items-center gap-0.5 cursor-pointer"
               @click="emit('edit')"
             >
               <Edit3 class="w-2.5 h-2.5" />
@@ -112,7 +112,7 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
             </button>
             <button
               type="button"
-              class="p-1 px-1.5 sm:px-2 rounded bg-red-500/10 hover:bg-red-500/20 text-[8px] sm:text-[11px] font-bold text-red-600 dark:text-red-400 transition-all flex items-center gap-0.5 cursor-pointer"
+              class="p-1 px-1.5 sm:px-2 rounded bg-red-500/10 hover:bg-red-500/20 text-[10px] sm:text-[11px] font-bold text-red-600 dark:text-red-400 transition-all flex items-center gap-0.5 cursor-pointer"
               @click="emit('delete')"
             >
               <Trash2 class="w-2.5 h-2.5" />
@@ -124,10 +124,10 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
 
       <!-- Row 2: Description, Metadata & Progress Bar (Always single row!) -->
       <div
-        class="mobile-row flex flex-row items-center justify-between gap-3 text-[9px] sm:text-[11px] text-slate-400 dark:text-slate-500"
+        class="mobile-row flex flex-row items-center justify-between gap-3 text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-500"
       >
         <div class="space-y-1 sm:space-y-1.5 flex-1 min-w-0">
-          <p class="text-[9px] sm:text-xs text-slate-500 leading-relaxed truncate max-w-xl">
+          <p class="text-[10px] sm:text-xs text-slate-500 leading-relaxed truncate max-w-xl">
             {{ roadmap.description || t('roadmaps.defaultDesc') }}
           </p>
 
@@ -176,7 +176,7 @@ const stepCount = computed(() => props.roadmap?.steps?.length || 0);
             ></div>
           </div>
           <span
-            class="text-[9px] sm:text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0"
+            class="text-[10px] sm:text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0"
           >
             {{ progress }}%
           </span>

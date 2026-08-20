@@ -53,7 +53,7 @@ const getBadgeVariant = (label: string) => {
               {{ card.label }}
             </p>
             <p
-              class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+              class="text-[10px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
               :title="card.hint"
             >
               {{ card.hint }}

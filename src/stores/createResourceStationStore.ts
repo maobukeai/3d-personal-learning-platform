@@ -44,7 +44,7 @@ export interface CreateResourceStationStoreOptions {
 export function createResourceStationStore<TStation, TCategory, TResource>(
   options: CreateResourceStationStoreOptions,
 ) {
-  const { apiBaseUrl, entitiesPath, label, defaultPageSize = 21 } = options;
+  const { apiBaseUrl, entitiesPath, label, defaultPageSize = 20 } = options;
 
   return defineStore(options.storeId, () => {
     const stations = ref<TStation[]>([]);

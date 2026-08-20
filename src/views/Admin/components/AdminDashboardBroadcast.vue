@@ -91,7 +91,7 @@ const updateForm = (patch: Partial<BroadcastForm>) => {
             >
               {{ action.label }}
             </span>
-            <span class="text-[9px] text-slate-400 block truncate mt-0.5">{{ action.meta }}</span>
+            <span class="text-[10px] text-slate-400 block truncate mt-0.5">{{ action.meta }}</span>
           </div>
         </button>
       </div>
@@ -212,13 +212,13 @@ const updateForm = (patch: Partial<BroadcastForm>) => {
               <div class="flex items-center gap-1.5">
                 <span
                   v-if="broadcast.isOffline"
-                  class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 shrink-0"
+                  class="inline-flex items-center rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 shrink-0"
                 >
                   已下架
                 </span>
                 <span
                   v-else
-                  class="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0"
+                  class="inline-flex items-center rounded-full bg-emerald-50 dark:bg-emerald-950 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shrink-0"
                 >
                   展示中
                 </span>

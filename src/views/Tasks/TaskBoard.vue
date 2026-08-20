@@ -5,7 +5,15 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { computed, watch, onActivated, defineAsyncComponent, ref } from 'vue';
+import {
+  computed,
+  watch,
+  onActivated,
+  defineAsyncComponent,
+  ref,
+  onMounted,
+  onUnmounted,
+} from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Flame, ArrowUp, Minus, ArrowDown } from 'lucide-vue-next';
@@ -15,6 +23,7 @@ import { TaskStatus } from '@/types/task';
 import type { Task, UserType } from '@/types/task';
 import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
+import { socketService } from '@/utils/socket';
 
 // Composables
 import { useTaskData } from './composables/useTaskData';
@@ -95,6 +104,25 @@ const {
 
 // 3. Performance / FPS Composable
 const { disableBlur } = useFpsFallback();
+
+// 4. Realtime sync: refresh when tasks are mutated by someone else (or by this
+//    client's own mutations echoed back). Debounced to coalesce bursts.
+let taskSyncTimer: ReturnType<typeof setTimeout> | null = null;
+const handleTaskChanged = () => {
+  if (taskSyncTimer) clearTimeout(taskSyncTimer);
+  taskSyncTimer = setTimeout(() => {
+    taskSyncTimer = null;
+    fetchTasks();
+    fetchStats();
+  }, 800);
+};
+onMounted(() => {
+  socketService.on('task_changed', handleTaskChanged);
+});
+onUnmounted(() => {
+  if (taskSyncTimer) clearTimeout(taskSyncTimer);
+  socketService.off('task_changed', handleTaskChanged);
+});
 
 // Local Layout Configs
 const loadViewMode = (): 'board' | 'list' | 'calendar' => {
@@ -212,6 +240,12 @@ const statusColumns = computed(() => [
     title: t('tasks.done'),
     color: 'bg-emerald-500',
     headerBg: 'from-emerald-500/10 to-transparent',
+  },
+  {
+    id: TaskStatus.CANCELLED,
+    title: t('tasks.cancelled'),
+    color: 'bg-zinc-500',
+    headerBg: 'from-zinc-500/10 to-transparent',
   },
 ]);
 

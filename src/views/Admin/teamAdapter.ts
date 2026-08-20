@@ -1,5 +1,5 @@
 import type { AdminTableAdapter } from '@/components/admin/types';
-import { Eye, EyeOff, Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
+import { Plus, RefreshCw, Trash2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import api from '@/utils/api';
 import { formatDateTime as formatDate } from '@/utils/format';

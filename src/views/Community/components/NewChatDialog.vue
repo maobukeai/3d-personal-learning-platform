@@ -106,7 +106,7 @@ const handleClose = () => {
             <p class="text-xs font-bold truncate" style="color: var(--text-primary)">
               {{ user.name || t('community.chat.unnamedUser') }}
             </p>
-            <p class="text-[9px] text-slate-400 truncate">{{ user.email }}</p>
+            <p class="text-[10px] text-slate-400 truncate">{{ user.email }}</p>
           </div>
           <div
             class="w-7 h-7 rounded-lg bg-accent/5 flex items-center justify-center text-accent group-hover:bg-accent group-hover:text-white transition-all shrink-0"

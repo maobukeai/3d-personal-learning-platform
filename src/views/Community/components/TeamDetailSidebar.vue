@@ -97,7 +97,7 @@ const getCategoryLabel = (cat?: string | null) => {
               <span class="block text-[10px] font-black text-slate-400 leading-none">{{
                 kpi.label
               }}</span>
-              <span class="block text-[9px] font-bold text-slate-500 mt-1.5 leading-none">{{
+              <span class="block text-[10px] font-bold text-slate-500 mt-1.5 leading-none">{{
                 kpi.helper
               }}</span>
             </div>

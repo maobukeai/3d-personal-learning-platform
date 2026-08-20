@@ -192,7 +192,7 @@ const copyToClipboard = (text: string) => {
             ]"
             :key="filter.key"
             type="button"
-            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[10px] xs:text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
             :class="[
               codeStatusFilter === filter.key
                 ? filter.key === 'ACTIVE'
@@ -356,7 +356,7 @@ const copyToClipboard = (text: string) => {
                 <p class="font-bold text-[var(--text-primary)]">
                   {{ c.usedBy.name || $t('admin.already_used') }}
                 </p>
-                <p class="text-[9px] text-[var(--text-muted)]">{{ c.usedBy.email }}</p>
+                <p class="text-[10px] text-[var(--text-muted)]">{{ c.usedBy.email }}</p>
               </div>
               <div v-else>-</div>
             </td>
@@ -440,7 +440,7 @@ const copyToClipboard = (text: string) => {
         </div>
 
         <div
-          class="grid grid-cols-4 gap-1.5 text-[9px] xs:text-[10px] border-t border-[var(--border-base)] pt-3 min-w-0"
+          class="grid grid-cols-4 gap-1.5 text-[10px] xs:text-[10px] border-t border-[var(--border-base)] pt-3 min-w-0"
         >
           <div class="min-w-0">
             <span class="text-[var(--text-muted)] block mb-0.5 truncate">{{

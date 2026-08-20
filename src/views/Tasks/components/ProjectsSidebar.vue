@@ -181,14 +181,14 @@ const activityDotClass = (type: string) => {
             </div>
             <button
               type="button"
-              class="px-2 py-0.5 rounded bg-accent/10 text-[9px] font-black text-accent border-none cursor-pointer hover:bg-accent/20 transition-colors disabled:opacity-50"
+              class="px-2 py-0.5 rounded bg-accent/10 text-[10px] font-black text-accent border-none cursor-pointer hover:bg-accent/20 transition-colors disabled:opacity-50"
               :disabled="!recommendedAssignee && !workloadRows.length"
               @click="emit('select-recommended')"
             >
               推荐负责人
             </button>
           </div>
-          <p v-if="recommendedAssignee" class="text-[9px] font-bold text-slate-400 truncate">
+          <p v-if="recommendedAssignee" class="text-[10px] font-bold text-slate-400 truncate">
             推荐 {{ recommendedAssigneeName }} · {{ recommendedAssignee.reason }}
           </p>
 
@@ -238,7 +238,7 @@ const activityDotClass = (type: string) => {
               />
               <button
                 type="button"
-                class="rounded-lg bg-slate-100 dark:bg-white/5 text-[9px] font-black text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 border-none cursor-pointer transition-all"
+                class="rounded-lg bg-slate-100 dark:bg-white/5 text-[10px] font-black text-slate-500 hover:bg-slate-200 dark:hover:bg-white/10 border-none cursor-pointer transition-all"
                 @click="quickTaskDueDate = ''"
               >
                 清除截止
@@ -261,7 +261,7 @@ const activityDotClass = (type: string) => {
                 {{ option.label }}
               </button>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-[9px] font-black">
+            <div class="grid grid-cols-2 gap-2 text-[10px] font-black">
               <div
                 class="rounded-lg bg-slate-50 dark:bg-white/5 px-2 py-1.5 text-slate-500 truncate"
               >
@@ -303,7 +303,7 @@ const activityDotClass = (type: string) => {
             <span class="text-[10px] font-black" style="color: var(--text-primary)"
               >一键任务模板包</span
             >
-            <span class="text-[9px] font-bold text-slate-400">一键发布至关联项目</span>
+            <span class="text-[10px] font-bold text-slate-400">一键发布至关联项目</span>
           </div>
           <div class="space-y-1.5">
             <button
@@ -318,11 +318,11 @@ const activityDotClass = (type: string) => {
                 <span class="text-xs font-black" style="color: var(--text-primary)">{{
                   template.label
                 }}</span>
-                <span class="px-1.5 py-0.5 rounded bg-accent/10 text-[9px] font-black text-accent"
+                <span class="px-1.5 py-0.5 rounded bg-accent/10 text-[10px] font-black text-accent"
                   >{{ template.tasks.length }} 项任务</span
                 >
               </div>
-              <p class="mt-1 text-[9px] font-bold text-slate-400 truncate">
+              <p class="mt-1 text-[10px] font-bold text-slate-400 truncate">
                 {{ template.hint }}
               </p>
             </button>
@@ -368,7 +368,7 @@ const activityDotClass = (type: string) => {
                   {{ project.title }}
                 </p>
                 <span
-                  class="px-2 py-0.5 rounded-md text-[9px] font-black shrink-0"
+                  class="px-2 py-0.5 rounded-md text-[10px] font-black shrink-0"
                   :class="
                     project.riskLevel === 'HIGH'
                       ? 'bg-rose-500/10 text-rose-600'
@@ -378,12 +378,12 @@ const activityDotClass = (type: string) => {
                   {{ project.healthScore }} 分
                 </span>
               </div>
-              <div class="mt-2 grid grid-cols-3 gap-1 text-[9px] font-black text-slate-400">
+              <div class="mt-2 grid grid-cols-3 gap-1 text-[10px] font-black text-slate-400">
                 <span>逾期: {{ project.overdueTasks }}</span>
                 <span>未分派: {{ project.unassignedTasks }}</span>
                 <span>临期: {{ project.dueSoonTasks }}</span>
               </div>
-              <p class="mt-1.5 text-[9px] font-bold text-slate-400 truncate">
+              <p class="mt-1.5 text-[10px] font-bold text-slate-400 truncate">
                 {{ project.reasons[0] }}
               </p>
             </button>
@@ -426,7 +426,7 @@ const activityDotClass = (type: string) => {
                 <p class="text-[11px] font-black truncate" style="color: var(--text-primary)">
                   {{ task.title }}
                 </p>
-                <p class="text-[9px] text-slate-400 font-bold truncate">
+                <p class="text-[10px] text-slate-400 font-bold truncate">
                   {{ task.project?.title || '独立任务' }} ·
                   {{ formatDate(task.dueDate) }}
                 </p>
@@ -461,7 +461,7 @@ const activityDotClass = (type: string) => {
                     {{ row.member.name || row.member.email }}
                   </span>
                 </div>
-                <span class="text-[9px] font-black text-slate-400 shrink-0">
+                <span class="text-[10px] font-black text-slate-400 shrink-0">
                   进行中 {{ row.active }} · 逾期 {{ row.overdue }}
                 </span>
               </div>
@@ -486,7 +486,7 @@ const activityDotClass = (type: string) => {
               <h4 class="text-xs font-black" style="color: var(--text-primary)">协作动态流</h4>
             </div>
             <span
-              class="text-[9px] font-black text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5"
+              class="text-[10px] font-black text-slate-400 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5"
             >
               {{ activityItems.length }} 条更新
             </span>
@@ -516,11 +516,11 @@ const activityDotClass = (type: string) => {
                   style="color: var(--text-primary)"
                   >{{ item.title }}</span
                 >
-                <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
+                <span class="block text-[10px] font-bold text-slate-400 truncate mt-0.5">{{
                   item.description
                 }}</span>
               </span>
-              <span class="text-[9px] font-black text-slate-400 shrink-0">{{
+              <span class="text-[10px] font-black text-slate-400 shrink-0">{{
                 formatRelativeTime(item.createdAt)
               }}</span>
             </button>

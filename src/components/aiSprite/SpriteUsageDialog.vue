@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { AlertTriangle, Sparkles } from 'lucide-vue-next';
+import { AlertTriangle } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps<{

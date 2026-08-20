@@ -672,8 +672,8 @@ onMounted(fetchAdminStats);
             variant="secondary"
             size="sm"
             :icon="Clock"
-            @click="router.push('/admin/audit-logs')"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="router.push('/admin/audit-logs')"
           >
             审计日志
           </Button>
@@ -681,8 +681,8 @@ onMounted(fetchAdminStats);
             variant="secondary"
             size="sm"
             :icon="Megaphone"
-            @click="showBroadcastModal = true"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="showBroadcastModal = true"
           >
             全站广播
           </Button>
@@ -691,8 +691,8 @@ onMounted(fetchAdminStats);
             size="sm"
             :icon="RefreshCw"
             :loading="isLoading"
-            @click="fetchAdminStats"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="fetchAdminStats"
           >
             刷新
           </Button>

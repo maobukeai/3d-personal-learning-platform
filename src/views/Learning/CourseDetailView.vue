@@ -382,7 +382,7 @@ onMounted(fetchCourse);
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course.avgRating || t('common.noData')
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)"
+              <span class="text-[10px] sm:text-[10px]" style="color: var(--text-muted)"
                 >({{ t('academy.reviewsCount', { n: course._count?.reviews || 0 }) }})</span
               >
             </div>
@@ -395,7 +395,7 @@ onMounted(fetchCourse);
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course._count?.enrollments || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{
+              <span class="text-[10px] sm:text-[10px]" style="color: var(--text-muted)">{{
                 t('academy.joined')
               }}</span>
             </div>
@@ -408,7 +408,7 @@ onMounted(fetchCourse);
               <span class="font-bold" style="color: var(--text-primary)">{{
                 course.lessons?.length || 0
               }}</span>
-              <span class="text-[9px] sm:text-[10px]" style="color: var(--text-muted)">{{
+              <span class="text-[10px] sm:text-[10px]" style="color: var(--text-muted)">{{
                 t('academy.lessonHour')
               }}</span>
             </div>
@@ -433,7 +433,7 @@ onMounted(fetchCourse);
                 <span
                   v-for="tag in courseTags.slice(0, 2)"
                   :key="tag"
-                  class="px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-bold bg-accent/10 text-accent whitespace-nowrap"
+                  class="px-1 py-0.5 rounded text-[10px] sm:text-[10px] font-bold bg-accent/10 text-accent whitespace-nowrap"
                 >
                   {{ tag }}
                 </span>
@@ -458,7 +458,7 @@ onMounted(fetchCourse);
                       {{ instructorInfo.name || t('academy.instructor') }}
                     </h4>
                     <span
-                      class="px-1.5 py-0.5 rounded text-[8px] font-bold bg-indigo-500/10 text-indigo-500 leading-none"
+                      class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 text-indigo-500 leading-none"
                       >{{ t('academy.instructor') }}</span
                     >
                   </div>
@@ -467,7 +467,7 @@ onMounted(fetchCourse);
                   </p>
                 </div>
                 <div
-                  class="flex items-center gap-3 text-[9px] font-bold shrink-0"
+                  class="flex items-center gap-3 text-[10px] font-bold shrink-0"
                   style="color: var(--text-muted)"
                 >
                   <span class="flex items-center gap-1"
@@ -540,7 +540,7 @@ onMounted(fetchCourse);
                       </h4>
                       <div class="flex items-center gap-2.5 mt-0.5">
                         <span
-                          class="flex items-center gap-1 text-[9px] font-bold"
+                          class="flex items-center gap-1 text-[10px] font-bold"
                           style="color: var(--text-muted)"
                         >
                           <component
@@ -551,7 +551,7 @@ onMounted(fetchCourse);
                         </span>
                         <span
                           v-if="lesson.duration"
-                          class="flex items-center gap-1 text-[9px] font-bold"
+                          class="flex items-center gap-1 text-[10px] font-bold"
                           style="color: var(--text-muted)"
                         >
                           <Clock class="w-3 h-3 text-slate-400" />
@@ -633,7 +633,7 @@ onMounted(fetchCourse);
                           ></div>
                         </div>
                         <span
-                          class="text-[9px] font-bold w-7 text-left"
+                          class="text-[10px] font-bold w-7 text-left"
                           style="color: var(--text-muted)"
                           >{{ item.percent }}%</span
                         >
@@ -723,7 +723,7 @@ onMounted(fetchCourse);
                               "
                             />
                           </div>
-                          <span class="text-[9px]" style="color: var(--text-muted)">{{
+                          <span class="text-[10px]" style="color: var(--text-muted)">{{
                             formatTimeAgo(review.createdAt)
                           }}</span>
                         </div>

@@ -254,7 +254,7 @@ const tasksByStatus = computed<Record<TaskStatus, Task[]>>(() => {
                   />
                   <span
                     v-if="task.participants.length > 3"
-                    class="text-[9px] font-bold text-slate-400 ml-1"
+                    class="text-[10px] font-bold text-slate-400 ml-1"
                     >+{{ task.participants.length - 3 }}</span
                   >
                 </div>

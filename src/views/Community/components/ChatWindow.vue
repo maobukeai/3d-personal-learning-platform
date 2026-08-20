@@ -893,7 +893,7 @@ defineExpose({
           class="flex items-center justify-center my-3 sm:my-4"
         >
           <div
-            class="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider"
+            class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
             style="
               background-color: var(--bg-card);
               color: var(--text-muted);
@@ -907,7 +907,7 @@ defineExpose({
         <!-- System Message -->
         <div v-if="msg.type === 'SYSTEM'" class="flex items-center justify-center my-2">
           <div
-            class="px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-medium"
+            class="px-3 py-1 rounded-full text-[10px] sm:text-[10px] font-medium"
             style="background-color: var(--bg-card); color: var(--text-muted)"
           >
             {{ msg.content }}
@@ -951,7 +951,7 @@ defineExpose({
                   msg.senderId !== authStore.user?.id &&
                   shouldShowSenderAvatar(msg, filteredMessages[index - 1])
                 "
-                class="text-[9px] font-bold mb-0.5 px-1"
+                class="text-[10px] font-bold mb-0.5 px-1"
                 style="color: var(--text-muted)"
               >
                 {{ msg.sender?.name || t('community.chat.unknownUser') }}
@@ -960,7 +960,7 @@ defineExpose({
               <!-- Reply Preview -->
               <div
                 v-if="msg.replyTo"
-                class="mb-0.5 px-2 py-1 rounded-lg text-[9px] max-w-full border-l-2 border-accent"
+                class="mb-0.5 px-2 py-1 rounded-lg text-[10px] max-w-full border-l-2 border-accent"
                 style="background-color: var(--bg-card); color: var(--text-secondary)"
               >
                 <span class="font-bold text-accent">{{
@@ -1031,7 +1031,7 @@ defineExpose({
                       ></div>
                     </div>
                     <span
-                      class="text-[9px] font-black uppercase tracking-widest opacity-70"
+                      class="text-[10px] font-black uppercase tracking-widest opacity-70"
                       :class="msg.senderId === authStore.user?.id ? 'text-white' : 'text-accent'"
                     >
                       {{
@@ -1057,7 +1057,7 @@ defineExpose({
                       </p>
                       <a
                         href="#"
-                        class="text-[9px] text-accent hover:underline font-bold"
+                        class="text-[10px] text-accent hover:underline font-bold"
                         @click.prevent="handleDownloadFile(msg.content)"
                         >{{ t('community.chat.download') }}</a
                       >
@@ -1073,7 +1073,7 @@ defineExpose({
                   v-if="translations[msg.id] || translating[msg.id]"
                   class="mt-1.5 pt-1.5 border-t border-white/20 dark:border-slate-800 flex flex-col gap-0.5"
                 >
-                  <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
+                  <div class="flex items-center gap-1 text-[10px] font-bold opacity-60">
                     <Loader2 v-if="translating[msg.id]" class="w-2.5 h-2.5 animate-spin" />
                     <Languages v-else class="w-2.5 h-2.5" />
                     {{
@@ -1193,7 +1193,7 @@ defineExpose({
                 v-if="shouldShowTimestamp(msg, filteredMessages[index + 1])"
                 class="flex items-center gap-1 mt-1 px-1"
               >
-                <span class="text-[9px] font-medium text-slate-400">
+                <span class="text-[10px] font-medium text-slate-400">
                   {{
                     new Date(msg.createdAt).toLocaleTimeString([], {
                       hour: '2-digit',

@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch, type Ref, type ComputedRef } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
@@ -16,9 +16,7 @@ import {
   type LibraryTab,
   type StatusFilter,
   CATEGORY_ALL,
-  CATEGORY_OTHER,
   normalizeSoftware,
-  categoryLabel,
   buildViewModeOptions,
 } from './softwaresSchema';
 import axios from 'axios';

@@ -7,7 +7,6 @@ import {
   LogOut,
   Search,
   Box,
-  LayoutDashboard,
   FolderTree,
   MonitorPlay,
   Sun,
@@ -222,7 +221,7 @@ defineExpose({
       >
         <Search /> <span class="text-xs flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
         <kbd
-          class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
+          class="text-[10px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
           style="border-color: var(--border-base); color: var(--text-muted)"
           >Ctrl+K</kbd
         >

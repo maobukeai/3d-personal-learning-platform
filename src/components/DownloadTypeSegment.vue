@@ -46,25 +46,25 @@ const handleFileChange = (e: Event) => {
     >
       <button
         type="button"
-        @click="downloadType = 'local'"
         :class="[
           'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
           downloadType === 'local'
             ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
             : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
         ]"
+        @click="downloadType = 'local'"
       >
         本地文件上传
       </button>
       <button
         type="button"
-        @click="downloadType = 'external'"
         :class="[
           'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
           downloadType === 'external'
             ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
             : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
         ]"
+        @click="downloadType = 'external'"
       >
         网盘链接 / 网页直达
       </button>

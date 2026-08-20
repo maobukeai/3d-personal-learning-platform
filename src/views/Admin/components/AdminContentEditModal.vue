@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { Plus, Trash2, Upload, X } from 'lucide-vue-next';
 import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -182,9 +181,9 @@ const submitEdit = async () => {
 <template>
   <Modal
     :show="open"
-    @close="emit('update:open', false)"
     :title="mode === 'create' ? `发布${pageConfig.label}` : `编辑${pageConfig.label}`"
     size="lg"
+    @close="emit('update:open', false)"
   >
     <div class="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
       <div v-if="mode === 'create'" class="space-y-3">
@@ -207,17 +206,17 @@ const submitEdit = async () => {
             <label class="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
               >资源文件</label
             >
-            <input type="file" ref="fileInputRef" @change="handleFileSelect" class="text-xs" />
+            <input ref="fileInputRef" type="file" class="text-xs" @change="handleFileSelect" />
           </div>
           <div>
             <label class="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
               >缩略图</label
             >
             <input
-              type="file"
               ref="thumbnailInputRef"
-              @change="handleThumbnailSelect"
+              type="file"
               class="text-xs"
+              @change="handleThumbnailSelect"
             />
           </div>
         </div>

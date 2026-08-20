@@ -552,7 +552,7 @@ function handleClose() {
               >{{ site.name }}</span
             >
             <div
-              class="flex items-center gap-0.5 text-[9px] text-[var(--text-muted)] group-hover:text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
+              class="flex items-center gap-0.5 text-[10px] text-[var(--text-muted)] group-hover:text-indigo-400 mt-1 opacity-0 group-hover:opacity-100 transition-all duration-200"
             >
               <span>立即跳转</span>
               <ArrowRight class="w-2.5 h-2.5" />

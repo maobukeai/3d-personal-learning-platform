@@ -513,7 +513,7 @@ onMounted(() => {
                     {{ formatCloudflareBytes(scannedBytes) }}
                   </strong>
                   <Badge variant="primary" outline dot>实时扫描</Badge>
-                  <span v-if="scannedObjectCount !== null" class="text-[9px] text-slate-400">
+                  <span v-if="scannedObjectCount !== null" class="text-[10px] text-slate-400">
                     ({{ scannedObjectCount }} 对象)
                   </span>
                   <Tooltip
@@ -568,7 +568,7 @@ onMounted(() => {
                   {{ formatCloudflareBytes(actualBytes) }}
                 </strong>
                 <Badge variant="success" outline dot>官方数据</Badge>
-                <span v-if="actualObjectCount !== null" class="text-[9px] text-slate-400">
+                <span v-if="actualObjectCount !== null" class="text-[10px] text-slate-400">
                   ({{ actualObjectCount }} 对象)
                 </span>
                 <Tooltip

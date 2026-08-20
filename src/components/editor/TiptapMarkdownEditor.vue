@@ -466,8 +466,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('bold') }"
-        @mousedown.prevent="editor.chain().focus().toggleBold().run()"
         title="加粗"
+        @mousedown.prevent="editor.chain().focus().toggleBold().run()"
       >
         <BoldIcon class="w-3.5 h-3.5" />
       </button>
@@ -475,8 +475,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('italic') }"
-        @mousedown.prevent="editor.chain().focus().toggleItalic().run()"
         title="斜体"
+        @mousedown.prevent="editor.chain().focus().toggleItalic().run()"
       >
         <ItalicIcon class="w-3.5 h-3.5" />
       </button>
@@ -484,8 +484,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('underline') }"
-        @mousedown.prevent="editor.chain().focus().toggleUnderline().run()"
         title="下划线"
+        @mousedown.prevent="editor.chain().focus().toggleUnderline().run()"
       >
         <UnderlineIcon class="w-3.5 h-3.5" />
       </button>
@@ -494,8 +494,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('heading', { level: 1 }) }"
-        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 1 }).run()"
         title="标题 1"
+        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 1 }).run()"
       >
         <Heading1 class="w-3.5 h-3.5" />
       </button>
@@ -503,8 +503,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('heading', { level: 2 }) }"
-        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 2 }).run()"
         title="标题 2"
+        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 2 }).run()"
       >
         <Heading2 class="w-3.5 h-3.5" />
       </button>
@@ -512,8 +512,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('heading', { level: 3 }) }"
-        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 3 }).run()"
         title="标题 3"
+        @mousedown.prevent="editor.chain().focus().toggleHeading({ level: 3 }).run()"
       >
         <Heading3 class="w-3.5 h-3.5" />
       </button>
@@ -522,8 +522,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('bulletList') }"
-        @mousedown.prevent="editor.chain().focus().toggleBulletList().run()"
         title="无序列表"
+        @mousedown.prevent="editor.chain().focus().toggleBulletList().run()"
       >
         <List class="w-3.5 h-3.5" />
       </button>
@@ -531,8 +531,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('orderedList') }"
-        @mousedown.prevent="editor.chain().focus().toggleOrderedList().run()"
         title="有序列表"
+        @mousedown.prevent="editor.chain().focus().toggleOrderedList().run()"
       >
         <ListOrdered class="w-3.5 h-3.5" />
       </button>
@@ -540,8 +540,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('blockquote') }"
-        @mousedown.prevent="editor.chain().focus().toggleBlockquote().run()"
         title="引用"
+        @mousedown.prevent="editor.chain().focus().toggleBlockquote().run()"
       >
         <Quote class="w-3.5 h-3.5" />
       </button>
@@ -549,8 +549,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('code') }"
-        @mousedown.prevent="editor.chain().focus().toggleCode().run()"
         title="行内代码"
+        @mousedown.prevent="editor.chain().focus().toggleCode().run()"
       >
         <CodeIcon class="w-3.5 h-3.5" />
       </button>
@@ -559,8 +559,8 @@ defineExpose({
         type="button"
         class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-zinc-400"
         :class="{ 'bg-accent/15 text-accent!': editor.isActive('link') }"
-        @mousedown.prevent="setLink"
         title="添加链接"
+        @mousedown.prevent="setLink"
       >
         <Link2 class="w-3.5 h-3.5" />
       </button>
@@ -568,8 +568,8 @@ defineExpose({
         v-if="editor.isActive('link')"
         type="button"
         class="p-1.5 rounded-lg hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-colors text-slate-600 dark:text-zinc-400"
-        @mousedown.prevent="editor.chain().focus().unsetLink().run()"
         title="取消链接"
+        @mousedown.prevent="editor.chain().focus().unsetLink().run()"
       >
         <Unlink class="w-3.5 h-3.5" />
       </button>

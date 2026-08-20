@@ -81,7 +81,7 @@ const defaultHealthVariant = (label: string): HealthVariant => {
             </p>
             <p
               v-if="card.hint"
-              class="text-[9px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
+              class="text-[10px] text-[var(--text-secondary)] opacity-80 truncate mt-0.5 leading-none"
               :title="card.hint"
             >
               {{ card.hint }}

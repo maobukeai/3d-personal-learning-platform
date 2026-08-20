@@ -7,11 +7,9 @@ import {
   Download,
   Eye,
   FileSearch,
-  Filter,
   Pause,
   Play,
   RefreshCw,
-  Search,
   SlidersHorizontal,
   UserRound,
   X,
@@ -253,9 +251,9 @@ onBeforeUnmount(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchFilter"
         title="审计日志"
         subtitle="追踪后台关键操作、来源、风险动作与操作者行为"
-        v-model="searchFilter"
         placeholder="搜索描述、 IP、操作者..."
       >
         <template #title-badge>
@@ -276,8 +274,8 @@ onBeforeUnmount(() => {
           size="sm"
           :class="{ active: showAdvancedFilters }"
           :icon="SlidersHorizontal"
-          @click="showAdvancedFilters = !showAdvancedFilters"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="showAdvancedFilters = !showAdvancedFilters"
         >
           高级筛选
         </Button>
@@ -286,8 +284,8 @@ onBeforeUnmount(() => {
           size="sm"
           :class="{ active: autoRefresh }"
           :icon="autoRefresh ? Pause : Play"
-          @click="toggleAutoRefresh"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="toggleAutoRefresh"
         >
           {{ autoRefresh ? '实时中' : '实时' }}
         </Button>
@@ -296,8 +294,8 @@ onBeforeUnmount(() => {
           size="sm"
           :disabled="isExporting"
           :icon="Download"
-          @click="exportCsv"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="exportCsv"
         >
           {{ isExporting ? '导出中' : '导出 CSV' }}
         </Button>
@@ -306,8 +304,8 @@ onBeforeUnmount(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchLogs"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchLogs"
         >
           刷新
         </Button>

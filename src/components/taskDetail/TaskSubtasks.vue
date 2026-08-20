@@ -238,7 +238,7 @@ defineExpose({
               />
               <div
                 v-else
-                class="w-4.5 h-4.5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px]"
+                class="w-4.5 h-4.5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[10px]"
               >
                 {{ getMemberById(sub.assigneeId)?.name?.[0] || 'U' }}
               </div>

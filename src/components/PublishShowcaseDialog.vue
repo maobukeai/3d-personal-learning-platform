@@ -376,7 +376,7 @@ const handlePublish = async () => {
 
             <div>
               <label
-                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
               >
                 嵌入关联的 3D 作品
               </label>
@@ -400,7 +400,7 @@ const handlePublish = async () => {
 
             <div>
               <label
-                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
               >
                 嵌入关联的材质作品
               </label>
@@ -424,7 +424,7 @@ const handlePublish = async () => {
 
             <div>
               <label
-                class="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
+                class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1 ml-0.5"
               >
                 嵌入关联的插件作品
               </label>
@@ -472,7 +472,7 @@ const handlePublish = async () => {
               style="border-color: var(--border-base)"
             >
               <Plus class="w-4 h-4 text-slate-400" />
-              <span class="text-[9px] font-bold text-slate-500">添加图片或视频</span>
+              <span class="text-[10px] font-bold text-slate-500">添加图片或视频</span>
             </div>
           </div>
 
@@ -503,7 +503,7 @@ const handlePublish = async () => {
 
                 <div
                   v-if="isVideoFile(galleryFiles[idx])"
-                  class="absolute top-1 left-1 p-0.5 rounded bg-black/60 text-white text-[8px] font-black uppercase tracking-wider flex items-center gap-0.5"
+                  class="absolute top-1 left-1 p-0.5 rounded bg-black/60 text-white text-[10px] font-black uppercase tracking-wider flex items-center gap-0.5"
                 >
                   <Film class="w-2.5 h-2.5" />
                   视频

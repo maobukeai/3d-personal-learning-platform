@@ -277,7 +277,7 @@ const getStatusLabel = (status: string) => {
             ]"
             :key="filter.key"
             type="button"
-            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[8px] xs:text-[9px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
+            class="px-1 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg border text-[10px] xs:text-[10px] sm:text-[11px] font-bold flex items-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer shrink-0"
             :class="[
               subStatusFilter === filter.key
                 ? filter.key === 'ACTIVE'

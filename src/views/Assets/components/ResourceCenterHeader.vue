@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { FileStack, Search, Eye, EyeOff, RefreshCw, UploadCloud } from 'lucide-vue-next';
+import { FileStack, Search, RefreshCw, UploadCloud } from 'lucide-vue-next';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';
 import { useLabel } from '@/utils/i18n';

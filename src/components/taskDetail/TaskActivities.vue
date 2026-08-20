@@ -78,7 +78,7 @@ defineExpose({
         />
         <div
           v-else
-          class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5 border"
+          class="w-5 h-5 rounded-full bg-gradient-to-br from-accent/20 to-indigo-600/20 text-accent dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5 border"
           style="border-color: var(--border-base)"
         >
           {{ act.user?.name?.substring(0, 1) || '系' }}
@@ -88,7 +88,7 @@ defineExpose({
             <span class="font-bold shrink-0" style="color: var(--text-primary)">
               {{ act.user?.name || '系统' }}
             </span>
-            <span class="text-[9px] text-slate-400 tracking-tight whitespace-nowrap">
+            <span class="text-[10px] text-slate-400 tracking-tight whitespace-nowrap">
               {{ formatActivityTime(act.createdAt) }}
             </span>
           </div>

@@ -189,7 +189,7 @@ const handleSend = () => {
     <div v-if="replyToMessage" class="px-2 pb-2 flex items-center gap-2.5 animate-none">
       <Reply class="w-3.5 h-3.5 text-accent shrink-0" />
       <div class="flex-1 min-w-0">
-        <p class="text-[9px] font-bold text-accent">
+        <p class="text-[10px] font-bold text-accent">
           {{ replyToMessage.sender?.name || t('community.chat.unknownUser') }}
         </p>
         <p class="text-[11px] truncate" style="color: var(--text-secondary)">
@@ -242,9 +242,11 @@ const handleSend = () => {
         >
           <Mic class="w-4 h-4" />
         </button>
-        <span v-if="isRecording" class="text-[9px] font-black text-rose-500 animate-pulse ml-0.5">{{
-          formatDuration(recordingDuration)
-        }}</span>
+        <span
+          v-if="isRecording"
+          class="text-[10px] font-black text-rose-500 animate-pulse ml-0.5"
+          >{{ formatDuration(recordingDuration) }}</span
+        >
       </div>
 
       <input ref="fileInput" type="file" class="hidden" @change="emit('file-upload', $event)" />

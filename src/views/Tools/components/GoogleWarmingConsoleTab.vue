@@ -539,7 +539,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
             </button>
             <span
               :class="[
-                'text-[9px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
+                'text-[10px] px-1.5 py-0.5 rounded-full font-bold shrink-0',
                 getStatusBadgeClass(selectedAccount.status),
               ]"
             >
@@ -715,7 +715,7 @@ const copyText = (text: string, message: string = '已复制到剪贴板') => {
                   : 'gw-day-future',
             ]"
           >
-            <span class="text-[9px] uppercase tracking-tighter opacity-60">D</span>
+            <span class="text-[10px] uppercase tracking-tighter opacity-60">D</span>
             <span>{{ day }}</span>
           </div>
         </div>

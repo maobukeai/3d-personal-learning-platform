@@ -27,7 +27,7 @@ const emit = defineEmits<{
         <h3 class="text-xs font-bold" style="color: var(--text-primary)">
           强制全站云端存储 (Force Cloud Storage)
         </h3>
-        <p class="text-[9px] mt-0.5" style="color: var(--text-muted)">
+        <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
           启用后，全站所有资源数据默认储存至 Cloudflare R2
           云端。若没有配置可用的云存储账号，用户上传文件时将提示"暂时维护中"并禁止上传。
         </p>

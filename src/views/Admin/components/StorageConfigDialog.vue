@@ -174,7 +174,7 @@ const handleRevealSecrets = async () => {
               "
               input-class="!py-2.5 font-mono text-xs"
             />
-            <p class="text-[9px] leading-relaxed mt-1" style="color: var(--text-secondary)">
+            <p class="text-[10px] leading-relaxed mt-1" style="color: var(--text-secondary)">
               配置 Token 后可直接读取 Cloudflare Metrics 接口，展示与官网一致的物理占用。
             </p>
           </div>

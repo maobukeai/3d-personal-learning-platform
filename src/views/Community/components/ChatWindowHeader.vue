@@ -97,14 +97,14 @@ const formatDuration = (seconds: number) => {
           <span class="truncate">{{ conversationName }}</span>
           <span
             v-if="activeConversation.isGroup"
-            class="text-[9px] font-medium text-slate-400 ml-1 shrink-0"
+            class="text-[10px] font-medium text-slate-400 ml-1 shrink-0"
             >{{ activeConversation.participants?.length || 0
             }}{{ t('messages.groupParticipants') }}</span
           >
         </p>
         <p
           v-if="!activeConversation.isGroup"
-          class="text-[9px] font-bold flex items-center gap-1 truncate"
+          class="text-[10px] font-bold flex items-center gap-1 truncate"
           :class="isOtherOnline ? 'text-emerald-500' : 'text-slate-400'"
         >
           <span

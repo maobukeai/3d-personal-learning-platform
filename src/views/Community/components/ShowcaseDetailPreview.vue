@@ -242,25 +242,25 @@ watch(
         </div>
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="flex flex-col">
-            <span class="text-[9px] text-slate-400 uppercase font-semibold">名称</span>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">名称</span>
             <strong class="truncate font-semibold mt-0.5" style="color: var(--text-primary)">{{
               activeModel.title
             }}</strong>
           </div>
           <div class="flex flex-col">
-            <span class="text-[9px] text-slate-400 uppercase font-semibold">类型</span>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">类型</span>
             <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
               activeModel.type
             }}</strong>
           </div>
           <div class="flex flex-col">
-            <span class="text-[9px] text-slate-400 uppercase font-semibold">顶点数</span>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">顶点数</span>
             <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
               activeModel.vertices ? formatNumber(activeModel.vertices) : '---'
             }}</strong>
           </div>
           <div class="flex flex-col">
-            <span class="text-[9px] text-slate-400 uppercase font-semibold">三角面数</span>
+            <span class="text-[10px] text-slate-400 uppercase font-semibold">三角面数</span>
             <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
               activeModel.faces ? formatNumber(activeModel.faces) : '---'
             }}</strong>

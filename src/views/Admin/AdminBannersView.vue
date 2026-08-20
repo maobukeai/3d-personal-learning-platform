@@ -292,8 +292,8 @@ onMounted(() => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openCreateDialog"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCreateDialog"
         >
           新建轮播图
         </Button>
@@ -302,8 +302,8 @@ onMounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchBanners"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchBanners"
         >
           刷新
         </Button>
@@ -345,7 +345,7 @@ onMounted(() => {
 
                       <span
                         v-if="row.tag"
-                        class="absolute top-1 left-1 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full scale-90 origin-top-left"
+                        class="absolute top-1 left-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded-full scale-90 origin-top-left"
                         :class="row.tagColor || 'bg-accent/15 text-accent border border-accent/30'"
                       >
                         {{ row.tag }}

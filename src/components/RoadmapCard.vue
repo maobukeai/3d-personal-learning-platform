@@ -49,7 +49,7 @@ const progressOffset = computed(() => {
     <div class="relative z-10">
       <div class="flex items-start justify-between mb-0.5 md:mb-2">
         <h3
-          class="text-[9px] md:text-sm font-bold truncate md:whitespace-normal"
+          class="text-[10px] md:text-sm font-bold truncate md:whitespace-normal"
           :class="
             active ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'
           "
@@ -83,7 +83,7 @@ const progressOffset = computed(() => {
             />
           </svg>
           <span
-            class="absolute inset-0 flex items-center justify-center text-[4px] md:text-[7px] font-black"
+            class="absolute inset-0 flex items-center justify-center text-[10px] md:text-[10px] font-black"
             :class="progress === 100 ? 'text-emerald-600' : 'text-accent'"
           >
             {{ progress }}
@@ -92,7 +92,7 @@ const progressOffset = computed(() => {
       </div>
 
       <p
-        class="hidden sm:block text-[7px] md:text-[10px] line-clamp-1 md:line-clamp-2 mb-1 md:mb-3"
+        class="hidden sm:block text-[10px] md:text-[10px] line-clamp-1 md:line-clamp-2 mb-1 md:mb-3"
         style="color: var(--text-secondary)"
       >
         {{ roadmap.description }}
@@ -100,7 +100,7 @@ const progressOffset = computed(() => {
 
       <div class="flex items-center justify-between">
         <div
-          class="flex items-center gap-1 text-[7px] md:text-[10px] font-bold"
+          class="flex items-center gap-1 text-[10px] md:text-[10px] font-bold"
           style="color: var(--text-muted)"
         >
           <BookOpen class="w-2 h-2 md:w-3 md:h-3" />

@@ -98,7 +98,7 @@ function isPendingEmpty(category: string): boolean {
               <span class="font-bold text-slate-800 dark:text-slate-200 truncate">{{ cat }}</span>
               <span
                 v-if="isPendingEmpty(cat)"
-                class="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full font-bold shrink-0"
+                class="text-[10px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full font-bold shrink-0"
                 >空</span
               >
             </div>

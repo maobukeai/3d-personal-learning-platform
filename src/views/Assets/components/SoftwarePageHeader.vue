@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Laptop, Search, Eye, EyeOff, RefreshCw, Plus } from 'lucide-vue-next';
+import { Laptop, Search, RefreshCw, Plus } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';

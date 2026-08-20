@@ -60,7 +60,7 @@ const emit = defineEmits<{
           class="asset-meta bg-slate-950/80 backdrop-blur-md border-t border-white/10 p-2 flex flex-col justify-end"
         >
           <strong class="text-[10px] text-white font-bold truncate">{{ asset.title }}</strong>
-          <small class="text-[8px] text-white/75 font-semibold truncate">
+          <small class="text-[10px] text-white/75 font-semibold truncate">
             {{ asset.type || '3D 作品' }}
           </small>
         </span>

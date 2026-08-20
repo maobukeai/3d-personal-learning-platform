@@ -92,7 +92,7 @@ const onSuggestionClick = (sug: string) => {
             >
               <Brain class="w-3 h-3" />
               <span>{{ msg.showReasoning ? '收起' : '展开' }}思考过程</span>
-              <span class="text-[9px] text-slate-400 font-normal"
+              <span class="text-[10px] text-slate-400 font-normal"
                 >({{ Math.round((msg.reasoning?.length || 0) * 0.45) }} tokens)</span
               >
             </button>
@@ -164,7 +164,7 @@ const onSuggestionClick = (sug: string) => {
               isPlanJsonSynced &&
               !isChatSending
             "
-            class="flex items-center gap-1 text-[9px] font-bold text-emerald-500 pl-1"
+            class="flex items-center gap-1 text-[10px] font-bold text-emerald-500 pl-1"
           >
             <Zap class="w-2.5 h-2.5" />
             <span>右侧规划已同步</span>

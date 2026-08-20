@@ -346,7 +346,7 @@ const handleDeleteDiscussion = async (discussionId: string) => {
                 v-if="translations[msg.id] || translating[msg.id]"
                 class="mt-1.5 pt-1.5 border-t border-white/20 dark:border-slate-800 flex flex-col gap-0.5"
               >
-                <div class="flex items-center gap-1 text-[8px] font-bold opacity-60">
+                <div class="flex items-center gap-1 text-[10px] font-bold opacity-60">
                   <Loader2 v-if="translating[msg.id]" class="w-2.5 h-2.5 animate-spin" />
                   <Languages v-else class="w-2.5 h-2.5" />
                   <span>{{

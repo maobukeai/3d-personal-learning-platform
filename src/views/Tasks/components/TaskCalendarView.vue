@@ -305,7 +305,7 @@ const onDropToSidebar = async (event: DragEvent) => {
           <!-- Cell Date Header -->
           <div class="flex justify-between items-center mb-1 shrink-0">
             <span
-              class="text-[9px] font-bold inline-flex items-center justify-center w-4 h-4 rounded-full"
+              class="text-[10px] font-bold inline-flex items-center justify-center w-4 h-4 rounded-full"
               :class="[
                 cell.isCurrentMonth
                   ? 'text-slate-700 dark:text-slate-200'
@@ -317,7 +317,7 @@ const onDropToSidebar = async (event: DragEvent) => {
             </span>
             <span
               v-if="getTasksForDate(cell.date).length > 0"
-              class="text-[8px] font-bold px-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500"
+              class="text-[10px] font-bold px-1 rounded-full bg-slate-100 dark:bg-white/5 text-slate-500"
             >
               {{ getTasksForDate(cell.date).length }}
             </span>
@@ -329,7 +329,7 @@ const onDropToSidebar = async (event: DragEvent) => {
               v-for="task in getTasksForDate(cell.date)"
               :key="task.id"
               draggable="true"
-              class="p-1 rounded-lg border text-[9px] font-semibold leading-tight shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing truncate flex items-center gap-1"
+              class="p-1 rounded-lg border text-[10px] font-semibold leading-tight shadow-sm hover:shadow-md hover:border-accent/30 transition-all cursor-grab active:cursor-grabbing truncate flex items-center gap-1"
               :class="[task.status === 'DONE' ? 'opacity-50 line-through' : '']"
               :style="{
                 backgroundColor: 'var(--bg-app)',
@@ -409,7 +409,7 @@ const onDropToSidebar = async (event: DragEvent) => {
           </div>
 
           <!-- Project and Assignee Footer -->
-          <div class="flex items-center justify-between gap-2 text-[9px] text-slate-400">
+          <div class="flex items-center justify-between gap-2 text-[10px] text-slate-400">
             <span v-if="task.project" class="text-accent font-semibold truncate max-w-[120px]">{{
               task.project.title
             }}</span>

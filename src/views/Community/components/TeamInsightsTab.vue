@@ -231,7 +231,7 @@ const activityDotClass = (type: string) => {
                 {{ healthScore }}
               </span>
               <span
-                class="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mt-1"
+                class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider mt-1"
                 :class="healthToneClass"
               >
                 {{ healthLabel }}
@@ -253,7 +253,7 @@ const activityDotClass = (type: string) => {
               >
                 成员容量排行
               </h3>
-              <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider"
+              <span class="text-[10px] text-slate-400 font-bold uppercase tracking-wider"
                 >工作负荷百分比</span
               >
             </div>

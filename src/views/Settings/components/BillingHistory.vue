@@ -131,7 +131,7 @@ const mobileStatusText = (status?: string) => {
                 {{ tx.description }}
               </p>
               <span
-                class="px-1.5 py-0.5 rounded-full text-[9px] font-bold shrink-0"
+                class="px-1.5 py-0.5 rounded-full text-[10px] font-bold shrink-0"
                 :class="
                   tx.status === 'COMPLETED'
                     ? 'bg-emerald-500/10 text-emerald-500'

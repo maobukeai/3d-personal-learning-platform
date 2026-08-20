@@ -128,7 +128,7 @@ usePasteToUpload(
               :key="tagItem.name"
               variant="secondary"
               size="sm"
-              class="!py-0.5 !px-2 !text-[9px] !h-auto !rounded-md !bg-slate-100 dark:!bg-white/5 font-bold"
+              class="!py-0.5 !px-2 !text-[10px] !h-auto !rounded-md !bg-slate-100 dark:!bg-white/5 font-bold"
               @click="emit('add-tag', tagItem.name)"
             >
               #{{ tagItem.name }}

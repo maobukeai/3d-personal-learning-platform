@@ -859,6 +859,7 @@ void consolidatedCards.value;
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="用户管理"
         :subtitle="
           userOverview
@@ -866,7 +867,6 @@ void consolidatedCards.value;
             : '正在同步账号、会话与订阅数据'
         "
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索姓名、邮箱..."
       >
         <template #title-badge>
@@ -882,8 +882,8 @@ void consolidatedCards.value;
           size="sm"
           :loading="isLoading || isOverviewLoading"
           :icon="RefreshCw"
-          @click="refreshDashboard()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="refreshDashboard()"
         >
           刷新
         </Button>
@@ -891,8 +891,8 @@ void consolidatedCards.value;
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openCreateDialog"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCreateDialog"
         >
           新建用户
         </Button>

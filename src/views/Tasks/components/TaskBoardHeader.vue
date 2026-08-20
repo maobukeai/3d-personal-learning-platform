@@ -111,20 +111,20 @@ const columnVisibilityLabel = (field: string): string => {
       <!-- Inline stats badges -->
       <div class="hidden lg:flex items-center gap-1.5 shrink-0">
         <div
-          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
+          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap"
         >
           <TrendingUp class="w-2.5 h-2.5" />
           <span>{{ completionRate }}% {{ t('tasks.done') }}</span>
         </div>
         <div
           v-if="overdueCount > 0"
-          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 text-[9px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
+          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 text-[10px] font-bold text-rose-600 dark:text-rose-400 whitespace-nowrap"
         >
           <AlertCircle class="w-2.5 h-2.5" />
           <span>{{ overdueCount }} {{ t('tasks.overdue') }}</span>
         </div>
         <div
-          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[9px] font-bold text-slate-500 whitespace-nowrap"
+          class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-white/5 text-[10px] font-bold text-slate-500 whitespace-nowrap"
         >
           <BarChart3 class="w-2.5 h-2.5" />
           <span>{{ tasksCount }} {{ t('tasks.total') }}</span>
@@ -177,7 +177,7 @@ const columnVisibilityLabel = (field: string): string => {
         </template>
         <div class="p-1 space-y-2.5">
           <div
-            class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
+            class="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
           >
             看板卡片显示属性
           </div>
@@ -215,7 +215,7 @@ const columnVisibilityLabel = (field: string): string => {
         </template>
         <div class="p-1 space-y-2.5">
           <div
-            class="text-[9px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
+            class="text-[10px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase mb-1"
           >
             列表卡片显示属性
           </div>

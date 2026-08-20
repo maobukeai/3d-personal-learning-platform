@@ -44,7 +44,7 @@ const { t } = useI18n();
 <template>
   <div
     v-if="tasks.length === 0"
-    class="mobile-adaptive py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl opacity-40 animate-in fade-in"
+    class="mobile-adaptive py-12 flex flex-col items-center justify-center border-2 border-dashed rounded-xl opacity-40 animate-in fade-in"
     style="border-color: var(--border-base)"
   >
     <CheckCircle2 class="w-8 h-8 text-slate-300 mb-2" />
@@ -61,26 +61,26 @@ const { t } = useI18n();
           class="bg-slate-50/50 dark:bg-slate-800/50 border-b"
           style="border-color: var(--border-base)"
         >
-          <th class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px]">
+          <th class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[10px]">
             {{ t('tasks.taskName') }}
           </th>
           <th
-            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-36"
+            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[10px] w-36"
           >
             {{ t('tasks.assignee') }}
           </th>
           <th
-            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-24"
+            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[10px] w-24"
           >
             {{ t('tasks.priority') }}
           </th>
           <th
-            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] w-32"
+            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[10px] w-32"
           >
             {{ t('tasks.statusLabel') }}
           </th>
           <th
-            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[9px] text-right w-16"
+            class="px-3.5 py-2.5 font-bold text-slate-400 uppercase tracking-widest text-[10px] text-right w-16"
           >
             {{ t('common.actions') }}
           </th>
@@ -117,7 +117,7 @@ const { t } = useI18n();
                       />
                       <span
                         v-if="task.participants.length > 3"
-                        class="text-[9px] font-black text-slate-400 pl-1"
+                        class="text-[10px] font-black text-slate-400 pl-1"
                       >
                         +{{ task.participants.length - 3 }}
                       </span>
@@ -167,7 +167,7 @@ const { t } = useI18n();
           </td>
           <td class="px-3.5 py-2">
             <span
-              class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider"
+              class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider"
               :class="getPriorityBadgeClass(task.priority)"
             >
               {{ getPriorityOption(task.priority).label }}

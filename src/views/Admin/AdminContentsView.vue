@@ -1,19 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref } from 'vue';
-import {
-  AlertTriangle,
-  Box,
-  CheckCircle2,
-  Edit3,
-  Layers,
-  Plus,
-  Puzzle,
-  RefreshCw,
-  Sparkles,
-  Trash2,
-  LayoutGrid,
-  List,
-} from 'lucide-vue-next';
+import { Edit3, Plus, RefreshCw, LayoutGrid, List } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
@@ -21,20 +8,11 @@ import UserAvatar from '@/components/UserAvatar.vue';
 import Card from '@/components/ui/Card.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import UiButton from '@/components/ui/Button.vue';
-import UiInput from '@/components/ui/Input.vue';
-import Select from '@/components/ui/Select.vue';
-import SelectOption from '@/components/ui/SelectOption.vue';
 import AdminContentStatusBadge from './components/AdminContentStatusBadge.vue';
 import AdminHeader from './components/AdminHeader.vue';
 import AdminContentEditModal from './components/AdminContentEditModal.vue';
 import AdminContentDetailDrawer from './components/AdminContentDetailDrawer.vue';
-import {
-  useAdminContents,
-  pageConfigs,
-  type ContentItem,
-  type StatusFilter,
-  type ContentTab,
-} from './composables/useAdminContents';
+import { useAdminContents, pageConfigs, type ContentItem } from './composables/useAdminContents';
 
 const {
   activeTab,
@@ -170,9 +148,9 @@ onBeforeUnmount(() => {
     <main class="min-h-0 flex-1 flex flex-col overflow-hidden p-3 gap-3">
       <!-- Header -->
       <AdminHeader
+        v-model="searchQuery"
         :title="pageConfig.title"
         subtitle="平台管理 · 资源清单"
-        v-model="searchQuery"
         placeholder="搜索关键字或创作者..."
       >
         <UiButton
@@ -355,7 +333,7 @@ onBeforeUnmount(() => {
         <AdminContentDetailDrawer
           :open="isDetailSplitOpen"
           :item="activeItem"
-          :pageConfig="pageConfig"
+          :page-config="pageConfig"
           @close="closeDetail"
           @edit="openEditModal"
           @delete="handleDelete"
@@ -369,11 +347,11 @@ onBeforeUnmount(() => {
     <AdminContentEditModal
       v-model:open="isModalOpen"
       :mode="modalMode"
-      :activeTab="activeTab"
-      :pageConfig="pageConfig"
-      :editItem="editItemTarget"
-      :assetCategories="assetCategories"
-      :usersList="[]"
+      :active-tab="activeTab"
+      :page-config="pageConfig"
+      :edit-item="editItemTarget"
+      :asset-categories="assetCategories"
+      :users-list="[]"
       @success="fetchItems(true)"
     />
   </div>

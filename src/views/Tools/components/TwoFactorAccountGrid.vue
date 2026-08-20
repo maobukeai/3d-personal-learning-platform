@@ -288,7 +288,7 @@ function highlightText(text: string | null, query: string): string {
               </span>
             </h3>
             <p
-              class="text-[9px] truncate mt-0.25"
+              class="text-[10px] truncate mt-0.25"
               :title="acc.email || ''"
               style="color: var(--text-secondary)"
             >
@@ -340,12 +340,12 @@ function highlightText(text: string | null, query: string): string {
         >
           <div class="flex flex-col min-w-0 w-full">
             <div class="flex items-center gap-1">
-              <span class="text-[8px] font-bold tracking-wider uppercase text-slate-500"
+              <span class="text-[10px] font-bold tracking-wider uppercase text-slate-500"
                 >动态码</span
               >
               <span
                 v-if="copiedStates[acc.id]"
-                class="text-[8px] text-emerald-400 font-bold bg-emerald-500/10 px-0.5 rounded animate-pulse"
+                class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-0.5 rounded animate-pulse"
                 >已复制</span
               >
             </div>
@@ -396,7 +396,7 @@ function highlightText(text: string | null, query: string): string {
               />
             </svg>
             <span
-              class="absolute text-[7px] font-bold font-mono"
+              class="absolute text-[10px] font-bold font-mono"
               :class="
                 liveCodes[acc.id]?.timeLeft <= 5 ? 'text-rose-500 animate-pulse' : 'text-slate-400'
               "
@@ -452,7 +452,7 @@ function highlightText(text: string | null, query: string): string {
         <!-- Notes -->
         <div
           v-if="acc.note"
-          class="flex items-center gap-1 text-[9px] px-0.5"
+          class="flex items-center gap-1 text-[10px] px-0.5"
           style="color: var(--text-secondary)"
         >
           <FileText class="h-2.5 w-2.5 shrink-0 text-slate-500" />

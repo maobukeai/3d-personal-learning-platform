@@ -1,14 +1,5 @@
 <script setup lang="ts">
-import {
-  X,
-  CheckCircle2,
-  AlertTriangle,
-  Trash2,
-  Edit3,
-  Eye,
-  Download,
-  MessageSquare,
-} from 'lucide-vue-next';
+import { X, CheckCircle2, AlertTriangle, Trash2, Edit3 } from 'lucide-vue-next';
 import { formatDateTime } from '@/utils/format';
 import UserAvatar from '@/components/UserAvatar.vue';
 import UiButton from '@/components/ui/Button.vue';

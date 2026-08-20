@@ -116,7 +116,7 @@ const priorityMap: Record<
               class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity"
             >
               <Button
-                variant="ghost"
+                variant="glass"
                 size="sm"
                 class="h-6 w-6 p-0"
                 title="详情"
@@ -125,7 +125,7 @@ const priorityMap: Record<
                 <Eye class="w-3.5 h-3.5" />
               </Button>
               <Button
-                variant="ghost"
+                variant="glass"
                 size="sm"
                 class="h-6 w-6 p-0"
                 title="编辑"
@@ -134,7 +134,7 @@ const priorityMap: Record<
                 <Edit2 class="w-3.5 h-3.5" />
               </Button>
               <Button
-                variant="ghost"
+                variant="glass"
                 size="sm"
                 class="h-6 w-6 p-0"
                 title="删除"

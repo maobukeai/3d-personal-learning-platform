@@ -956,9 +956,9 @@ onUnmounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="mirrorSearchQuery"
         title="镜像源管理"
         :cards="consolidatedCards"
-        v-model="mirrorSearchQuery"
         placeholder="搜索镜像源..."
       >
         <template #title-badge>
@@ -971,8 +971,8 @@ onUnmounted(() => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openCreate"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCreate"
         >
           添加镜像源
         </Button>
@@ -980,8 +980,8 @@ onUnmounted(() => {
           variant="secondary"
           size="sm"
           :icon="Upload"
-          @click="triggerImportFile"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="triggerImportFile"
         >
           导入镜像源
         </Button>
@@ -989,8 +989,8 @@ onUnmounted(() => {
           variant="secondary"
           size="sm"
           :icon="Search"
-          @click="openScanCloudDialog"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openScanCloudDialog"
         >
           扫描云端镜像源
         </Button>
@@ -999,8 +999,8 @@ onUnmounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchSources"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchSources"
         >
           刷新
         </Button>

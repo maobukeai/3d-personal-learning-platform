@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-  Sparkles,
   ArrowRight,
   BookOpen,
   PlayCircle,
@@ -113,7 +112,7 @@ function getDifficultyClass(diff?: string) {
             ></div>
             <div class="absolute top-1.5 left-1.5 z-10">
               <span
-                class="px-1.5 py-0.5 rounded text-[8px] font-bold backdrop-blur-md"
+                class="px-1.5 py-0.5 rounded text-[10px] font-bold backdrop-blur-md"
                 :class="getDifficultyClass(course.difficulty)"
               >
                 {{ getDifficultyLabel(course.difficulty) }}
@@ -133,7 +132,7 @@ function getDifficultyClass(diff?: string) {
             >
               {{ course.title }}
             </h4>
-            <div class="flex items-center justify-between text-[8px] text-[var(--text-secondary)]">
+            <div class="flex items-center justify-between text-[10px] text-[var(--text-secondary)]">
               <span>{{ course._count?.lessons || 0 }} 课时</span>
               <span v-if="course.category?.name" class="font-medium text-emerald-400/80">{{
                 course.category.name
@@ -217,7 +216,7 @@ function getDifficultyClass(diff?: string) {
             >
               {{ res.title }}
             </h4>
-            <p class="text-[8px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
+            <p class="text-[10px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
           </div>
         </div>
       </div>
@@ -298,7 +297,7 @@ function getDifficultyClass(diff?: string) {
             >
               {{ res.title }}
             </h4>
-            <p class="text-[8px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
+            <p class="text-[10px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
           </div>
         </div>
       </div>
@@ -377,7 +376,7 @@ function getDifficultyClass(diff?: string) {
             >
               {{ res.title }}
             </h4>
-            <p class="text-[8px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
+            <p class="text-[10px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
           </div>
         </div>
       </div>
@@ -458,7 +457,7 @@ function getDifficultyClass(diff?: string) {
             >
               {{ res.title }}
             </h4>
-            <p class="text-[8px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
+            <p class="text-[10px] text-[var(--text-secondary)] truncate">By {{ res.author }}</p>
           </div>
         </div>
       </div>

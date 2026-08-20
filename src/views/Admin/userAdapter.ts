@@ -1,10 +1,10 @@
 import type { AdminTableAdapter } from '@/components/admin/types';
-import { Ban, Plus, RefreshCw, ShieldCheck } from 'lucide-vue-next';
+import { Ban, Plus, RefreshCw } from 'lucide-vue-next';
 import { ref } from 'vue';
 import api from '@/utils/api';
 import { formatDateTime as formatDate } from '@/utils/format';
 import { logError } from '@/utils/error';
-import { messageBox, toast } from '@/utils/feedbackAdapter';
+import { toast } from '@/utils/feedbackAdapter';
 
 export interface UserStats {
   total: number;

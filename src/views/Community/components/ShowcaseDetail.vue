@@ -776,7 +776,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
               </div>
               <div class="grid grid-cols-2 gap-2 text-xs">
                 <div class="flex flex-col">
-                  <span class="text-[9px] text-slate-400 uppercase font-semibold">名称</span>
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold">名称</span>
                   <strong
                     class="truncate font-semibold mt-0.5"
                     style="color: var(--text-primary)"
@@ -784,19 +784,19 @@ const handleStartChat = async (user: ShowcaseUser) => {
                   >
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-[9px] text-slate-400 uppercase font-semibold">类型</span>
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold">类型</span>
                   <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
                     activeModel.type
                   }}</strong>
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-[9px] text-slate-400 uppercase font-semibold">顶点数</span>
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold">顶点数</span>
                   <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
                     activeModel.vertices ? formatNumber(activeModel.vertices) : '---'
                   }}</strong>
                 </div>
                 <div class="flex flex-col">
-                  <span class="text-[9px] text-slate-400 uppercase font-semibold">三角面数</span>
+                  <span class="text-[10px] text-slate-400 uppercase font-semibold">三角面数</span>
                   <strong class="font-semibold mt-0.5" style="color: var(--text-primary)">{{
                     activeModel.faces ? formatNumber(activeModel.faces) : '---'
                   }}</strong>
@@ -1180,7 +1180,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                 <div class="space-y-4">
                   <!-- Linked Assets (3D models) -->
                   <div v-if="item.linkedAssets && item.linkedAssets.length > 0" class="space-y-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                       3D模型作品
                     </div>
                     <div class="grid grid-cols-1 gap-2.5">
@@ -1204,7 +1204,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                             <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                               {{ asset.title }}
                             </h5>
-                            <p class="text-[9px] text-slate-500 mt-0.5">
+                            <p class="text-[10px] text-slate-500 mt-0.5">
                               <span v-if="asset.vertices"
                                 >{{ formatNumber(asset.vertices) }} 顶点</span
                               >
@@ -1214,7 +1214,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                         <a
                           :href="getAssetUrl(asset.url)"
                           download
-                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline"
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline"
                         >
                           <Download class="w-3.5 h-3.5" />
                           下载
@@ -1228,7 +1228,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
                     v-if="item.linkedMaterials && item.linkedMaterials.length > 0"
                     class="space-y-2"
                   >
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                       材质贴图作品
                     </div>
                     <div class="grid grid-cols-1 gap-2.5">
@@ -1252,14 +1252,14 @@ const handleStartChat = async (user: ShowcaseUser) => {
                             <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                               {{ mat.title }}
                             </h5>
-                            <p class="text-[9px] text-slate-500 mt-0.5">
+                            <p class="text-[10px] text-slate-500 mt-0.5">
                               <span v-if="mat.resolution">{{ mat.resolution }}</span>
                             </p>
                           </div>
                         </div>
                         <button
                           type="button"
-                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
                           @click="downloadMaterialFile(mat)"
                         >
                           <Download class="w-3.5 h-3.5" />
@@ -1271,7 +1271,7 @@ const handleStartChat = async (user: ShowcaseUser) => {
 
                   <!-- Linked Plugins -->
                   <div v-if="item.linkedPlugins && item.linkedPlugins.length > 0" class="space-y-2">
-                    <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
                       工具插件作品
                     </div>
                     <div class="grid grid-cols-1 gap-2.5">
@@ -1295,14 +1295,14 @@ const handleStartChat = async (user: ShowcaseUser) => {
                             <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                               {{ plugin.title }}
                             </h5>
-                            <p class="text-[9px] text-slate-500 mt-0.5">
+                            <p class="text-[10px] text-slate-500 mt-0.5">
                               <span>v{{ plugin.version }}</span>
                             </p>
                           </div>
                         </div>
                         <button
                           type="button"
-                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
                           @click="downloadPluginFile(plugin)"
                         >
                           <Download class="w-3.5 h-3.5" />

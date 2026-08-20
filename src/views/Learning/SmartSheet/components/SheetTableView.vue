@@ -132,7 +132,7 @@ const priorityMap: Record<
         <template #default="{ row }">
           <div class="flex items-center justify-end gap-1">
             <Button
-              variant="ghost"
+              variant="glass"
               size="sm"
               class="h-7 w-7 p-0"
               title="查看明细"
@@ -142,7 +142,7 @@ const priorityMap: Record<
             </Button>
 
             <Button
-              variant="ghost"
+              variant="glass"
               size="sm"
               class="h-7 w-7 p-0"
               title="编辑"
@@ -152,7 +152,7 @@ const priorityMap: Record<
             </Button>
 
             <Button
-              variant="ghost"
+              variant="glass"
               size="sm"
               class="h-7 w-7 p-0"
               title="删除"

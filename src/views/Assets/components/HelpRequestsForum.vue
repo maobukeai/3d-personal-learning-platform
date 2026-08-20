@@ -105,7 +105,7 @@ const emit = defineEmits<{
                   :src="getAssetUrl(req.user.avatarUrl)"
                   class="w-full h-full object-cover"
                 />
-                <span v-else class="text-[8px] font-bold text-slate-400">{{
+                <span v-else class="text-[10px] font-bold text-slate-400">{{
                   req.user?.name?.slice(0, 1) || 'U'
                 }}</span>
               </div>

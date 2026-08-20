@@ -182,7 +182,7 @@ defineExpose({
         v-model="categoryFilterWrapper"
         size="small"
         class="w-40"
-        @update:modelValue="handleCategoryFilterChange"
+        @update:model-value="handleCategoryFilterChange"
       >
         <SelectOption value="" :label="$t('admin.all_categories_1')" />
         <SelectOption

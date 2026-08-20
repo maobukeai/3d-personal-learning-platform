@@ -139,7 +139,7 @@ const hasLinkedResources = (item: ShowcaseItem) =>
       <div class="space-y-4">
         <!-- Linked Assets (3D models) -->
         <div v-if="item.linkedAssets && item.linkedAssets.length > 0" class="space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
             3D模型作品
           </div>
           <div class="grid grid-cols-1 gap-2.5">
@@ -163,7 +163,7 @@ const hasLinkedResources = (item: ShowcaseItem) =>
                   <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                     {{ asset.title }}
                   </h5>
-                  <p class="text-[9px] text-slate-500 mt-0.5">
+                  <p class="text-[10px] text-slate-500 mt-0.5">
                     <span v-if="asset.vertices">{{ formatNumber(asset.vertices) }} 顶点</span>
                   </p>
                 </div>
@@ -171,7 +171,7 @@ const hasLinkedResources = (item: ShowcaseItem) =>
               <a
                 :href="getAssetUrl(asset.url)"
                 download
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer no-underline"
               >
                 <Download class="w-3.5 h-3.5" /> 下载
               </a>
@@ -180,7 +180,7 @@ const hasLinkedResources = (item: ShowcaseItem) =>
         </div>
         <!-- Linked Materials -->
         <div v-if="item.linkedMaterials && item.linkedMaterials.length > 0" class="space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
             材质贴图作品
           </div>
           <div class="grid grid-cols-1 gap-2.5">
@@ -204,14 +204,14 @@ const hasLinkedResources = (item: ShowcaseItem) =>
                   <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                     {{ mat.title }}
                   </h5>
-                  <p class="text-[9px] text-slate-500 mt-0.5">
+                  <p class="text-[10px] text-slate-500 mt-0.5">
                     <span v-if="mat.resolution">{{ mat.resolution }}</span>
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
                 @click="downloadMaterialFile(mat)"
               >
                 <Download class="w-3.5 h-3.5" /> 下载
@@ -221,7 +221,7 @@ const hasLinkedResources = (item: ShowcaseItem) =>
         </div>
         <!-- Linked Plugins -->
         <div v-if="item.linkedPlugins && item.linkedPlugins.length > 0" class="space-y-2">
-          <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
             工具插件作品
           </div>
           <div class="grid grid-cols-1 gap-2.5">
@@ -245,14 +245,14 @@ const hasLinkedResources = (item: ShowcaseItem) =>
                   <h5 class="text-[11px] font-bold text-slate-200 truncate leading-tight">
                     {{ plugin.title }}
                   </h5>
-                  <p class="text-[9px] text-slate-500 mt-0.5">
+                  <p class="text-[10px] text-slate-500 mt-0.5">
                     <span>v{{ plugin.version }}</span>
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
+                class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 bg-indigo-950/30 hover:bg-indigo-950/60 transition-colors border-0 cursor-pointer"
                 @click="downloadPluginFile(plugin)"
               >
                 <Download class="w-3.5 h-3.5" /> 下载

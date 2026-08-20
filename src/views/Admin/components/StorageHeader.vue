@@ -26,7 +26,7 @@ const emit = defineEmits<{
         <h2 class="text-base font-bold" style="color: var(--text-primary)">
           云存储管理 (Cloudflare R2)
         </h2>
-        <p class="text-[9px] mt-0.5" style="color: var(--text-muted)">
+        <p class="text-[10px] mt-0.5" style="color: var(--text-muted)">
           配置多个 Cloudflare R2
           账号与存储桶，并按资源类型（材质、模型、插件）分配限额。点击卡片右下角的文件夹可管理文件。
         </p>

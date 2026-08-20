@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import {
-  Plus,
-  Minus,
-  ChevronRight,
-  CheckCircle2,
-  CheckSquare,
-  X,
-  FolderOpen,
-} from 'lucide-vue-next';
+import { Plus, Minus, ChevronRight, CheckCircle2, CheckSquare, FolderOpen } from 'lucide-vue-next';
 import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import Dropdown from '@/components/ui/Dropdown.vue';
@@ -495,7 +487,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
       <div
         v-for="proj in tasksByProject"
         :key="proj.id || 'unassigned'"
-        class="rounded-xl sm:rounded-2xl border bg-slate-50/15 dark:bg-white/1 transition-all duration-300"
+        class="rounded-xl sm:rounded-xl border bg-slate-50/15 dark:bg-white/1 transition-all duration-300"
         :class="
           isProjectCollapsed(proj.id)
             ? 'p-2 sm:p-3.5 space-y-0 shadow-sm'
@@ -524,7 +516,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
               {{ proj.name }}
             </h2>
             <span
-              class="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-400 shrink-0"
+              class="text-[10px] sm:text-[10px] font-bold px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-sm text-slate-400 shrink-0"
             >
               {{ t('tasks.tasksCount', { count: proj.tasks.length }) }}
             </span>
@@ -532,7 +524,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
 
           <span
             v-if="isProjectCollapsed(proj.id)"
-            class="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-medium font-mono select-none"
+            class="text-[10px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-medium font-mono select-none"
           >
             {{ t('projects.clickToExpand') }}
           </span>
@@ -567,7 +559,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
 
                 <!-- Column Tag -->
                 <span
-                  class="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-sm shrink-0"
+                  class="px-2.5 py-0.5 rounded-sm text-[10px] font-bold text-white shadow-sm shrink-0"
                   :class="col.color"
                 >
                   {{ col.title }}
@@ -594,7 +586,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
               <!-- Table Header Row -->
               <div
                 v-if="getTasksByGroupInProject(proj.tasks, col.id).length > 0"
-                class="task-table-grid grid grid-cols-12 px-1.5 sm:px-4 py-1.5 sm:py-2 border-b text-[8px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 select-none bg-slate-100/30 dark:bg-white/1"
+                class="task-table-grid grid grid-cols-12 px-1.5 sm:px-4 py-1.5 sm:py-2 border-b text-[10px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400 select-none bg-slate-100/30 dark:bg-white/1"
                 style="border-color: var(--border-base)"
               >
                 <div :class="nameColSpanClass" class="flex items-center gap-1">
@@ -674,7 +666,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                       >
                         <span
                           v-if="task.isSubtask"
-                          class="shrink-0 inline-flex items-center px-1.5 py-0.2 rounded text-[7px] font-black bg-purple-500/10 text-purple-500 border border-purple-500/20 uppercase tracking-wider scale-90 mr-1 select-none"
+                          class="shrink-0 inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-black bg-purple-500/10 text-purple-500 border border-purple-500/20 uppercase tracking-wider scale-90 mr-1 select-none"
                         >
                           子任务
                         </span>
@@ -684,7 +676,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                       <!-- Subtasks Checklist Badge -->
                       <span
                         v-if="getSubtaskProgress(task).total > 0"
-                        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[9px] font-bold text-slate-400 shrink-0"
+                        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-slate-100 dark:bg-white/10 rounded-md text-[10px] font-bold text-slate-400 shrink-0"
                         :title="t('tasks.subtasksProgress')"
                       >
                         <CheckSquare class="w-2.5 h-2.5" />
@@ -701,7 +693,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                         <span
                           v-for="tag in parseTags(task.tags)"
                           :key="tag"
-                          class="px-1.5 py-0.5 rounded text-[8px] font-bold tracking-tight shrink-0 scale-95"
+                          class="px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight shrink-0 scale-95"
                           :class="getTagClass(tag)"
                         >
                           {{ tag }}
@@ -721,13 +713,15 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             class="inline-flex items-center gap-1 max-w-full cursor-pointer hover:text-accent py-0.5 px-0.5 sm:px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                           >
                             <span
-                              class="text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded font-bold"
+                              class="text-[10px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded font-bold"
                               :class="
                                 task.status === TaskStatus.TODO
                                   ? 'bg-slate-500/10 text-slate-500'
                                   : task.status === TaskStatus.IN_PROGRESS
                                     ? 'bg-blue-500/10 text-blue-500'
-                                    : 'bg-emerald-500/10 text-emerald-500'
+                                    : task.status === TaskStatus.CANCELLED
+                                      ? 'bg-zinc-500/10 text-zinc-500'
+                                      : 'bg-emerald-500/10 text-emerald-500'
                               "
                             >
                               {{
@@ -735,7 +729,9 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                                   ? t('tasks.todo')
                                   : task.status === TaskStatus.IN_PROGRESS
                                     ? t('tasks.inProgress')
-                                    : t('tasks.done')
+                                    : task.status === TaskStatus.CANCELLED
+                                      ? t('tasks.cancelled')
+                                      : t('tasks.done')
                               }}
                             </span>
                           </span>
@@ -762,6 +758,13 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                           >
                             {{ t('tasks.done') }}
                           </button>
+                          <button
+                            type="button"
+                            class="w-full text-left px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-slate-100 dark:hover:bg-white/5 text-[var(--text-primary)] border-none bg-transparent cursor-pointer transition-colors"
+                            @click="handleStatusCommand(task, TaskStatus.CANCELLED)"
+                          >
+                            {{ t('tasks.cancelled') }}
+                          </button>
                         </template>
                       </Dropdown>
                     </div>
@@ -780,12 +783,12 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             <FolderOpen class="w-3 h-3 text-accent shrink-0" />
                             <span
                               v-if="task.project"
-                              class="truncate max-w-[40px] sm:max-w-[85px] text-[8px] sm:text-xs"
+                              class="truncate max-w-[40px] sm:max-w-[85px] text-[10px] sm:text-xs"
                               >{{ task.project.title }}</span
                             >
                             <span
                               v-else
-                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold"
+                              class="text-slate-400 dark:text-slate-400 text-[10px] sm:text-[10px] font-bold"
                               >+ {{ t('tasks.associatedProject') }}</span
                             >
                           </span>
@@ -834,7 +837,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                                 />
                                 <span
                                   v-if="task.participants.length > 3"
-                                  class="text-[9px] font-black text-slate-400 pl-1"
+                                  class="text-[10px] font-black text-slate-400 pl-1"
                                 >
                                   +{{ task.participants.length - 3 }}
                                 </span>
@@ -850,7 +853,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                             </template>
                             <span
                               v-else
-                              class="text-slate-400 dark:text-slate-400 text-[8px] sm:text-[10px] font-bold py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                              class="text-slate-400 dark:text-slate-400 text-[10px] sm:text-[10px] font-bold py-0.5 px-1.5 rounded hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
                               >+ {{ t('tasks.assignee') }}</span
                             >
                           </span>
@@ -886,7 +889,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                     <!-- Due Date -->
                     <div
                       v-if="visibleColumns.dueDate"
-                      class="col-span-1 text-center text-[8px] sm:text-[10px] px-0.5 font-semibold"
+                      class="col-span-1 text-center text-[10px] sm:text-[10px] px-0.5 font-semibold"
                     >
                       <span
                         v-if="task.dueDate"
@@ -909,7 +912,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                     >
                       <span
                         v-if="task.priority"
-                        class="text-[7.5px] sm:text-[9px] px-1 sm:px-1.5 py-0.5 rounded"
+                        class="text-[7.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.5 rounded"
                         :class="getPriorityBadgeClass(task.priority)"
                       >
                         {{ getPriorityOption(task.priority).label }}
@@ -934,7 +937,7 @@ const openDetailDrawer = (task: Task, subtaskId?: string) => {
                       v-model="inlineTitles[col.id + '_' + (proj.id || 'unassigned')]"
                       type="text"
                       :placeholder="t('tasks.quickAddPlaceholder')"
-                      class="w-full px-1.5 sm:px-3 py-1 sm:py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-[9px] sm:text-xs focus:outline-none transition-all pr-8"
+                      class="w-full px-1.5 sm:px-3 py-1 sm:py-1.5 bg-transparent border border-dashed border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:border-accent/40 focus:border-solid rounded-lg text-[10px] sm:text-xs focus:outline-none transition-all pr-8"
                       style="color: var(--text-primary)"
                       @keyup.enter="handleInlineAddInProject(col.id, proj.id)"
                     />

@@ -72,7 +72,7 @@ const close = () => {
             <label class="gw-field-label !text-[10px]">密码</label>
             <button
               type="button"
-              class="text-[9px] text-violet-600 dark:text-violet-400 hover:text-violet-500 font-semibold cursor-pointer border-none bg-transparent"
+              class="text-[10px] text-violet-600 dark:text-violet-400 hover:text-violet-500 font-semibold cursor-pointer border-none bg-transparent"
               @click="emit('generate-password', account)"
             >
               一键生成复杂密码

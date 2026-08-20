@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import draggable from 'vuedraggable';
-import { Plus } from 'lucide-vue-next';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { ElMessage } from '@/utils/feedbackBridge';
 import { useI18n } from 'vue-i18n';
 import TaskCard from '@/components/TaskCard.vue';
@@ -46,6 +46,31 @@ const { t } = useI18n();
 const workspaceStore = useWorkspaceStore();
 const inlineTitles = ref<Record<string, string>>({});
 
+/* Collapsed columns (persisted): typically DONE/CANCELLED to keep the board tight */
+const loadCollapsedColumns = (): Record<string, boolean> => {
+  try {
+    return JSON.parse(localStorage.getItem('task_collapsed_columns') || '{}');
+  } catch {
+    return {};
+  }
+};
+const collapsedColumns = ref<Record<string, boolean>>(loadCollapsedColumns());
+const isColumnCollapsed = (colId: string) => Boolean(collapsedColumns.value[colId]);
+const toggleColumnCollapse = (colId: string) => {
+  collapsedColumns.value = { ...collapsedColumns.value, [colId]: !collapsedColumns.value[colId] };
+  localStorage.setItem('task_collapsed_columns', JSON.stringify(collapsedColumns.value));
+};
+
+/* Light-weight WIP signal: highlight the IN_PROGRESS column count when overloaded */
+const IN_PROGRESS_WIP_LIMIT = 5;
+const isColumnOverloaded = (colId: string, count: number): string => {
+  const base = 'bg-slate-100 dark:bg-white/5 text-slate-500';
+  if (props.groupBy === 'status' && colId === 'IN_PROGRESS' && count > IN_PROGRESS_WIP_LIMIT) {
+    return 'bg-orange-500/15 text-orange-500 animate-pulse';
+  }
+  return base;
+};
+
 interface DragChangeEvent {
   added?: {
     element: Task;
@@ -57,6 +82,17 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
     const task = event.added.element;
     if (task.isSubtask && task.parentId) {
       emit('drag-subtask', task.parentId, task.subtaskIndex ?? 0, columnId);
+      return;
+    }
+    /* Front-end guard: block dragging into DONE while dependencies are unfinished.
+       The backend enforces the same rule; this gives immediate feedback + rollback. */
+    if (
+      props.groupBy === 'status' &&
+      columnId === 'DONE' &&
+      task.dependencies?.some((d) => d.dependsOn?.status !== 'DONE')
+    ) {
+      ElMessage.warning(t('tasks.blockedDragWarning'));
+      emit('refresh');
       return;
     }
     try {
@@ -89,7 +125,8 @@ const onDragChange = async (event: DragChangeEvent, columnId: string) => {
           cleanPayload.dueDate = tomorrow.toISOString();
         } else if (columnId === 'week') {
           const endOfWeek = new Date(today);
-          endOfWeek.setDate(today.getDate() + 3);
+          // "本周截止" groups tasks due within the next 7 days (matches getDueDateGroup)
+          endOfWeek.setDate(today.getDate() + 7);
           cleanPayload.dueDate = endOfWeek.toISOString();
         } else if (columnId === 'future') {
           const futureDate = new Date(today);
@@ -181,28 +218,65 @@ const openUserProfile = (userId: string) => {
       <div
         v-for="col in activeColumns"
         :key="col.id"
-        class="task-board-column flex flex-col min-w-[240px] sm:min-w-[260px] h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden flex-1 relative border glass-real-physical"
+        class="task-board-column flex flex-col h-full rounded-lg sm:rounded-xl transition-colors duration-300 overflow-hidden relative border glass-real-physical select-none"
+        :class="
+          isColumnCollapsed(col.id)
+            ? 'w-10 min-w-[40px] sm:min-w-[40px]'
+            : 'flex-1 min-w-[240px] sm:min-w-[260px]'
+        "
       >
+        <!-- Collapsed strip: click to expand -->
+        <button
+          v-if="isColumnCollapsed(col.id)"
+          type="button"
+          class="w-full h-full flex flex-col items-center gap-2 pt-3 pb-2 cursor-pointer group/col select-none"
+          :title="t('tasks.expandColumn')"
+          @click="toggleColumnCollapse(col.id)"
+        >
+          <ChevronRight
+            class="w-3.5 h-3.5 text-slate-400 group-hover/col:text-accent transition-colors"
+          />
+          <span
+            class="text-[10px] font-black uppercase tracking-widest select-none"
+            style="writing-mode: vertical-rl; color: var(--text-primary)"
+          >
+            {{ col.title }}
+          </span>
+          <span class="text-[10px] font-bold text-slate-500 select-none">
+            {{ tasksByGroup[col.id]?.length || 0 }}
+          </span>
+        </button>
+
         <!-- Column Header -->
         <div
-          class="px-1.5 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2.5"
+          v-if="!isColumnCollapsed(col.id)"
+          class="px-1.5 sm:px-4 pt-1.5 sm:pt-3 pb-1 sm:pb-2.5 select-none"
           :class="'bg-gradient-to-b ' + col.headerBg"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1 sm:gap-1.5 min-w-0">
               <div class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0" :class="col.color"></div>
               <h2
-                class="text-[9px] sm:text-xs font-black uppercase tracking-wider truncate"
+                class="text-[10px] sm:text-xs font-black uppercase tracking-wider truncate"
                 style="color: var(--text-primary)"
               >
                 {{ col.title }}
               </h2>
               <span
-                class="hidden sm:inline-block text-[8px] sm:text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 dark:bg-white/5 rounded-full text-slate-500"
+                class="hidden sm:inline-block text-[10px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-sm select-none"
+                :class="isColumnOverloaded(col.id, tasksByGroup[col.id]?.length || 0)"
               >
                 {{ tasksByGroup[col.id]?.length || 0 }}
               </span>
             </div>
+            <button
+              type="button"
+              class="hidden sm:inline-flex p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0"
+              :title="t('tasks.collapseColumn')"
+              @click="toggleColumnCollapse(col.id)"
+            >
+              <ChevronLeft class="w-3.5 h-3.5" />
+            </button>
             <button
               type="button"
               class="hidden sm:inline-flex p-1 rounded-lg text-slate-400 hover:text-accent hover:bg-accent/10 transition-all shrink-0"
@@ -215,10 +289,11 @@ const openUserProfile = (userId: string) => {
 
         <!-- Draggable Task List -->
         <draggable
+          v-if="!isColumnCollapsed(col.id)"
           :list="tasksByGroup[col.id] || []"
           group="tasks"
           item-key="id"
-          class="flex-1 overflow-y-auto space-y-1 sm:space-y-2 px-1 sm:px-3 pb-3 scrollbar-hide min-h-[100px]"
+          class="flex-1 overflow-y-auto space-y-1 sm:space-y-2 px-1 sm:px-3 pb-3 scrollbar-hide min-h-[100px] select-none"
           :animation="250"
           ghost-class="drag-ghost"
           :delay="100"
@@ -227,7 +302,7 @@ const openUserProfile = (userId: string) => {
           @change="(e: DragChangeEvent) => onDragChange(e, col.id)"
         >
           <template #item="{ element: task }">
-            <div>
+            <div class="select-none">
               <TaskCard
                 :task="task"
                 layout="board"
@@ -245,6 +320,7 @@ const openUserProfile = (userId: string) => {
 
         <!-- Inline Column Quick Add -->
         <div
+          v-if="!isColumnCollapsed(col.id)"
           class="px-1 pb-1.5 pt-1 border-t shrink-0 bg-slate-50/30 dark:bg-white/2"
           style="border-color: var(--border-base)"
         >
@@ -253,7 +329,7 @@ const openUserProfile = (userId: string) => {
               v-model="inlineTitles[col.id]"
               type="text"
               :placeholder="t('tasks.quickAddPlaceholder')"
-              class="w-full px-1.5 sm:px-2.5 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 focus:bg-white dark:focus:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 focus:border-accent/40 rounded-lg text-[9px] sm:text-[10px] focus:outline-none transition-all pr-8"
+              class="w-full px-1.5 sm:px-2.5 py-1 sm:py-1.5 bg-slate-100 dark:bg-slate-800/40 hover:bg-slate-200 dark:hover:bg-slate-800/70 focus:bg-white dark:focus:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700 focus:border-accent/40 rounded-lg text-[10px] sm:text-[10px] focus:outline-none transition-all pr-8"
               style="color: var(--text-primary)"
               @keyup.enter="handleInlineAdd(col.id)"
             />
@@ -270,7 +346,10 @@ const openUserProfile = (userId: string) => {
 
         <!-- Empty State -->
         <div
-          v-if="!tasksByGroup[col.id] || tasksByGroup[col.id].length === 0"
+          v-if="
+            !isColumnCollapsed(col.id) &&
+            (!tasksByGroup[col.id] || tasksByGroup[col.id].length === 0)
+          "
           class="absolute inset-x-3 top-16 bottom-14 flex flex-col items-center justify-center border-2 border-dashed rounded-lg sm:rounded-xl opacity-20 hover:opacity-100 hover:border-accent hover:text-accent cursor-pointer transition-all pointer-events-none"
           style="border-color: var(--border-base)"
         >
@@ -283,6 +362,11 @@ const openUserProfile = (userId: string) => {
 </template>
 
 <style scoped>
+.task-board-column {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .drag-ghost {
   opacity: 0.3 !important;
   transform: scale(0.95);

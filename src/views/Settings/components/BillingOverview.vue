@@ -216,7 +216,7 @@ const isPaidPlan = computed(() => {
             >
               <FolderOpen class="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <div class="min-w-0">
-                <p class="text-[9px] text-[var(--text-secondary)]">协作项目</p>
+                <p class="text-[10px] text-[var(--text-secondary)]">协作项目</p>
                 <p class="text-xs font-bold text-[var(--text-primary)] truncate">
                   {{ subscriptionLimits?.currentProjects || 0 }} /
                   {{
@@ -232,7 +232,7 @@ const isPaidPlan = computed(() => {
             >
               <Box class="w-3.5 h-3.5 text-purple-500 shrink-0" />
               <div class="min-w-0">
-                <p class="text-[9px] text-[var(--text-secondary)]">3D 资源数</p>
+                <p class="text-[10px] text-[var(--text-secondary)]">3D 资源数</p>
                 <p class="text-xs font-bold text-[var(--text-primary)] truncate">
                   {{ subscriptionLimits?.currentAssets || 0 }} /
                   {{

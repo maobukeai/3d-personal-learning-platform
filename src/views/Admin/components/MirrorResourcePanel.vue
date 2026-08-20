@@ -127,7 +127,7 @@ function changePage(page: number) {
               v-model="categoryFilterWrapper"
               size="small"
               class="w-36"
-              @update:modelValue="onCategoryChange"
+              @update:model-value="onCategoryChange"
             >
               <SelectOption value="" label="全部分类" />
               <SelectOption

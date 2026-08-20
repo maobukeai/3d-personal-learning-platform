@@ -464,7 +464,7 @@ const capacityClass = (score?: number) => {
 
             <!-- Role Badge -->
             <span
-              class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[9px] font-black shrink-0"
+              class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-black shrink-0"
               :class="roleBadgeClass(member.role)"
             >
               <Crown v-if="member.role === 'OWNER'" class="w-3 h-3" />
@@ -502,7 +502,7 @@ const capacityClass = (score?: number) => {
             </div>
 
             <!-- Stat tags -->
-            <div class="flex flex-wrap gap-2 text-[9px] font-bold text-slate-400">
+            <div class="flex flex-wrap gap-2 text-[10px] font-bold text-slate-400">
               <span class="px-2 py-0.5 bg-slate-100 dark:bg-white/5 rounded-md">
                 已完 {{ member.metrics.doneTasks }}
               </span>
@@ -674,7 +674,7 @@ const capacityClass = (score?: number) => {
                   </div>
                   <span
                     v-if="team.type === 'TEAM'"
-                    class="inline-flex px-2 py-0.5 rounded-md text-[9px] font-black"
+                    class="inline-flex px-2 py-0.5 rounded-md text-[10px] font-black"
                     :class="capacityClass(capacityByUserId.get(member.userId)?.capacityScore)"
                   >
                     {{ capacityLabel(member.userId) }}
@@ -704,7 +704,7 @@ const capacityClass = (score?: number) => {
                       :style="{ width: progressWidthStr(member.metrics.activeTasks) }"
                     ></div>
                   </div>
-                  <p class="mt-1 text-[9px] font-bold text-slate-400">
+                  <p class="mt-1 text-[10px] font-bold text-slate-400">
                     已完 {{ member.metrics.doneTasks }} · 本周
                     {{
                       capacityByUserId.get(member.userId)?.completedThisWeek ??

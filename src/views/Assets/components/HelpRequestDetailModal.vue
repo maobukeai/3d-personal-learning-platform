@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch } from 'vue';
 import { RefreshCw, MessageSquare, Box, Layers, Puzzle } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import Modal from '@/components/ui/Modal.vue';
@@ -129,7 +129,7 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                 :src="getAssetUrl(request.user.avatarUrl)"
                 class="w-full h-full object-cover"
               />
-              <span v-else class="text-[9px] font-bold text-slate-400">{{
+              <span v-else class="text-[10px] font-bold text-slate-400">{{
                 request.user?.name?.slice(0, 1) || 'U'
               }}</span>
             </div>
@@ -208,7 +208,7 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                   <span class="font-bold text-[var(--text-primary)] truncate text-xs">{{
                     getNormalizedLinkedItem(reply)!.title
                   }}</span>
-                  <span class="text-[9px] text-[var(--text-muted)] font-mono">{{
+                  <span class="text-[10px] text-[var(--text-muted)] font-mono">{{
                     getNormalizedLinkedItem(reply)!.subtitle
                   }}</span>
                 </div>
@@ -231,7 +231,7 @@ const getNormalizedLinkedItem = (reply: HelpRequestReply) => {
                     :src="getAssetUrl(reply.user.avatarUrl)"
                     class="w-full h-full object-cover"
                   />
-                  <span v-else class="text-[8px] font-bold text-slate-400">{{
+                  <span v-else class="text-[10px] font-bold text-slate-400">{{
                     reply.user?.name?.slice(0, 1) || 'U'
                   }}</span>
                 </div>

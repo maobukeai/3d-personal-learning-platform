@@ -141,7 +141,7 @@ const startChat = () => {
 
               <!-- Role Badge -->
               <span
-                class="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md border inline-flex items-center"
+                class="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider rounded-md border inline-flex items-center"
                 :class="[
                   userProfile.role === 'ADMIN'
                     ? 'bg-rose-500/10 text-rose-500 border-rose-500/20 dark:bg-rose-500/20'
@@ -182,7 +182,7 @@ const startChat = () => {
               >{{ userProfile._count?.assets || 0 }}</span
             >
             <span
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
+              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
               >发布资产</span
             >
           </div>
@@ -194,7 +194,7 @@ const startChat = () => {
               >{{ userProfile._count?.showcases || 0 }}</span
             >
             <span
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
+              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
               >作品展示</span
             >
           </div>
@@ -206,7 +206,7 @@ const startChat = () => {
               >{{ userProfile._count?.discussions || 0 }}</span
             >
             <span
-              class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
+              class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest block mt-1"
               >发起讨论</span
             >
           </div>

@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n';
 const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
-import { CreditCard, Plus, RefreshCw, Users, Key, Search } from 'lucide-vue-next';
+import { CreditCard, Plus, RefreshCw, Users, Key } from 'lucide-vue-next';
 import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import SubscriptionPlansTab from './components/SubscriptionPlansTab.vue';
@@ -12,7 +12,6 @@ import { fetchManagementInsights } from './adminManagementInsights';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import AdminHeader from './components/AdminHeader.vue';
-import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 
 interface SubscriptionPlan {
@@ -211,17 +210,17 @@ onMounted(() => {
       <!-- Page Header -->
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="订阅管理"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索当前列表..."
       >
         <Button
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="handleCreateAction"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="handleCreateAction"
         >
           {{
             activeTab === 'plans'
@@ -236,8 +235,8 @@ onMounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchData"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchData"
         >
           刷新
         </Button>

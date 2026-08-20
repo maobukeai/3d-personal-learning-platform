@@ -3,8 +3,7 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 vi.mock('katex/dist/katex.min.css', () => ({}));
 vi.mock('md-editor-v3/lib/style.css', () => ({}));
 
-import { createApp, h, ref, nextTick } from 'vue';
-import DOMPurify from 'dompurify';
+import { createApp, h, ref } from 'vue';
 
 // -----------------------------------------------------------------------------
 // 1. Hoisted Mock References
@@ -179,18 +178,18 @@ const registerGlobalMocks = (app: any) => {
       return h('div', { class: 'segmented-control' }, this.$slots.default?.());
     },
   });
-  app.component('el-dropdown', {
+  app.component('ElDropdown', {
     render() {
       return h('div', { class: 'el-dropdown' }, this.$slots.default?.());
     },
   });
-  app.component('el-select', {
+  app.component('ElSelect', {
     props: ['modelValue'],
     render() {
       return h('div', { class: 'el-select' }, this.$slots.default?.());
     },
   });
-  app.component('el-option', {
+  app.component('ElOption', {
     props: ['label', 'value'],
     render() {
       return h('div', { class: 'el-option' }, this.$slots.default?.());

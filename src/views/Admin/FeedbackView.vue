@@ -11,7 +11,6 @@ import {
   MessageSquare,
   MoreHorizontal,
   RefreshCw,
-  Search,
   Send,
   Trash2,
 } from 'lucide-vue-next';
@@ -23,7 +22,6 @@ import type { Feedback } from '@/types';
 import Modal from '@/components/ui/Modal.vue';
 import UiButton from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
-import Badge from '@/components/ui/Badge.vue';
 import Tabs from '@/components/ui/Tabs.vue';
 import AdminHeader from './components/AdminHeader.vue';
 
@@ -369,10 +367,10 @@ onMounted(fetchFeedbacks);
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="用户反馈"
         subtitle="用户与团队"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索当前反馈..."
       >
         <UiButton
@@ -380,8 +378,8 @@ onMounted(fetchFeedbacks);
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchFeedbacks"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchFeedbacks"
         >
           刷新
         </UiButton>

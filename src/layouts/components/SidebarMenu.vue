@@ -44,7 +44,11 @@ const workspaceStore = useWorkspaceStore();
 
 const getInitialMode = (): SidebarMode => {
   if (preferences.hasSidebarMode()) return preferences.getSidebarMode();
-  return route.path.startsWith('/admin') ? 'rail' : 'expanded';
+  return route.path.startsWith('/admin') ||
+    route.path.startsWith('/mirror') ||
+    route.path.startsWith('/manual')
+    ? 'rail'
+    : 'expanded';
 };
 
 const {
@@ -83,7 +87,9 @@ const isAdmin = computed(() => workspaceStore.isAdminWorkspace);
 const isResourceWorkspace = computed(
   () =>
     workspaceStore.currentWorkspace?.type === 'mirror' ||
-    workspaceStore.currentWorkspace?.type === 'manual',
+    workspaceStore.currentWorkspace?.type === 'manual' ||
+    route.path.startsWith('/mirror') ||
+    route.path.startsWith('/manual'),
 );
 
 const navTone = computed(() => {
@@ -382,6 +388,7 @@ watch(isExpanded, (val) => {
     <div class="workspace-sidebar__rail">
       <div class="rail-top">
         <Tooltip
+          v-if="!isResourceWorkspace"
           :content="isExpanded ? collapseNavigationLabel : expandNavigationLabel"
           placement="right"
           :show-after="120"

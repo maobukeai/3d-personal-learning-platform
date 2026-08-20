@@ -386,7 +386,7 @@ onUnmounted(() => {
             >
               {{ course?.title }}
             </h1>
-            <p class="text-[9px]" style="color: var(--text-secondary)">
+            <p class="text-[10px]" style="color: var(--text-secondary)">
               {{ t('academy.currentlyLearning', { title: currentLesson?.title }) }}
             </p>
           </div>
@@ -403,7 +403,7 @@ onUnmounted(() => {
                 :style="{ width: progress + '%' }"
               ></div>
             </div>
-            <span class="text-[8px] sm:text-[9px] font-bold mt-0.5 text-accent">{{
+            <span class="text-[10px] sm:text-[10px] font-bold mt-0.5 text-accent">{{
               t('academy.completedProgress', { n: progress })
             }}</span>
           </div>
@@ -530,7 +530,7 @@ onUnmounted(() => {
             <div class="max-w-3xl mx-auto space-y-4 sm:space-y-6">
               <div class="space-y-2">
                 <span
-                  class="px-2 py-0.5 bg-accent/20 text-accent text-[9px] font-bold rounded-full"
+                  class="px-2 py-0.5 bg-accent/20 text-accent text-[10px] font-bold rounded-full"
                   >{{ t('academy.textTutorial') }}</span
                 >
                 <h2 class="text-xl sm:text-2xl font-bold" style="color: var(--text-primary)">
@@ -672,7 +672,7 @@ onUnmounted(() => {
             <span class="sm:hidden">{{ tab.shortLabel }}</span>
             <span
               v-if="tab.id === 'notes' && notes.length"
-              class="px-1 py-0.5 rounded text-[8px] sm:text-[9px] bg-accent/20 text-accent font-bold"
+              class="px-1 py-0.5 rounded text-[10px] sm:text-[10px] bg-accent/20 text-accent font-bold"
               >{{ notes.length }}</span
             >
           </button>
@@ -711,14 +711,14 @@ onUnmounted(() => {
             </h2>
             <span
               v-if="activeTab === 'content'"
-              class="text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors duration-300"
+              class="text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors duration-300"
               style="background-color: var(--bg-app); color: var(--text-secondary)"
             >
               {{ completedCount }}/{{ lessons.length }}
             </span>
             <span
               v-else-if="activeTab === 'notes' && notes.length"
-              class="text-[9px] font-bold px-1.5 py-0.5 rounded transition-colors duration-300"
+              class="text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors duration-300"
               style="background-color: var(--bg-app); color: var(--text-secondary)"
             >
               {{ notes.length }}
@@ -763,7 +763,7 @@ onUnmounted(() => {
             <span>{{ tab.label }}</span>
             <span
               v-if="tab.id === 'notes' && notes.length"
-              class="px-1 py-0.5 rounded text-[8px] sm:text-[9px] bg-accent/20 text-accent font-bold"
+              class="px-1 py-0.5 rounded text-[10px] sm:text-[10px] bg-accent/20 text-accent font-bold"
               >{{ notes.length }}</span
             >
           </button>
@@ -827,7 +827,7 @@ onUnmounted(() => {
                     </h3>
                     <div class="flex items-center gap-2">
                       <span
-                        class="flex items-center gap-0.5 text-[9px]"
+                        class="flex items-center gap-0.5 text-[10px]"
                         style="color: var(--text-muted)"
                       >
                         <component
@@ -844,7 +844,7 @@ onUnmounted(() => {
                       </span>
                       <span
                         v-if="lesson.duration"
-                        class="flex items-center gap-0.5 text-[9px]"
+                        class="flex items-center gap-0.5 text-[10px]"
                         style="color: var(--text-muted)"
                       >
                         <Clock class="w-3 h-3" />
@@ -904,7 +904,7 @@ onUnmounted(() => {
                     {{ note.content }}
                   </p>
                   <div class="flex items-center justify-between">
-                    <span class="text-[9px]" style="color: var(--text-muted)">{{
+                    <span class="text-[10px]" style="color: var(--text-muted)">{{
                       new Date(note.createdAt).toLocaleString('zh-CN')
                     }}</span>
                     <button
@@ -971,12 +971,12 @@ onUnmounted(() => {
               <p class="text-xs font-bold leading-tight" style="color: var(--text-primary)">
                 {{ course?.instructor?.name || t('academy.certifiedInstructor') }}
               </p>
-              <p class="text-[9px] leading-tight" style="color: var(--text-muted)">
+              <p class="text-[10px] leading-tight" style="color: var(--text-muted)">
                 {{ t('academy.designExpert') }}
               </p>
             </div>
           </div>
-          <p class="text-[9px] leading-relaxed line-clamp-2" style="color: var(--text-muted)">
+          <p class="text-[10px] leading-relaxed line-clamp-2" style="color: var(--text-muted)">
             {{ course?.description }}
           </p>
         </div>

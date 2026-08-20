@@ -158,32 +158,32 @@ const toggleVisibility = () => {
     >
       <span
         v-if="props.index === 0"
-        class="px-2.5 py-0.5 text-[9px] font-black text-white rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 shadow-md shadow-amber-500/20 border border-yellow-300 flex items-center gap-0.5"
+        class="px-2.5 py-0.5 text-[10px] font-black text-white rounded-full bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 shadow-md shadow-amber-500/20 border border-yellow-300 flex items-center gap-0.5"
       >
         👑 #1
       </span>
       <span
         v-else-if="props.index === 1"
-        class="px-2.5 py-0.5 text-[9px] font-black text-white rounded-full bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 shadow-md shadow-slate-500/20 border border-slate-200 flex items-center gap-0.5"
+        class="px-2.5 py-0.5 text-[10px] font-black text-white rounded-full bg-gradient-to-r from-slate-300 via-slate-400 to-slate-500 shadow-md shadow-slate-500/20 border border-slate-200 flex items-center gap-0.5"
       >
         🥈 #2
       </span>
       <span
         v-else-if="props.index === 2"
-        class="px-2.5 py-0.5 text-[9px] font-black text-white rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-amber-800 shadow-md shadow-orange-500/20 border border-orange-500 flex items-center gap-0.5"
+        class="px-2.5 py-0.5 text-[10px] font-black text-white rounded-full bg-gradient-to-r from-amber-600 via-orange-600 to-amber-800 shadow-md shadow-orange-500/20 border border-orange-500 flex items-center gap-0.5"
       >
         🥉 #3
       </span>
       <span
         v-else
-        class="px-2 py-0.5 text-[8px] font-black text-[var(--text-secondary)] rounded-full bg-slate-100 dark:bg-white/10 border border-[var(--border-base)]"
+        class="px-2 py-0.5 text-[10px] font-black text-[var(--text-secondary)] rounded-full bg-slate-100 dark:bg-white/10 border border-[var(--border-base)]"
       >
         #{{ props.index + 1 }}
       </span>
 
       <!-- Hotness Rating tag -->
       <span
-        class="px-2 py-0.5 text-[8px] font-black text-red-500 rounded-full bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-center gap-0.5 shadow-sm"
+        class="px-2 py-0.5 text-[10px] font-black text-red-500 rounded-full bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 flex items-center gap-0.5 shadow-sm"
       >
         <Flame class="w-2.5 h-2.5 text-red-500 fill-current animate-pulse" />
         {{
@@ -227,13 +227,13 @@ const toggleVisibility = () => {
             {{ props.note.user.name }}
           </p>
           <div
-            class="flex items-center gap-1 text-[9px] md:text-[10px] text-[var(--text-muted)] mt-1.5 flex-wrap"
+            class="flex items-center gap-1 text-[10px] md:text-[10px] text-[var(--text-muted)] mt-1.5 flex-wrap"
           >
             <Calendar class="w-2.5 h-2.5 shrink-0" />
             <span>{{ formatDate(props.note.createdAt) }}</span>
             <span
               v-if="props.note.category"
-              class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold bg-accent/5 dark:bg-accent/15 border border-accent/15 text-accent shrink-0 truncate max-w-[80px] sm:max-w-[120px]"
+              class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] md:text-[10px] font-bold bg-accent/5 dark:bg-accent/15 border border-accent/15 text-accent shrink-0 truncate max-w-[80px] sm:max-w-[120px]"
             >
               <Folder class="w-2.5 h-2.5 text-accent shrink-0" />
               {{ props.note.category }}
@@ -272,7 +272,7 @@ const toggleVisibility = () => {
 
         <!-- Custom Visibility Badge -->
         <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] md:text-[10px] font-bold border transition-all duration-300"
+          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] md:text-[10px] font-bold border transition-all duration-300"
           :class="[
             props.note.visibility === 'PUBLIC'
               ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400'
@@ -325,7 +325,7 @@ const toggleVisibility = () => {
       <span
         v-for="tag in parseTags(props.note.tags).slice(0, props.isMobile ? 1 : 3)"
         :key="tag"
-        class="px-2 py-0.5 rounded bg-purple-500/5 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[9px] md:text-[10px] font-bold border border-purple-500/15 whitespace-nowrap truncate max-w-[80px] hover:bg-purple-500/10 transition-all duration-200"
+        class="px-2 py-0.5 rounded bg-purple-500/5 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[10px] md:text-[10px] font-bold border border-purple-500/15 whitespace-nowrap truncate max-w-[80px] hover:bg-purple-500/10 transition-all duration-200"
       >
         #{{ tag }}
       </span>
@@ -343,7 +343,7 @@ const toggleVisibility = () => {
       :class="props.viewMode === 'list' && !props.isMobile ? 'mt-0' : 'mt-auto'"
     >
       <div
-        class="flex items-center gap-2 md:gap-3.5 text-[9px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"
+        class="flex items-center gap-2 md:gap-3.5 text-[10px] md:text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider shrink-0"
       >
         <span
           class="flex items-center gap-1 hover:text-purple-500 transition-colors duration-200"

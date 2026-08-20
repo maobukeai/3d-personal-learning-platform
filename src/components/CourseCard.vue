@@ -228,7 +228,7 @@ function handleBookmarkClick(event: Event) {
         {{ course.title }}
       </h3>
       <div
-        class="flex items-center gap-1.5 sm:gap-3 text-[8px] sm:text-[10px] font-bold"
+        class="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-[10px] font-bold"
         style="color: var(--text-muted)"
       >
         <span class="flex items-center gap-0.5 sm:gap-1"
@@ -305,12 +305,12 @@ function handleBookmarkClick(event: Event) {
       <div class="flex items-center gap-1 sm:gap-1.5 mb-1">
         <span
           v-if="course.category"
-          class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[9px] font-bold"
+          class="px-1.5 py-0.5 rounded bg-accent/10 text-accent text-[10px] font-bold"
           >{{ course.category.name }}</span
         >
         <span
           v-if="firstTag"
-          class="hidden xs:inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[9px] font-bold"
+          class="hidden xs:inline-block px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/5 text-slate-400 text-[10px] font-bold"
           >{{ firstTag }}</span
         >
       </div>
@@ -338,7 +338,7 @@ function handleBookmarkClick(event: Event) {
           ><Star class="w-2.5 h-2.5 text-amber-400 fill-amber-400 inline-block align-middle mr-0.5"
         /></span>
         <span
-          class="text-[9px] sm:text-[10px] font-bold inline-block align-middle"
+          class="text-[10px] sm:text-[10px] font-bold inline-block align-middle"
           style="color: var(--text-muted)"
           >{{ course.avgRating || '-' }}</span
         >
@@ -349,7 +349,7 @@ function handleBookmarkClick(event: Event) {
         style="border-color: var(--border-base)"
       >
         <div
-          class="flex items-center gap-1.5 sm:gap-2.5 text-[8px] sm:text-[9px] font-bold"
+          class="flex items-center gap-1.5 sm:gap-2.5 text-[10px] sm:text-[10px] font-bold"
           style="color: var(--text-muted)"
         >
           <span class="flex items-center gap-0.5 sm:gap-1"

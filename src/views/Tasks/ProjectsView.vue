@@ -870,8 +870,8 @@ watch(viewMode, (newMode) => {
 .compact-ops-bar {
   position: sticky;
   top: 0;
-  z-index: 8;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  z-index: var(--z-index-sticky);
+  box-shadow: var(--shadow-card-hover);
 }
 @media (max-width: 1440px) {
   .compact-metric-grid {

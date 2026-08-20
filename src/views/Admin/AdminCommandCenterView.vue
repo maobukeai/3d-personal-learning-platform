@@ -161,8 +161,8 @@ void Gauge;
             variant="secondary"
             size="sm"
             :icon="BarChart3"
-            @click="router.push('/admin/audit-logs')"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="router.push('/admin/audit-logs')"
           >
             审计日志
           </Button>
@@ -170,8 +170,8 @@ void Gauge;
             variant="secondary"
             size="sm"
             :icon="Settings2"
-            @click="router.push('/admin/settings')"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="router.push('/admin/settings')"
           >
             系统设置
           </Button>
@@ -180,8 +180,8 @@ void Gauge;
             size="sm"
             :icon="RefreshCw"
             :loading="isLoadingManagementInsights"
-            @click="fetchManagementInsights(true)"
             class="!h-7.5 !text-xs !px-2.5"
+            @click="fetchManagementInsights(true)"
           >
             刷新
           </Button>
@@ -235,7 +235,7 @@ void Gauge;
                   <div
                     class="absolute inset-0 flex items-center justify-center text-center leading-none"
                   >
-                    <strong class="text-[9px] font-black text-[var(--text-primary)]">{{
+                    <strong class="text-[10px] font-black text-[var(--text-primary)]">{{
                       overview?.healthScore || 0
                     }}</strong>
                   </div>
@@ -246,7 +246,7 @@ void Gauge;
                     >系统健康度</span
                   >
                   <span
-                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    class="text-[10px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
                   >
                     {{ overview?.issueCount || 0 }} 个风险信号
                   </span>
@@ -295,7 +295,7 @@ void Gauge;
                     >待办队列</span
                   >
                   <span
-                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    class="text-[10px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
                   >
                     {{ urgentQueue }} 个高优先
                   </span>
@@ -333,7 +333,7 @@ void Gauge;
                     >SLA 负载</span
                   >
                   <span
-                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    class="text-[10px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
                     >跨模块待处理</span
                   >
                 </div>
@@ -365,7 +365,7 @@ void Gauge;
                     >有效权益</span
                   >
                   <span
-                    class="text-[8px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
+                    class="text-[10px] text-[var(--text-secondary)] opacity-85 block truncate mt-0.5 leading-none"
                     >当前订阅用户</span
                   >
                 </div>
@@ -388,11 +388,11 @@ void Gauge;
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-1 leading-none">
                   <span
-                    class="inline-flex items-center px-1 rounded text-[7px] font-black bg-white/25 text-white uppercase tracking-wider"
+                    class="inline-flex items-center px-1 rounded text-[10px] font-black bg-white/25 text-white uppercase tracking-wider"
                     >优先动作</span
                   >
                   <span
-                    class="text-[8px] text-white/80 truncate not-italic max-w-[80px]"
+                    class="text-[10px] text-white/80 truncate not-italic max-w-[80px]"
                     :title="primaryAction.title"
                     >{{ primaryAction.title }}</span
                   >
@@ -422,7 +422,7 @@ void Gauge;
                     class="text-[10px] font-bold text-[var(--text-secondary)] block truncate leading-tight"
                     >优先动作</span
                   >
-                  <span class="text-[8px] text-slate-400 block truncate mt-0.5 leading-none"
+                  <span class="text-[10px] text-slate-400 block truncate mt-0.5 leading-none"
                     >当前无高优动作</span
                   >
                 </div>
@@ -550,7 +550,7 @@ void Gauge;
                         <p class="text-[11px] font-bold text-[var(--text-primary)] truncate">
                           {{ item.label }}
                         </p>
-                        <small class="text-[9px] text-slate-400 block mt-0.5 truncate"
+                        <small class="text-[10px] text-slate-400 block mt-0.5 truncate"
                           >{{ item.owner }} / {{ item.targetHours }}h</small
                         >
                       </div>
@@ -568,19 +568,19 @@ void Gauge;
                       class="flex justify-between gap-1.5 mt-2 bg-card p-1 px-1.5 border border-base rounded-md"
                     >
                       <span class="flex items-center gap-1 min-w-0">
-                        <small class="text-[9px] text-slate-400">当前</small>
+                        <small class="text-[10px] text-slate-400">当前</small>
                         <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
                           item.current
                         }}</b>
                       </span>
                       <span class="flex items-center gap-1 min-w-0">
-                        <small class="text-[9px] text-slate-400">临近</small>
+                        <small class="text-[10px] text-slate-400">临近</small>
                         <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
                           item.dueSoon
                         }}</b>
                       </span>
                       <span class="flex items-center gap-1 min-w-0">
-                        <small class="text-[9px] text-slate-400">超时</small>
+                        <small class="text-[10px] text-slate-400">超时</small>
                         <b class="text-[10px] font-bold text-[var(--text-primary)]">{{
                           item.overdue
                         }}</b>
@@ -648,22 +648,22 @@ void Gauge;
 
               <div class="grid grid-cols-4 gap-1.5 mt-2.5 text-center mobile-grid">
                 <span
-                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                  class="inline-flex items-center justify-center gap-1.5 text-[10px] font-bold text-[var(--text-secondary)]"
                 >
                   <i class="h-1.5 w-1.5 rounded-full bg-[#0ea5e9]"></i>用户
                 </span>
                 <span
-                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                  class="inline-flex items-center justify-center gap-1.5 text-[10px] font-bold text-[var(--text-secondary)]"
                 >
                   <i class="h-1.5 w-1.5 rounded-full bg-[#10b981]"></i>内容
                 </span>
                 <span
-                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                  class="inline-flex items-center justify-center gap-1.5 text-[10px] font-bold text-[var(--text-secondary)]"
                 >
                   <i class="h-1.5 w-1.5 rounded-full bg-[#f59e0b]"></i>反馈
                 </span>
                 <span
-                  class="inline-flex items-center justify-center gap-1.5 text-[9px] font-bold text-[var(--text-secondary)]"
+                  class="inline-flex items-center justify-center gap-1.5 text-[10px] font-bold text-[var(--text-secondary)]"
                 >
                   <i class="h-1.5 w-1.5 rounded-full bg-[#8b5cf6]"></i>审计
                 </span>
@@ -727,7 +727,7 @@ void Gauge;
                       >
                         {{ signal.label }}
                       </span>
-                      <span class="text-[9px] text-slate-400 block truncate mt-0.5 leading-none">{{
+                      <span class="text-[10px] text-slate-400 block truncate mt-0.5 leading-none">{{
                         signal.value
                       }}</span>
                     </div>
@@ -779,7 +779,7 @@ void Gauge;
                         class="text-[10px] font-bold block truncate text-[var(--text-primary)] leading-tight"
                         >{{ playbook.title }}</b
                       >
-                      <small class="text-[9px] text-slate-400 block truncate mt-0.5 leading-none"
+                      <small class="text-[10px] text-slate-400 block truncate mt-0.5 leading-none"
                         >{{ playbook.impact }} / {{ playbook.detail }}</small
                       >
                     </div>

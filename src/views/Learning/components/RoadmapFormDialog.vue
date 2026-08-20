@@ -313,7 +313,7 @@ const submitCustomRoadmap = async () => {
               <div class="space-y-1.5">
                 <div v-for="(_, sIdx) in step.subtasks" :key="sIdx" class="flex items-center gap-2">
                   <div
-                    class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0 text-[9px] font-black text-slate-400"
+                    class="w-4 h-4 rounded-full border border-slate-300 dark:border-slate-600 flex items-center justify-center shrink-0 text-[10px] font-black text-slate-400"
                   >
                     {{ sIdx + 1 }}
                   </div>

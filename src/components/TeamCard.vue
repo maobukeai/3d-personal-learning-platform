@@ -61,7 +61,7 @@ const emit = defineEmits<{
     <!-- Joined Badge: Round circle badge on mobile to avoid overflow -->
     <div
       v-if="isJoined"
-      class="absolute top-1 right-1 lg:top-3 lg:right-3 z-20 flex items-center justify-center w-5 h-5 lg:w-auto lg:h-auto lg:gap-1 px-1 lg:px-2.5 py-0.5 lg:py-1 bg-emerald-500/90 backdrop-blur-md text-white text-[9px] lg:text-[10px] font-black rounded-full lg:rounded-lg uppercase tracking-wider shadow-md"
+      class="absolute top-1 right-1 lg:top-3 lg:right-3 z-20 flex items-center justify-center w-5 h-5 lg:w-auto lg:h-auto lg:gap-1 px-1 lg:px-2.5 py-0.5 lg:py-1 bg-emerald-500/90 backdrop-blur-md text-white text-[10px] lg:text-[10px] font-black rounded-full lg:rounded-lg uppercase tracking-wider shadow-md"
     >
       <Check class="w-2.5 h-2.5 lg:w-3.5 lg:h-3.5" />
       <span class="hidden lg:inline">已加入</span>
@@ -124,7 +124,7 @@ const emit = defineEmits<{
             </template>
             <div
               v-else
-              class="w-5 h-5 lg:w-6 lg:h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] font-black text-slate-400"
+              class="w-5 h-5 lg:w-6 lg:h-6 rounded-full border border-white dark:border-slate-800 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400"
             >
               <Users class="w-3 h-3 lg:w-3.5 h-3.5" />
             </div>
@@ -144,7 +144,7 @@ const emit = defineEmits<{
           <button
             v-if="isJoined"
             type="button"
-            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-accent text-white rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer"
+            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-accent text-white rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent-dark transition-all shadow-sm cursor-pointer"
             @click="emit('enter', team)"
           >
             进入
@@ -153,7 +153,7 @@ const emit = defineEmits<{
             v-else
             type="button"
             :disabled="isApplying"
-            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[9px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+            class="w-full sm:w-auto flex items-center justify-center gap-1 px-1.5 sm:px-3.5 py-0.5 sm:py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[10px] sm:text-xs font-black uppercase tracking-wider hover:bg-accent hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             @click="emit('join', team)"
           >
             {{ isApplying ? '申请' : '加入' }}

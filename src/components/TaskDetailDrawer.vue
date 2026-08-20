@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, nextTick } from 'vue';
+import { ref, watch, computed } from 'vue';
 import {
   CheckCircle2,
   Copy,
@@ -17,7 +17,7 @@ import api from '@/utils/api';
 import { logError } from '@/utils/error';
 import { isAxiosError } from 'axios';
 import { TaskStatus } from '@/types/task';
-import type { Task, TaskUpdatePayload, Subtask, SubtaskComment } from '@/types/task';
+import type { Task, TaskUpdatePayload, Subtask } from '@/types/task';
 import Modal from '@/components/ui/Modal.vue';
 import Select from '@/components/ui/Select.vue';
 import SelectOption from '@/components/ui/SelectOption.vue';
@@ -82,7 +82,15 @@ const drawerForm = ref({
   participantIds: [] as string[],
   timeEstimateHours: 0,
   timeSpentHours: 0,
+  recurrence: '',
 });
+
+const recurrenceOptions = [
+  { value: '', label: '不重复' },
+  { value: 'DAILY', label: '每天' },
+  { value: 'WEEKLY', label: '每周' },
+  { value: 'MONTHLY', label: '每月' },
+];
 
 const drawerSubtasks = ref<Subtask[]>([]);
 const detailDrawerTagInput = ref('');
@@ -122,6 +130,7 @@ watch(
         participantIds: newTask.participants?.map((p) => p.userId) || [],
         timeEstimateHours: newTask.timeEstimate ? newTask.timeEstimate / 60 : 0,
         timeSpentHours: newTask.timeSpent ? newTask.timeSpent / 60 : 0,
+        recurrence: (newTask.recurrence as string) || '',
       };
       drawerSubtasks.value = parseSubtasks(newTask.subtasks);
       detailDrawerTagInput.value = '';
@@ -145,6 +154,7 @@ const triggerSave = () => {
     participantIds: drawerForm.value.participantIds,
     timeEstimate: Math.round((drawerForm.value.timeEstimateHours || 0) * 60),
     timeSpent: Math.round((drawerForm.value.timeSpentHours || 0) * 60),
+    recurrence: drawerForm.value.recurrence || null,
   });
 };
 
@@ -525,7 +535,7 @@ const activeTask = computed(() => props.task!);
         <!-- Dependency Blocker Warning Banner -->
         <div
           v-if="isBlockedByDependencies"
-          class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-start gap-2.5"
+          class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl flex items-start gap-2.5"
         >
           <span class="text-rose-500 text-sm mt-0.5">⚠️</span>
           <div>
@@ -567,7 +577,7 @@ const activeTask = computed(() => props.task!);
             <textarea
               v-model="drawerForm.description"
               placeholder="输入任务描述、参考资料或笔记... (支持粘贴图片)"
-              class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
+              class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
               style="color: var(--text-primary)"
               @paste="handlePasteMainDescription"
             ></textarea>
@@ -575,7 +585,7 @@ const activeTask = computed(() => props.task!);
             <!-- Image Previews during Editing -->
             <div
               v-if="tempDescriptionImages.length > 0"
-              class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl"
+              class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
             >
               <div
                 v-for="(img, idx) in tempDescriptionImages"
@@ -618,7 +628,7 @@ const activeTask = computed(() => props.task!);
           <!-- Preview Mode (Click to Edit) -->
           <div
             v-else
-            class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-2xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
+            class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
             @click="startEditingDescription"
           >
             <div
@@ -808,7 +818,7 @@ const activeTask = computed(() => props.task!);
 
       <!-- Right Column: Metadata Sidebar -->
       <div
-        class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
+        class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-xl border"
         style="border-color: var(--border-base)"
       >
         <h3
@@ -837,6 +847,27 @@ const activeTask = computed(() => props.task!);
                 :key="c.id"
                 :label="c.title"
                 :value="c.id"
+              />
+            </Select>
+          </div>
+
+          <!-- Recurrence selector -->
+          <div>
+            <label
+              class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+              >重复</label
+            >
+            <Select
+              v-model="drawerForm.recurrence"
+              size="small"
+              class="!w-full custom-select-small"
+              @change="triggerSave"
+            >
+              <SelectOption
+                v-for="opt in recurrenceOptions"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
               />
             </Select>
           </div>
@@ -985,7 +1016,7 @@ const activeTask = computed(() => props.task!);
             <span
               v-for="tag in drawerForm.tags"
               :key="tag"
-              class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[8px] font-bold"
+              class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-bold"
               :class="getTagClass(tag)"
             >
               # {{ tag }}
@@ -1034,7 +1065,8 @@ const activeTask = computed(() => props.task!);
     <Transition name="drawer-slide">
       <div
         v-if="modelValue && task"
-        class="fixed inset-0 z-50 flex transition-all duration-300 justify-end"
+        class="fixed inset-0 flex transition-all duration-300 justify-end"
+        style="z-index: var(--z-index-drawer-backdrop)"
       >
         <!-- Backdrop -->
         <div
@@ -1126,7 +1158,7 @@ const activeTask = computed(() => props.task!);
               <!-- Dependency Blocker Warning Banner -->
               <div
                 v-if="isBlockedByDependencies"
-                class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl flex items-start gap-2.5"
+                class="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl flex items-start gap-2.5"
               >
                 <span class="text-rose-500 text-sm mt-0.5">⚠️</span>
                 <div>
@@ -1168,7 +1200,7 @@ const activeTask = computed(() => props.task!);
                   <textarea
                     v-model="drawerForm.description"
                     placeholder="输入任务描述、参考资料或笔记... (支持粘贴图片)"
-                    class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
+                    class="w-full min-h-[160px] p-3.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:outline-none focus:border-accent/40 focus:border-solid transition-all resize-y"
                     style="color: var(--text-primary)"
                     @paste="handlePasteMainDescription"
                   ></textarea>
@@ -1176,7 +1208,7 @@ const activeTask = computed(() => props.task!);
                   <!-- Image Previews during Editing -->
                   <div
                     v-if="tempDescriptionImages.length > 0"
-                    class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl"
+                    class="flex flex-wrap gap-2 p-2 bg-slate-50 dark:bg-white/5 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl"
                   >
                     <div
                       v-for="(img, idx) in tempDescriptionImages"
@@ -1219,7 +1251,7 @@ const activeTask = computed(() => props.task!);
                 <!-- Preview Mode (Click to Edit) -->
                 <div
                   v-else
-                  class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-2xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
+                  class="px-4 py-3 bg-slate-50 dark:bg-white/2 border border-slate-200 dark:border-white/5 rounded-xl min-h-[120px] cursor-pointer hover:bg-slate-100/50 dark:hover:bg-white/5 transition-all group/desc relative"
                   @click="startEditingDescription"
                 >
                   <div
@@ -1411,7 +1443,7 @@ const activeTask = computed(() => props.task!);
 
             <!-- Right Column: Metadata Sidebar -->
             <div
-              class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-2xl border"
+              class="w-full lg:w-[320px] xl:w-[360px] shrink-0 h-fit space-y-5 p-4 md:p-5 bg-slate-500/5 dark:bg-white/[0.02] rounded-xl border"
               style="border-color: var(--border-base)"
             >
               <h3
@@ -1440,6 +1472,27 @@ const activeTask = computed(() => props.task!);
                       :key="c.id"
                       :label="c.title"
                       :value="c.id"
+                    />
+                  </Select>
+                </div>
+
+                <!-- Recurrence selector -->
+                <div>
+                  <label
+                    class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5"
+                    >重复</label
+                  >
+                  <Select
+                    v-model="drawerForm.recurrence"
+                    size="small"
+                    class="!w-full custom-select-small"
+                    @change="triggerSave"
+                  >
+                    <SelectOption
+                      v-for="opt in recurrenceOptions"
+                      :key="opt.value"
+                      :label="opt.label"
+                      :value="opt.value"
                     />
                   </Select>
                 </div>
@@ -1590,7 +1643,7 @@ const activeTask = computed(() => props.task!);
                   <span
                     v-for="tag in drawerForm.tags"
                     :key="tag"
-                    class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[8px] font-bold"
+                    class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded text-[10px] font-bold"
                     :class="getTagClass(tag)"
                   >
                     # {{ tag }}

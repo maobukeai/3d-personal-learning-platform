@@ -81,19 +81,19 @@ const emit = defineEmits<{
 
       <span
         v-if="isChatSending"
-        class="text-[9px] font-bold text-amber-500 animate-pulse bg-amber-500/5 px-2 py-0.5 border border-amber-500/10 rounded"
+        class="text-[10px] font-bold text-amber-500 animate-pulse bg-amber-500/5 px-2 py-0.5 border border-amber-500/10 rounded"
       >
         正在合成最新结构规划...
       </span>
       <span
         v-else-if="isPlanJsonSynced"
-        class="text-[9px] font-bold text-emerald-500 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded flex items-center gap-0.5"
+        class="text-[10px] font-bold text-emerald-500 bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/10 rounded flex items-center gap-0.5"
       >
         <Check class="w-3 h-3" /> 已实时同步
       </span>
       <span
         v-else
-        class="text-[9px] font-bold text-slate-400 bg-slate-500/5 px-2 py-0.5 border border-slate-500/10 rounded flex items-center gap-0.5"
+        class="text-[10px] font-bold text-slate-400 bg-slate-500/5 px-2 py-0.5 border border-slate-500/10 rounded flex items-center gap-0.5"
       >
         预览规划
       </span>
@@ -166,7 +166,7 @@ const emit = defineEmits<{
               task.title
             }}</span>
             <span
-              class="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider"
+              class="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
               :class="{
                 'bg-rose-500/10 text-rose-500':
                   task.priority === 'HIGH' || task.priority === '紧急' || task.priority === '高',
@@ -224,7 +224,7 @@ const emit = defineEmits<{
           <div v-for="(step, idx) in currentPlanJson?.roadmap?.steps" :key="idx" class="relative">
             <!-- Timeline Node Ball -->
             <span
-              class="absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-500 flex items-center justify-center text-white text-[7px] font-bold shadow-md"
+              class="absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-500 flex items-center justify-center text-white text-[10px] font-bold shadow-md"
             ></span>
 
             <div class="space-y-1.5">
@@ -233,7 +233,7 @@ const emit = defineEmits<{
                   step.title
                 }}</span>
                 <span
-                  class="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-500/5 px-1.5 py-0.5 rounded"
+                  class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-500/5 px-1.5 py-0.5 rounded"
                   >阶段 {{ step.order }}</span
                 >
               </div>

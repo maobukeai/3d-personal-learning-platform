@@ -106,7 +106,7 @@ const handleSave = () => {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs font-medium text-neutral-300 mb-1">记录模板</label>
-          <Select v-model="form.templateType" size="sm">
+          <Select v-model="form.templateType" size="small">
             <SelectOption value="STUDY_LOG" label="学习日志" />
             <SelectOption value="PROJECT_MILESTONE" label="项目里程碑" />
             <SelectOption value="RESOURCE_INVENTORY" label="资料积累" />
@@ -129,7 +129,7 @@ const handleSave = () => {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-xs font-medium text-neutral-300 mb-1">当前状态</label>
-          <Select v-model="form.status" size="sm">
+          <Select v-model="form.status" size="small">
             <SelectOption value="TODO" label="未开始" />
             <SelectOption value="IN_PROGRESS" label="进行中" />
             <SelectOption value="COMPLETED" label="已完成" />
@@ -139,7 +139,7 @@ const handleSave = () => {
 
         <div>
           <label class="block text-xs font-medium text-neutral-300 mb-1">优先级</label>
-          <Select v-model="form.priority" size="sm">
+          <Select v-model="form.priority" size="small">
             <SelectOption value="LOW" label="低" />
             <SelectOption value="MEDIUM" label="中" />
             <SelectOption value="HIGH" label="高" />

@@ -209,7 +209,7 @@ const filteredConversations = computed(() => {
                   <Hash v-if="conv.isGroup" class="w-2.5 h-2.5 text-indigo-400 shrink-0" />
                   {{ getConversationName(conv) }}
                 </span>
-                <span class="text-[8px] font-medium shrink-0" style="color: var(--text-muted)">
+                <span class="text-[10px] font-medium shrink-0" style="color: var(--text-muted)">
                   {{
                     conv.updatedAt
                       ? new Date(conv.updatedAt).toLocaleTimeString([], {
@@ -229,7 +229,7 @@ const filteredConversations = computed(() => {
                 </p>
                 <div
                   v-if="(conv.unreadCount || 0) > 0"
-                  class="shrink-0 min-w-[12px] h-3 bg-accent text-white text-[7px] font-bold rounded-full flex items-center justify-center px-0.5"
+                  class="shrink-0 min-w-[12px] h-3 bg-accent text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5"
                 >
                   {{ conv.unreadCount }}
                 </div>

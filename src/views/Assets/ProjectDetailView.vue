@@ -677,7 +677,7 @@ onUnmounted(() => {
         >
           <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <span
-              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              class="text-[10px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >截止:</span
             >
             <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
@@ -704,7 +704,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="taskDateFilter === f.id ? 'text-accent' : 'text-slate-500'"
                 @click="taskDateFilter = f.id"
               >
@@ -717,7 +717,7 @@ onUnmounted(() => {
 
           <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <span
-              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              class="text-[10px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >执行人:</span
             >
             <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
@@ -737,7 +737,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="taskAssigneeFilter === 'all' ? 'text-accent' : 'text-slate-500'"
                 @click="taskAssigneeFilter = 'all'"
               >
@@ -750,7 +750,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="taskAssigneeFilter === 'me' ? 'text-accent' : 'text-slate-500'"
                 @click="taskAssigneeFilter = 'me'"
               >
@@ -763,7 +763,7 @@ onUnmounted(() => {
 
           <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
             <span
-              class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+              class="text-[10px] md:text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
               >排序方式:</span
             >
             <div class="relative flex p-0.5 md:p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
@@ -783,7 +783,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
                   taskSortBy === 'natural' ? 'text-accent' : 'text-slate-500 hover:text-slate-700'
                 "
@@ -798,7 +798,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
                   taskSortBy === 'createdAt_asc'
                     ? 'text-accent'
@@ -815,7 +815,7 @@ onUnmounted(() => {
                   }
                 "
                 type="button"
-                class="px-2 md:px-3 py-1 rounded-md text-[9px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
+                class="px-2 md:px-3 py-1 rounded-md text-[10px] md:text-[10px] font-bold transition-all whitespace-nowrap cursor-pointer z-10"
                 :class="
                   taskSortBy === 'createdAt_desc'
                     ? 'text-accent'
@@ -901,7 +901,7 @@ onUnmounted(() => {
                   class="flex items-center gap-3 shrink-0 self-start md:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-2 px-3 rounded-xl"
                 >
                   <div class="flex flex-col items-end">
-                    <span class="text-[9px] font-black uppercase text-slate-400 tracking-wider"
+                    <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider"
                       >路线进度</span
                     >
                     <span class="text-xs font-black text-emerald-500"
@@ -991,7 +991,7 @@ onUnmounted(() => {
                         <div class="space-y-1 flex-1 min-w-0">
                           <div class="flex flex-wrap items-center gap-1.5">
                             <span
-                              class="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
+                              class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded"
                               :class="{
                                 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
                                   getStepStatus(step, index) === 'completed',
@@ -1007,7 +1007,7 @@ onUnmounted(() => {
                             </span>
                             <span
                               v-if="activeStepId === step.id"
-                              class="text-[9px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded flex items-center gap-0.5"
+                              class="text-[10px] font-black text-accent bg-accent/10 px-2 py-0.5 rounded flex items-center gap-0.5"
                             >
                               <Sparkle class="w-2.5 h-2.5" /> 探索中
                             </span>
@@ -1073,7 +1073,7 @@ onUnmounted(() => {
                         <Gauge class="w-4.5 h-4.5" />
                       </div>
                       <div class="space-y-0.5">
-                        <h4 class="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                           智能探索分析仪
                         </h4>
                         <p class="text-xs font-bold text-slate-700 dark:text-slate-200">
@@ -1298,7 +1298,7 @@ onUnmounted(() => {
                           </h4>
                           <div class="flex items-center justify-between text-[10px] text-slate-400">
                             <span
-                              class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[9px]"
+                              class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[10px]"
                             >
                               {{
                                 course.difficulty === 'BEGINNER'
@@ -1309,7 +1309,7 @@ onUnmounted(() => {
                               }}
                             </span>
                             <span
-                              class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[9px]"
+                              class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[10px]"
                             >
                               去掌握 <ArrowRight class="w-2 h-2" />
                             </span>

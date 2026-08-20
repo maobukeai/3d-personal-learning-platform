@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useTableSummary } from '../composables/useTableSummary';
-import { ChevronDown, Calculator } from 'lucide-vue-next';
+import { ChevronDown } from 'lucide-vue-next';
 import type { SheetColumnDef, SheetRowData, ColumnSummaryType } from '../types/sheet';
 
 const props = defineProps<{

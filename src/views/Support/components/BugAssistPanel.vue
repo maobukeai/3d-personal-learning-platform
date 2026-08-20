@@ -51,7 +51,7 @@ const statusLabel = (status: string) => {
       >
         <div class="timeline-item relative pb-4">
           <span
-            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[10px] font-bold text-[var(--accent)] shrink-0"
             >1</span
           >
           <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">提交接收</h4>
@@ -61,7 +61,7 @@ const statusLabel = (status: string) => {
         </div>
         <div class="timeline-item relative pb-4">
           <span
-            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[10px] font-bold text-[var(--accent)] shrink-0"
             >2</span
           >
           <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">分析与处理</h4>
@@ -71,7 +71,7 @@ const statusLabel = (status: string) => {
         </div>
         <div class="timeline-item relative">
           <span
-            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[8px] font-bold text-[var(--accent)] shrink-0"
+            class="absolute left-[-16px] top-1 w-2.5 h-2.5 rounded-full border border-[var(--border-base)] bg-[var(--bg-card)] flex items-center justify-center text-[10px] font-bold text-[var(--accent)] shrink-0"
             >3</span
           >
           <h4 class="text-xs font-bold text-[var(--text-primary)] pl-2">确认与回访</h4>

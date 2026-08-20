@@ -11,7 +11,7 @@
  * keeping the <script setup> block lean and focused on presentation wiring.
  */
 
-import { ref, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { toast, messageBox } from '@/utils/feedbackAdapter';
 import api from '@/utils/api';
 import { logError } from '@/utils/error';

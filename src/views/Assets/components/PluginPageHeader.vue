@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Puzzle, Search, Eye, EyeOff, RefreshCw, Plus, Sparkles } from 'lucide-vue-next';
+import { Puzzle, Search, RefreshCw, Plus, Sparkles } from 'lucide-vue-next';
 import { useLabel } from '@/utils/i18n';
 import PageHeader from '@/components/PageHeader.vue';
 import Button from '@/components/ui/Button.vue';

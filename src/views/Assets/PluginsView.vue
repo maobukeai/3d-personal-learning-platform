@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Sun,
   Wrench,
-  Plus,
   ExternalLink,
   RefreshCw,
   Sparkles,
@@ -1486,8 +1485,8 @@ watch(
       >
         <PluginFiltersPanel
           v-if="activeTab !== 'requests'"
-          :is-open="isFilterOpen"
           v-model:collapsed="isFilterCollapsed"
+          :is-open="isFilterOpen"
           :active-category="activeCategory"
           :active-tab="activeTab"
           :my-status-filter="myStatusFilter"
@@ -1516,10 +1515,10 @@ watch(
             :view-mode-options="viewModeOptions"
             :is-filter-open="isFilterOpen"
             :is-filter-collapsed="isFilterCollapsed"
-            @toggle-filter-collapse="isFilterCollapsed = false"
             :is-batch-mode="isBatchMode"
             :selected-ids="Array.from(selectedPluginIds)"
             :visible-plugins-count="visiblePlugins.length"
+            @toggle-filter-collapse="isFilterCollapsed = false"
             @update:active-tab="activeTab = $event"
             @update:sort-by="sortBy = $event"
             @update:view-mode="viewMode = $event"
@@ -1683,7 +1682,7 @@ watch(
                 :src="getAssetUrl(selectedHelpRequest.user.avatarUrl)"
                 class="w-full h-full object-cover"
               />
-              <span v-else class="text-[9px] font-bold text-slate-400">{{
+              <span v-else class="text-[10px] font-bold text-slate-400">{{
                 selectedHelpRequest.user?.name?.slice(0, 1) || 'U'
               }}</span>
             </div>
@@ -1752,7 +1751,7 @@ watch(
                     :src="getAssetUrl(rep.user.avatarUrl)"
                     class="w-full h-full object-cover"
                   />
-                  <span v-else class="text-[8px] font-bold text-slate-400">{{
+                  <span v-else class="text-[10px] font-bold text-slate-400">{{
                     rep.user?.name?.slice(0, 1) || 'U'
                   }}</span>
                 </div>
@@ -1786,7 +1785,7 @@ watch(
                     <div class="text-xs font-bold text-[var(--text-primary)] truncate">
                       {{ rep.linkedPlugin.title }}
                     </div>
-                    <div class="text-[9px] text-[var(--text-muted)] mt-0.5">
+                    <div class="text-[10px] text-[var(--text-muted)] mt-0.5">
                       v{{ rep.linkedPlugin.version }}
                     </div>
                   </div>

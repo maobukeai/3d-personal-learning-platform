@@ -165,7 +165,7 @@ const handleJoinTeam = () => {
         <div class="flex items-center gap-4 text-left">
           <div class="flex flex-col">
             <span
-              class="text-[9px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5"
+              class="text-[10px] sm:text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5"
               >当前状态</span
             >
             <div class="flex items-center gap-1.5">

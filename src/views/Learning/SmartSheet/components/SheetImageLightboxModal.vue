@@ -2,15 +2,7 @@
 import { ref, watch, computed } from 'vue';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
-import {
-  Upload,
-  Trash2,
-  Download,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-} from 'lucide-vue-next';
+import { Trash2, Download, ExternalLink, ChevronLeft, ChevronRight, Plus } from 'lucide-vue-next';
 import { ElMessageBox } from '@/utils/feedbackBridge';
 
 const props = defineProps<{
@@ -192,7 +184,7 @@ const deleteCurrentImage = () => {
 
           <Button
             v-if="currentSrc"
-            variant="ghost"
+            variant="glass"
             size="sm"
             class="text-red-400 hover:bg-red-500/20"
             @click="deleteCurrentImage"

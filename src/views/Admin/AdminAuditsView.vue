@@ -26,7 +26,6 @@ import {
   LayoutGrid,
   List,
   RefreshCw,
-  Search,
   Sparkles,
   Trash2,
   XCircle,
@@ -785,18 +784,18 @@ onBeforeUnmount(() => {
     <main class="min-h-0 flex-1 flex flex-col overflow-hidden p-2 sm:p-2.5 gap-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         :title="pageConfig.title"
         subtitle="内容审核"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索当前队列..."
       >
         <UiButton
           variant="secondary"
           size="sm"
           :icon="FolderCog"
-          @click="openCategoryManager"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCategoryManager"
         >
           分类管理
         </UiButton>
@@ -805,8 +804,8 @@ onBeforeUnmount(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="refreshQueue"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="refreshQueue"
         >
           刷新
         </UiButton>
@@ -839,8 +838,8 @@ onBeforeUnmount(() => {
                     ? 'bg-white dark:bg-white/10 text-accent dark:text-white shadow-sm'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-transparent',
                 ]"
-                @click="viewMode = 'list'"
                 title="列表视图"
+                @click="viewMode = 'list'"
               >
                 <List class="w-3.5 h-3.5" />
               </button>
@@ -852,8 +851,8 @@ onBeforeUnmount(() => {
                     ? 'bg-white dark:bg-white/10 text-accent dark:text-white shadow-sm'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-transparent',
                 ]"
-                @click="viewMode = 'grid'"
                 title="网格视图"
+                @click="viewMode = 'grid'"
               >
                 <LayoutGrid class="w-3.5 h-3.5" />
               </button>
@@ -1181,8 +1180,8 @@ onBeforeUnmount(() => {
                     <input
                       type="checkbox"
                       :checked="selectedIds.includes(row.id)"
-                      @change="toggleSelection(row.id)"
                       class="w-4 h-4 cursor-pointer accent-accent"
+                      @change="toggleSelection(row.id)"
                     />
                   </div>
 
@@ -1234,7 +1233,7 @@ onBeforeUnmount(() => {
                           {{ row.user?.name || row.user?.email?.split('@')[0] || '匿名' }}
                         </span>
                       </div>
-                      <span class="font-mono text-[9px] shrink-0">
+                      <span class="font-mono text-[10px] shrink-0">
                         {{ formatDate(row.createdAt).split(' ')[0] }}
                       </span>
                     </div>
@@ -1349,7 +1348,7 @@ onBeforeUnmount(() => {
                     </span>
                   </div>
                 </div>
-                <Badge variant="info" class="text-[9px] font-bold">作者</Badge>
+                <Badge variant="info" class="text-[10px] font-bold">作者</Badge>
               </div>
             </div>
 
@@ -1380,8 +1379,8 @@ onBeforeUnmount(() => {
                   }}</strong>
                 </div>
                 <div
-                  class="flex flex-col gap-0.5"
                   v-if="activeItem?.categoryId || activeItem?.category"
+                  class="flex flex-col gap-0.5"
                 >
                   <span class="text-[10px] text-[var(--text-secondary)]">归属分类</span>
                   <strong class="text-[var(--text-primary)] font-semibold">

@@ -165,7 +165,7 @@ const handleSave = () => {
 
       <div>
         <label class="block font-medium text-neutral-300 mb-1">字段数据类型</label>
-        <Select v-model="type" size="sm">
+        <Select v-model="type" size="small">
           <SelectOption value="text" label="单行文本 (Text)" />
           <SelectOption value="image" label="📸 照片/图片文件 (Image)" />
           <SelectOption value="select" label="单选标签 (Select)" />

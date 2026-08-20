@@ -89,7 +89,7 @@ const handle2FAVerify = async () => {
     </div>
 
     <!-- 2FA Verification Form -->
-    <form v-if="is2FARequired" @submit.prevent="handle2FAVerify" class="space-y-4">
+    <form v-if="is2FARequired" class="space-y-4" @submit.prevent="handle2FAVerify">
       <div class="space-y-1">
         <label class="text-xs font-semibold text-[var(--text-secondary)]">两步验证码 (2FA)</label>
         <Input
@@ -115,7 +115,7 @@ const handle2FAVerify = async () => {
     </form>
 
     <!-- Normal Login Form -->
-    <form v-else @submit.prevent="handleLogin" class="space-y-4">
+    <form v-else class="space-y-4" @submit.prevent="handleLogin">
       <div class="space-y-1">
         <label class="text-xs font-semibold text-[var(--text-secondary)]">电子邮箱</label>
         <Input

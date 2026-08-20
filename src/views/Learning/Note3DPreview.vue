@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, shallowRef } from 'vue';
 import * as THREE from 'three';
-import { tiptapJsonToWebGLScene, type TiptapNode } from '@/utils/3d/markupAstToScene';
+import { type TiptapNode } from '@/utils/3d/markupAstToScene';
 const props = defineProps<{ tiptapJson: TiptapNode }>();
 const containerRef = ref<HTMLDivElement>();
 // Three.js 对象避免 Vue 深度响应式代理（工程约定）

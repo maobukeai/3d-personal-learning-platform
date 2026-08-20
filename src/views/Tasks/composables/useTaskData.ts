@@ -166,6 +166,7 @@ export function useTaskData() {
     projectId?: string | null;
     teamId?: string | null;
     participantIds?: string[];
+    recurrence?: string | null;
   }) => {
     const tid = workspaceStore.activeTeamId || 'personal';
     try {
@@ -175,6 +176,7 @@ export function useTaskData() {
         assigneeId: payload.assigneeId || null,
         projectId: payload.projectId || null,
         teamId: payload.teamId || null,
+        recurrence: payload.recurrence || null,
         participantIds:
           payload.participantIds && payload.participantIds.length > 0
             ? payload.participantIds

@@ -1092,7 +1092,7 @@ defineExpose({
           >
             {{ error }}
           </p>
-          <p class="text-[9px] text-slate-400 mt-2">
+          <p class="text-[10px] text-slate-400 mt-2">
             请确认您的模型文件格式正确、没有损坏，并且相关的贴图/依赖文件在同级目录存在。
           </p>
         </div>

@@ -2,9 +2,18 @@ export const TaskStatus = {
   TODO: 'TODO',
   IN_PROGRESS: 'IN_PROGRESS',
   DONE: 'DONE',
+  CANCELLED: 'CANCELLED',
 } as const;
 
 export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
+
+export const TaskRecurrence = {
+  DAILY: 'DAILY',
+  WEEKLY: 'WEEKLY',
+  MONTHLY: 'MONTHLY',
+} as const;
+
+export type TaskRecurrence = (typeof TaskRecurrence)[keyof typeof TaskRecurrence];
 
 export interface UserType {
   id: string;
@@ -100,6 +109,7 @@ export interface Task {
   }[];
   timeEstimate?: number | null;
   timeSpent?: number | null;
+  recurrence?: TaskRecurrence | string | null;
   dependencies?: {
     id: string;
     dependsOnId: string;
@@ -143,6 +153,7 @@ export interface TaskUpdatePayload {
   participantIds: string[];
   timeEstimate?: number;
   timeSpent?: number;
+  recurrence?: string | null;
 }
 
 export interface TaskActivity {

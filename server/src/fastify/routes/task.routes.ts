@@ -6,6 +6,7 @@ import prisma from '../../services/prisma';
 import { AppError } from '../../utils/error';
 import { auditService, AuditAction, AuditModule } from '../../services/audit.service';
 import { createNotification, createNotificationBatch } from '../../utils/notification';
+import { emitToUser } from '../../services/socket.service';
 import { awardPoints, deductPoints, PointsAction } from '../../services/points.service';
 import { logTaskActivity } from '../../services/taskActivity.service';
 import { getShanghaiStartOfDay, getShanghaiEndOfDay } from '../../utils/date';
@@ -195,6 +196,106 @@ const taskInclude = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// Realtime sync + recurring-task helpers
+// ---------------------------------------------------------------------------
+
+interface TaskChangeTarget {
+  id: string;
+  userId: string;
+  assigneeId?: string | null;
+  participants?: { userId: string }[];
+}
+
+/* Broadcast task mutations to everyone involved so other online clients refresh. */
+const broadcastTaskChange = (task: TaskChangeTarget, action: 'created' | 'updated' | 'deleted') => {
+  const audience = new Set<string>([task.userId]);
+  if (task.assigneeId) audience.add(task.assigneeId);
+  task.participants?.forEach((p) => audience.add(p.userId));
+  audience.forEach((uid) => emitToUser(uid, 'task_changed', { id: task.id, action }));
+};
+
+const advanceRecurrenceDate = (base: Date, recurrence: string): Date => {
+  const next = new Date(base);
+  if (recurrence === 'DAILY') next.setDate(next.getDate() + 1);
+  else if (recurrence === 'WEEKLY') next.setDate(next.getDate() + 7);
+  else next.setMonth(next.getMonth() + 1);
+  return next;
+};
+
+/* When a recurring task transitions into DONE, spawn the next instance once. */
+const createNextRecurrenceInstance = async (
+  completed: {
+    id: string;
+    title: string;
+    description?: string | null;
+    priority?: string;
+    tags?: string | null;
+    subtasks?: string | null;
+    recurrence?: string | null;
+    dueDate?: Date | null;
+    userId: string;
+    assigneeId?: string | null;
+    teamId?: string | null;
+    projectId?: string | null;
+    timeEstimate?: number;
+    participants?: { userId: string }[];
+  },
+  actorId: string,
+): Promise<void> => {
+  const recurrence = completed.recurrence;
+  if (!recurrence) return;
+
+  const now = new Date();
+  // If the previous instance was finished after its due date, anchor the next
+  // cycle to "now" instead of stacking on the stale date.
+  const base = completed.dueDate && completed.dueDate > now ? completed.dueDate : now;
+  const nextDueDate = advanceRecurrenceDate(base, recurrence);
+
+  /* Copy checklist subtasks but reset their done state for the new cycle. */
+  let nextSubtasks = completed.subtasks ?? null;
+  try {
+    const parsed = JSON.parse(completed.subtasks || '[]');
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      nextSubtasks = JSON.stringify(parsed.map((s) => ({ ...s, done: false })));
+    }
+  } catch {
+    // keep original subtasks string
+  }
+
+  const nextTask = await prisma.task.create({
+    data: {
+      title: completed.title,
+      description: completed.description ?? null,
+      status: TaskStatus.TODO,
+      priority: completed.priority || 'MEDIUM',
+      tags: completed.tags ?? null,
+      subtasks: nextSubtasks,
+      recurrence,
+      dueDate: nextDueDate,
+      userId: completed.userId,
+      assigneeId: completed.assigneeId ?? null,
+      teamId: completed.teamId ?? null,
+      projectId: completed.projectId ?? null,
+      timeEstimate: completed.timeEstimate ?? 0,
+      participants: completed.participants?.length
+        ? { create: completed.participants.map((p) => ({ userId: p.userId })) }
+        : undefined,
+    },
+    include: { participants: { select: { userId: true } } },
+  });
+
+  await logTaskActivity({
+    taskId: nextTask.id,
+    userId: actorId,
+    action: 'CREATE',
+    description: '循环任务已自动生成下一周期实例',
+    newValue: JSON.stringify({ title: nextTask.title, dueDate: nextTask.dueDate }),
+  });
+
+  broadcastTaskChange(nextTask, 'created');
+};
+
+// ---------------------------------------------------------------------------
 // Route registration
 // ---------------------------------------------------------------------------
 
@@ -226,15 +327,16 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         ],
       };
 
-      const [total, todo, inProgress, done, overdue] = await Promise.all([
+      const [total, todo, inProgress, done, cancelled, overdue] = await Promise.all([
         prisma.task.count({ where }),
         prisma.task.count({ where: { ...where, status: TaskStatus.TODO } }),
         prisma.task.count({ where: { ...where, status: TaskStatus.IN_PROGRESS } }),
         prisma.task.count({ where: { ...where, status: TaskStatus.DONE } }),
+        prisma.task.count({ where: { ...where, status: TaskStatus.CANCELLED } }),
         prisma.task.count({
           where: {
             ...where,
-            status: { not: TaskStatus.DONE },
+            status: { notIn: [TaskStatus.DONE, TaskStatus.CANCELLED] },
             dueDate: { lt: new Date() },
           },
         }),
@@ -253,6 +355,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         todo,
         inProgress,
         done,
+        cancelled,
         overdue,
         completionRate,
         priorityBreakdown: priorityBreakdown.reduce(
@@ -358,6 +461,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         participantIds,
         timeEstimate,
         timeSpent,
+        recurrence,
       } = request.body as {
         title: string;
         description?: string | null;
@@ -371,6 +475,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         participantIds?: string[] | null;
         timeEstimate?: number | string | null;
         timeSpent?: number | string | null;
+        recurrence?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | null;
       };
 
       if (projectId) {
@@ -432,6 +537,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
           teamId,
           timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : 0,
           timeSpent: timeSpent !== undefined ? Number(timeSpent) : 0,
+          recurrence: recurrence || null,
           participants:
             targetParticipantIds.length > 0
               ? {
@@ -514,6 +620,8 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
           // non-fatal notification failure
         }
       }
+
+      broadcastTaskChange(task, 'created');
 
       return reply.status(201).send(task);
     },
@@ -799,6 +907,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         participantIds,
         timeEstimate,
         timeSpent,
+        recurrence,
       } = request.body as {
         title?: string;
         description?: string | null;
@@ -812,6 +921,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
         participantIds?: string[] | null;
         timeEstimate?: number | string | null;
         timeSpent?: number | string | null;
+        recurrence?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | null;
       };
 
       const existingTask = await prisma.task.findFirst({
@@ -955,6 +1065,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
           projectId: projectId !== undefined ? projectId || null : undefined,
           timeEstimate: timeEstimate !== undefined ? Number(timeEstimate) : undefined,
           timeSpent: timeSpent !== undefined ? Number(timeSpent) : undefined,
+          recurrence: recurrence !== undefined ? recurrence || null : undefined,
           participants:
             dbParticipantIds !== undefined
               ? {
@@ -975,6 +1086,13 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
       } else if (transitioningFromDone) {
         await deductPoints(task.assigneeId || userId, PointsAction.COMPLETE_TASK);
       }
+
+      // Recurring task: spawn the next cycle once when transitioning into DONE
+      if (transitioningToDone && task.recurrence) {
+        await createNextRecurrenceInstance(task, userId);
+      }
+
+      broadcastTaskChange(task, 'updated');
 
       // Notify assignee if status changed or re-assigned
       if (
@@ -1039,6 +1157,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
           TODO: '待办',
           IN_PROGRESS: '进行中',
           DONE: '已完成',
+          CANCELLED: '已取消',
         };
         await logTaskActivity({
           taskId: task.id,
@@ -1246,6 +1365,7 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
               },
             },
           },
+          participants: { select: { userId: true } },
         },
       });
       if (!existingTask) {
@@ -1259,6 +1379,8 @@ export const registerTaskRoutes = (app: FastifyInstance): void => {
       ) {
         throw new AppError('Not authorized to delete tasks in this project', 403);
       }
+
+      broadcastTaskChange(existingTask, 'deleted');
 
       await prisma.task.delete({ where: { id } });
 

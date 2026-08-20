@@ -8,6 +8,7 @@ import {
   Star,
   CheckSquare,
   FileText,
+  Image as ImageIcon,
   MoreVertical,
   ChevronLeft,
   ChevronRight,
@@ -37,6 +38,7 @@ const typeIconMap: Record<SheetColumnType, any> = {
   rating: Star,
   checkbox: CheckSquare,
   'rich-text': FileText,
+  image: ImageIcon,
 };
 </script>
 

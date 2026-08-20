@@ -125,7 +125,7 @@ Base body text is **14px / 1.55 line-height**. Hierarchy is created by size, wei
 | Caption | `--typo-caption` | 12px      | 1.50        | 400         | 0              | Auxiliary / hint text (minimum size)                          |
 | Stat    | `--typo-stat`    | 28px      | 1.20        | 700         | 0              | KPI / numeric metric, `font-variant-numeric: tabular-nums`    |
 
-Font stack: `'Inter', 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif`.
+Font stack: `'Inter Variable', system-ui, -apple-system, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif` — Inter Variable (self-hosted via `@fontsource-variable/inter`, latin/digits only) layered on native CJK system fonts. Shipping a CJK webfont (e.g. Noto Sans SC full) would add multiple MB; native PingFang SC / Microsoft YaHei are visually close and load instantly.
 
 Rules:
 

@@ -11,6 +11,12 @@ export type SheetColumnType =
 
 export type ColumnSummaryType = 'sum' | 'avg' | 'count' | 'percent' | 'min' | 'max';
 
+export type SheetTemplateType = 'STUDY_LOG' | 'PROJECT_MILESTONE' | 'RESOURCE_INVENTORY';
+
+export type RecordStatus = 'TODO' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
+
+export type RecordPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
 export interface SelectOptionItem {
   id: string;
   label: string;
@@ -39,6 +45,38 @@ export interface CustomSheetTable {
   icon?: string;
   columns: SheetColumnDef[];
   rows: SheetRowData[];
+}
+
+export interface SmartSheetItem {
+  id: string;
+  templateType: SheetTemplateType;
+  title: string;
+  category: string;
+  tags: string[];
+  status: RecordStatus;
+  priority: RecordPriority;
+  durationMinutes?: number;
+  dueDate?: string;
+  rating?: number;
+  linkUrl?: string;
+  content?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SheetFilterOptions {
+  search: string;
+  templateType: SheetTemplateType | 'ALL';
+  status: RecordStatus | 'ALL';
+  category: string | 'ALL';
+  sortBy: 'latest' | 'oldest' | 'priority' | 'duration';
+}
+
+export interface SheetSummary {
+  totalCount: number;
+  totalDurationHours: number;
+  completedCount: number;
+  completionRate: number;
 }
 
 export interface SheetSummaryMetrics {

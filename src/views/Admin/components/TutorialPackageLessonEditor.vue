@@ -109,56 +109,56 @@ const addStep = (section: TutorialSection) =>
       </button>
     </header>
     <div v-if="expanded" class="space-y-4 border-t p-3" style="border-color: var(--border-base)">
-      <div
-        v-for="section in lesson.tutorialSections"
-        :key="section.id"
-        v-if="sectionDrafts[section.id]"
-        class="space-y-3 rounded-xl border p-3"
-        style="border-color: var(--border-base)"
-      >
-        <div class="grid grid-cols-[1fr_60px_88px_88px_auto_auto] gap-2">
-          <input
-            v-model="sectionDrafts[section.id].title"
-            class="tutorial-input font-semibold"
-            placeholder="分组名称"
+      <template v-for="section in lesson.tutorialSections" :key="section.id">
+        <div
+          v-if="sectionDrafts[section.id]"
+          class="space-y-3 rounded-xl border p-3"
+          style="border-color: var(--border-base)"
+        >
+          <div class="grid grid-cols-[1fr_60px_88px_88px_auto_auto] gap-2">
+            <input
+              v-model="sectionDrafts[section.id].title"
+              class="tutorial-input font-semibold"
+              placeholder="分组名称"
+            />
+            <input
+              v-model.number="sectionDrafts[section.id].order"
+              class="tutorial-input"
+              type="number"
+              title="顺序"
+            />
+            <input
+              v-model.number="sectionDrafts[section.id].startTime"
+              class="tutorial-input"
+              type="number"
+              step="0.1"
+              title="开始秒数"
+            />
+            <input
+              v-model.number="sectionDrafts[section.id].endTime"
+              class="tutorial-input"
+              type="number"
+              step="0.1"
+              title="结束秒数"
+            />
+            <button class="tutorial-primary-btn" :disabled="busy" @click="saveSection(section)">
+              <Save class="h-3.5 w-3.5" />
+            </button>
+            <button class="tutorial-danger-btn" :disabled="busy" @click="removeSection(section)">
+              <Trash2 class="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <TutorialStepEditor
+            v-for="step in section.steps"
+            :key="step.id"
+            :step="step"
+            @changed="emit('changed')"
           />
-          <input
-            v-model.number="sectionDrafts[section.id].order"
-            class="tutorial-input"
-            type="number"
-            title="顺序"
-          />
-          <input
-            v-model.number="sectionDrafts[section.id].startTime"
-            class="tutorial-input"
-            type="number"
-            step="0.1"
-            title="开始秒数"
-          />
-          <input
-            v-model.number="sectionDrafts[section.id].endTime"
-            class="tutorial-input"
-            type="number"
-            step="0.1"
-            title="结束秒数"
-          />
-          <button class="tutorial-primary-btn" :disabled="busy" @click="saveSection(section)">
-            <Save class="h-3.5 w-3.5" />
-          </button>
-          <button class="tutorial-danger-btn" :disabled="busy" @click="removeSection(section)">
-            <Trash2 class="h-3.5 w-3.5" />
+          <button class="tutorial-add-btn" :disabled="busy" @click="addStep(section)">
+            <Plus class="h-3.5 w-3.5" />新增步骤
           </button>
         </div>
-        <TutorialStepEditor
-          v-for="step in section.steps"
-          :key="step.id"
-          :step="step"
-          @changed="emit('changed')"
-        />
-        <button class="tutorial-add-btn" :disabled="busy" @click="addStep(section)">
-          <Plus class="h-3.5 w-3.5" />新增步骤
-        </button>
-      </div>
+      </template>
       <button class="tutorial-add-btn w-full justify-center" :disabled="busy" @click="addSection">
         <Plus class="h-3.5 w-3.5" />新增内容分组
       </button>

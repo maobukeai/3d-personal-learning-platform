@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import Input from '@/components/ui/Input.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 import CustomDatePicker from '@/components/ui/CustomDatePicker.vue';
-import { Star, FileText, Image as ImageIcon, Plus } from 'lucide-vue-next';
+import { Star, FileText, Image as ImageIcon } from 'lucide-vue-next';
 import type { SheetColumnDef } from '../types/sheet';
 
 const props = defineProps<{

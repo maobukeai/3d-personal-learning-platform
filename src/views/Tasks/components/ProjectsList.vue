@@ -78,7 +78,7 @@ const focusTabsOptions = [
 
 <template>
   <div
-    class="mobile-adaptive rounded-2xl border overflow-hidden shadow-sm"
+    class="mobile-adaptive rounded-xl border overflow-hidden shadow-sm"
     style="background-color: var(--bg-card); border-color: var(--border-base)"
   >
     <div
@@ -175,7 +175,7 @@ const focusTabsOptions = [
                     {{ row.project.title }}
                   </p>
                   <span
-                    class="px-1.5 py-0.5 rounded text-[8px] font-black shrink-0"
+                    class="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0"
                     :class="
                       projectHealthById.get(row.project.id)?.riskLevel === 'HIGH'
                         ? 'bg-rose-500/10 text-rose-600'
@@ -200,7 +200,7 @@ const focusTabsOptions = [
             <div class="flex items-center gap-1 shrink-0" @click.stop>
               <button
                 type="button"
-                class="h-7 px-2 rounded-lg bg-accent/10 text-accent text-[9px] font-black border-none cursor-pointer"
+                class="h-7 px-2 rounded-lg bg-accent/10 text-accent text-[10px] font-black border-none cursor-pointer"
                 @click="emit('navigate-board', row.project.id)"
               >
                 看板
@@ -272,7 +272,7 @@ const focusTabsOptions = [
 
           <div class="mt-3 flex items-center gap-3">
             <div class="min-w-0 flex-1">
-              <div class="flex items-center justify-between text-[9px] font-black mb-1">
+              <div class="flex items-center justify-between text-[10px] font-black mb-1">
                 <span class="text-slate-400"
                   >完成 {{ row.taskStats.done }}/{{ row.taskStats.total }}</span
                 >
@@ -296,7 +296,7 @@ const focusTabsOptions = [
               />
               <span
                 v-if="row.project.members.length > 3"
-                class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 flex items-center justify-center"
+                class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 flex items-center justify-center"
               >
                 +{{ row.project.members.length - 3 }}
               </span>
@@ -395,7 +395,7 @@ const focusTabsOptions = [
                   />
                   <span
                     v-if="row.project.members.length > 4"
-                    class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 flex items-center justify-center"
+                    class="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500 flex items-center justify-center"
                   >
                     +{{ row.project.members.length - 4 }}
                   </span>
@@ -405,7 +405,7 @@ const focusTabsOptions = [
                 <div class="flex items-center justify-end gap-1.5" @click.stop>
                   <button
                     type="button"
-                    class="h-7 px-2.5 rounded-lg bg-accent/10 text-accent text-[9px] font-black border-none cursor-pointer"
+                    class="h-7 px-2.5 rounded-lg bg-accent/10 text-accent text-[10px] font-black border-none cursor-pointer"
                     @click="emit('navigate-board', row.project.id)"
                   >
                     看板

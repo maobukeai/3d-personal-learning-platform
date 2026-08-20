@@ -217,11 +217,11 @@ const openLink = (url: string) => {
                   {{ participant.name || t('community.chat.unnamedUser') }}
                   <span
                     v-if="participant.id === authStore.user?.id"
-                    class="text-[9px] text-slate-400 ml-1"
+                    class="text-[10px] text-slate-400 ml-1"
                     >({{ t('community.chat.you') }})</span
                   >
                 </p>
-                <p class="text-[9px] truncate" style="color: var(--text-muted)">
+                <p class="text-[10px] truncate" style="color: var(--text-muted)">
                   {{ participant.email }}
                 </p>
               </div>
@@ -281,7 +281,7 @@ const openLink = (url: string) => {
               <p class="text-[11px] font-bold truncate" style="color: var(--text-primary)">
                 {{ file.name || t('community.chat.unnamedFile') }}
               </p>
-              <p class="text-[9px]" style="color: var(--text-muted)">
+              <p class="text-[10px]" style="color: var(--text-muted)">
                 {{ file.createdAt ? formatDateSeparator(file.createdAt) : '' }}
               </p>
             </div>

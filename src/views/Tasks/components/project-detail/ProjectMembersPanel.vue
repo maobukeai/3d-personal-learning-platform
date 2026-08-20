@@ -50,14 +50,14 @@ const emit = defineEmits<{
           m.user.name || m.user.email
         }}</span>
         <span
-          class="text-[7px] px-1 py-0.1 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded uppercase font-black tracking-wider"
+          class="text-[10px] px-1 py-0.1 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded uppercase font-black tracking-wider"
           >{{ m.role }}</span
         >
       </div>
     </div>
 
     <div v-if="invitations && invitations.length > 0" class="pt-1.5 space-y-1.5 text-left">
-      <div class="text-[9px] font-black uppercase tracking-widest text-slate-400">
+      <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">
         {{ t('projects.sentInvitationsPending') }}
       </div>
       <div class="flex flex-wrap gap-1.5">
@@ -72,7 +72,7 @@ const emit = defineEmits<{
             inv.invitee.name || inv.invitee.email
           }}</span>
           <span
-            class="text-[7px] px-1 py-0.1 bg-amber-500/10 text-amber-500 rounded uppercase font-black tracking-wider"
+            class="text-[10px] px-1 py-0.1 bg-amber-500/10 text-amber-500 rounded uppercase font-black tracking-wider"
             >PENDING</span
           >
         </div>

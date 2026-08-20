@@ -162,7 +162,7 @@ const handleQuickSettings = (ws: Workspace) => {
         :side-offset="6"
         class="glass-popover glass-panel-extreme z-[var(--z-dropdown)] workspace-switcher-popper w-56 max-w-[calc(100vw-16px)] p-2 outline-none animate-in fade-in slide-in-from-top-1 duration-150"
       >
-        <div class="px-2 py-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+        <div class="px-2 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
           {{ $t('layout.switchWorkspace') }}
         </div>
 
@@ -228,7 +228,7 @@ const handleQuickSettings = (ws: Workspace) => {
                 </div>
                 <div
                   v-if="ws.badgeCount"
-                  class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
+                  class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
                 >
                   {{ ws.badgeCount > 99 ? '99+' : ws.badgeCount }}
                 </div>
@@ -244,7 +244,7 @@ const handleQuickSettings = (ws: Workspace) => {
                 >
                   {{ ws.name }}
                 </span>
-                <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate">
+                <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                   {{ ws.description }}
                 </span>
               </div>
@@ -321,7 +321,7 @@ const handleQuickSettings = (ws: Workspace) => {
                   </div>
                   <div
                     v-if="adminWorkspace.badgeCount"
-                    class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
+                    class="absolute -top-1.5 -right-1.5 min-w-[16px] h-[16px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border border-slate-900 px-1"
                   >
                     {{ adminWorkspace.badgeCount > 99 ? '99+' : adminWorkspace.badgeCount }}
                   </div>
@@ -337,7 +337,7 @@ const handleQuickSettings = (ws: Workspace) => {
                   >
                     {{ $t('layout.adminWorkspace') }}
                   </span>
-                  <span class="text-[9px] text-slate-400 dark:text-slate-500 font-medium truncate">
+                  <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                     {{ adminWorkspace.description }}
                   </span>
                 </div>

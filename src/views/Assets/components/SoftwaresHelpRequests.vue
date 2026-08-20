@@ -174,7 +174,7 @@ defineExpose({ openHelpRequestDetail, openHelpRequestPostDialog });
               :src="getAssetUrl(selectedHelpRequest.user.avatarUrl)"
               class="w-full h-full object-cover"
             />
-            <span v-else class="text-[9px] font-bold text-slate-400">{{
+            <span v-else class="text-[10px] font-bold text-slate-400">{{
               selectedHelpRequest.user?.name?.slice(0, 1) || 'U'
             }}</span>
           </div>
@@ -232,7 +232,7 @@ defineExpose({ openHelpRequestDetail, openHelpRequestPostDialog });
                   :src="getAssetUrl(rep.user.avatarUrl)"
                   class="w-full h-full object-cover"
                 />
-                <span v-else class="text-[8px] font-bold text-slate-400">{{
+                <span v-else class="text-[10px] font-bold text-slate-400">{{
                   rep.user?.name?.slice(0, 1) || 'U'
                 }}</span>
               </div>
@@ -263,7 +263,7 @@ defineExpose({ openHelpRequestDetail, openHelpRequestPostDialog });
                   <div class="text-xs font-bold text-[var(--text-primary)] truncate">
                     {{ rep.linkedSoftware.title }}
                   </div>
-                  <div class="text-[9px] text-[var(--text-muted)] mt-0.5">
+                  <div class="text-[10px] text-[var(--text-muted)] mt-0.5">
                     v{{ rep.linkedSoftware.version }}
                   </div>
                 </div>

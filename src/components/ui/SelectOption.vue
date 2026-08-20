@@ -36,9 +36,9 @@ onBeforeUnmount(() => {
   <!-- Render custom div if multiple selection context is active -->
   <div
     v-if="multipleContext"
-    @click="multipleContext.toggle(value)"
     class="relative flex items-center justify-between px-8 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=checked]:text-[var(--accent)] font-medium"
     :data-state="multipleContext.isSelected(value) ? 'checked' : 'unchecked'"
+    @click="multipleContext.toggle(value)"
   >
     <span>
       <slot v-if="hasSlot" />

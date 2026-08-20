@@ -250,7 +250,7 @@ const handleChannelClick = (channel: PbrChannel) => {
         <div class="flex items-center justify-between gap-2">
           <span class="font-bold text-[var(--text-primary)] truncate">{{ channel.name }}</span>
           <span
-            class="px-2 py-0.5 rounded text-[8px] font-extrabold uppercase"
+            class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase"
             :class="
               channel.matchedFile
                 ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'

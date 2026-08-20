@@ -191,7 +191,7 @@ const progressWidth = (percent: number) => {
             class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
             style="border-color: var(--border-base)"
           >
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
               >项目</span
             >
             <strong
@@ -203,7 +203,7 @@ const progressWidth = (percent: number) => {
             class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
             style="border-color: var(--border-base)"
           >
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
               >进行</span
             >
             <strong
@@ -215,7 +215,7 @@ const progressWidth = (percent: number) => {
             class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
             style="border-color: var(--border-base)"
           >
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
               >逾期</span
             >
             <strong
@@ -227,7 +227,7 @@ const progressWidth = (percent: number) => {
             class="p-2 bg-white/5 dark:bg-black/20 border rounded-lg"
             style="border-color: var(--border-base)"
           >
-            <span class="block text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            <span class="block text-[10px] font-black text-slate-400 uppercase tracking-widest"
               >完成率</span
             >
             <strong class="block text-base font-black mt-1 leading-none text-[var(--text-primary)]"
@@ -263,7 +263,7 @@ const progressWidth = (percent: number) => {
             @click="navigate(item.targetRoute)"
           >
             <span
-              class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0"
+              class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0"
               :class="severityClass(item.severity)"
             >
               {{ severityLabel(item.severity) }}
@@ -272,7 +272,7 @@ const progressWidth = (percent: number) => {
               <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
                 item.title
               }}</span>
-              <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">{{
+              <span class="block text-[10px] font-bold text-slate-400 truncate mt-0.5">{{
                 item.description
               }}</span>
             </span>
@@ -307,13 +307,13 @@ const progressWidth = (percent: number) => {
               <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
                 task.title
               }}</span>
-              <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+              <span class="block text-[10px] font-bold text-slate-400 truncate mt-0.5">
                 {{ task.project?.title || '独立任务' }} · {{ taskStatusLabel(task.status) }} ·
                 {{ formatDate(task.dueDate || task.updatedAt) }}
               </span>
             </span>
             <span
-              class="px-1.5 py-0.5 rounded text-[8px] font-bold shrink-0 ml-2"
+              class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ml-2"
               :class="priorityClass(task.priority)"
             >
               {{ task.priority || 'NONE' }}
@@ -351,13 +351,13 @@ const progressWidth = (percent: number) => {
               <span class="block text-[11px] font-black truncate text-[var(--text-primary)]">{{
                 project.title
               }}</span>
-              <span class="block text-[9px] font-bold text-slate-400 truncate mt-0.5">
+              <span class="block text-[10px] font-bold text-slate-400 truncate mt-0.5">
                 {{ roleLabel(project.role) }} · {{ project.activeTasks }} 进行 ·
                 {{ project.overdueTasks }} 逾期
               </span>
             </span>
             <span class="w-14 shrink-0 ml-2">
-              <span class="block text-right text-[9px] font-black text-slate-400"
+              <span class="block text-right text-[10px] font-black text-slate-400"
                 >{{ project.progress }}%</span
               >
               <span

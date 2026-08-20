@@ -162,7 +162,7 @@ const memberCount = computed(() => {
             class="absolute bottom-6 left-6 right-6 md:bottom-8 md:left-8 md:right-8 text-white select-none"
           >
             <span
-              class="px-2.5 py-0.5 rounded-md bg-accent text-[9px] font-black uppercase tracking-widest shadow-sm border border-white/15 backdrop-blur-md"
+              class="px-2.5 py-0.5 rounded-md bg-accent text-[10px] font-black uppercase tracking-widest shadow-sm border border-white/15 backdrop-blur-md"
             >
               {{ props.group.category || '公开小组' }}
             </span>
@@ -177,14 +177,14 @@ const memberCount = computed(() => {
               class="mt-4 md:mt-5 p-3 rounded-xl bg-white/5 dark:bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-around"
             >
               <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-white/50 uppercase tracking-widest"
+                <span class="text-[10px] font-bold text-white/50 uppercase tracking-widest"
                   >成员</span
                 >
                 <span class="text-sm md:text-base font-black mt-0.5">{{ memberCount }}</span>
               </div>
               <div class="w-px h-8 bg-white/10"></div>
               <div class="flex flex-col items-center">
-                <span class="text-[9px] font-bold text-white/50 uppercase tracking-widest"
+                <span class="text-[10px] font-bold text-white/50 uppercase tracking-widest"
                   >评分</span
                 >
                 <div class="flex items-center gap-1 mt-0.5">
@@ -326,7 +326,7 @@ const memberCount = computed(() => {
               class="flex items-center gap-3 bg-slate-50/30 dark:bg-slate-800/5 p-2 px-3 rounded-xl border border-slate-100/30 dark:border-slate-800/20 outline-none"
             >
               <span
-                class="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
+                class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest"
                 >加入要求</span
               >
               <Badge variant="success" dot>免审通道</Badge>

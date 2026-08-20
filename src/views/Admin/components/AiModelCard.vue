@@ -152,19 +152,19 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
           }}</span>
           <span
             v-if="props.model.isDefault"
-            class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[9px] font-bold"
+            class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold"
             >{{ $t('admin.default_model') }}</span
           >
           <span
             v-if="props.isPending"
-            class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[9px] font-bold"
+            class="px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[10px] font-bold"
             >{{ $t('admin.not_classified') }}</span
           >
           <template v-if="props.model.capabilities && props.model.capabilities.length > 0">
             <span
               v-for="cap in props.model.capabilities"
               :key="cap"
-              class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+              class="px-1.5 py-0.5 rounded text-[10px] font-bold"
               :style="getCapabilityStyle(cap)"
             >
               {{ getCapabilityLabel(cap) }}
@@ -172,20 +172,20 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
           </template>
           <span
             v-if="(props.model.apiKeys || []).filter(Boolean).length > 0"
-            class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+            class="px-1.5 py-0.5 rounded text-[10px] font-bold"
             style="background: rgba(16, 185, 129, 0.1); color: #059669"
             :title="`共 ${1 + (props.model.apiKeys || []).filter(Boolean).length} 个密钥，主密钥失效时自动轮换`"
             >{{ 1 + (props.model.apiKeys || []).filter(Boolean).length }} 个密钥</span
           >
           <span
             v-if="props.model.failoverEnabled === false"
-            class="px-1.5 py-0.5 rounded text-[9px] font-bold"
+            class="px-1.5 py-0.5 rounded text-[10px] font-bold"
             style="background: rgba(100, 116, 139, 0.1); color: #64748b"
             title="此模型不参与自动故障转移"
             >故障转移已关闭</span
           >
         </div>
-        <div class="flex items-center gap-3 mt-1 text-[9px]" style="color: var(--text-muted)">
+        <div class="flex items-center gap-3 mt-1 text-[10px]" style="color: var(--text-muted)">
           <span class="font-mono truncate max-w-[200px]">{{ props.model.modelName }}</span>
           <span>{{ providerMetaForModel.label }}</span>
         </div>
@@ -284,7 +284,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             <button
               v-if="props.model.provider === 'OLLAMA'"
               type="button"
-              class="text-[9px] text-[#6366f1] hover:underline bg-transparent border-none cursor-pointer"
+              class="text-[10px] text-[#6366f1] hover:underline bg-transparent border-none cursor-pointer"
               @click="update({ endpoint: 'http://localhost:11434/v1' })"
             >
               使用 Ollama /v1 兼容格式
@@ -312,7 +312,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             >
             <span
               v-if="(props.model.apiKeys || []).filter(Boolean).length > 0"
-              class="px-2 py-0.5 rounded-full text-[9px] font-bold"
+              class="px-2 py-0.5 rounded-full text-[10px] font-bold"
               style="background: rgba(16, 185, 129, 0.1); color: #059669"
               >+{{ (props.model.apiKeys || []).filter(Boolean).length }} 个备用密钥</span
             >
@@ -442,7 +442,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
             <button
               type="button"
               :disabled="props.isFetching"
-              class="flex items-center gap-1 text-[9px] text-[#6366f1] hover:underline disabled:opacity-50 bg-transparent border-none cursor-pointer"
+              class="flex items-center gap-1 text-[10px] text-[#6366f1] hover:underline disabled:opacity-50 bg-transparent border-none cursor-pointer"
               @click="emit('fetch-models')"
             >
               <RefreshCw class="w-2.5 h-2.5" :class="isFetchingThis ? 'animate-spin' : ''" />
@@ -587,7 +587,7 @@ const showBackupKeys = reactive<Record<number, boolean>>({});
               <div class="text-[10px] font-bold" style="color: var(--text-primary)">
                 参与自动故障转移
               </div>
-              <div class="text-[9px] mt-0.5" style="color: var(--text-muted)">
+              <div class="text-[10px] mt-0.5" style="color: var(--text-muted)">
                 开启后，主密钥或模型失败时系统将自动切换至此模型/其他密钥
               </div>
             </div>

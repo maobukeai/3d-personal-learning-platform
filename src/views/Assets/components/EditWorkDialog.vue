@@ -1,24 +1,9 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch, type Ref } from 'vue';
-import { logError, getApiErrorMessage } from '@/utils/error';
+import { logError } from '@/utils/error';
 import { useTempUpload } from '@/composables/useTempUpload';
-import DownloadTypeSegment from '@/components/DownloadTypeSegment.vue';
 import ZipFileTreeViewer from '@/components/ZipFileTreeViewer.vue';
-import {
-  Shield,
-  Settings,
-  ChevronDown,
-  ChevronUp,
-  FileArchive,
-  FolderOpen,
-  Folder,
-  Box,
-  FileText,
-  RefreshCw,
-  UploadCloud,
-  Image as ImageIcon,
-  Sparkles,
-} from 'lucide-vue-next';
+import { Shield, Settings, ChevronDown, ChevronUp, Sparkles } from 'lucide-vue-next';
 import { ElMessage } from '@/utils/feedbackBridge';
 import AiImageGeneratorDialog from '@/components/AiImageGeneratorDialog.vue';
 import Input from '@/components/ui/Input.vue';
@@ -603,25 +588,25 @@ watch(
             >
               <button
                 type="button"
-                @click="form.downloadType = 'local'"
                 :class="[
                   'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
                   form.downloadType === 'local'
                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
                     : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
                 ]"
+                @click="form.downloadType = 'local'"
               >
                 本地文件上传
               </button>
               <button
                 type="button"
-                @click="form.downloadType = 'external'"
                 :class="[
                   'flex-1 py-1 text-xs font-semibold rounded-lg transition-all',
                   form.downloadType === 'external'
                     ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
                     : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400',
                 ]"
+                @click="form.downloadType = 'external'"
               >
                 网盘链接 / 网页直达
               </button>

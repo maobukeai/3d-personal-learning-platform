@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { ElMessage } from '@/utils/feedbackBridge';
-import { Loader2, X } from 'lucide-vue-next';
+import { Loader2 } from 'lucide-vue-next';
 import api from '@/utils/api';
 import Modal from '@/components/ui/Modal.vue';
 import { formatDateTime as formatTime } from '@/utils/format';

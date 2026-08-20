@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import Button from '@/components/ui/Button.vue';
 import Badge from '@/components/ui/Badge.vue';
-import { ChevronLeft, ChevronRight, Eye } from 'lucide-vue-next';
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import type { SmartSheetItem, RecordStatus } from '../types/sheet';
 
 const props = defineProps<{
@@ -131,7 +131,7 @@ const statusVariantMap: Record<RecordStatus, 'info' | 'warning' | 'success' | 'd
             @click="emit('view', item)"
           >
             <span class="truncate flex-1">{{ item.title }}</span>
-            <Badge :variant="statusVariantMap[item.status]" size="sm" class="ml-1 text-[9px]">
+            <Badge :variant="statusVariantMap[item.status]" size="sm" class="ml-1 text-[10px]">
               {{ item.status === 'COMPLETED' ? '已完成' : '待办' }}
             </Badge>
           </div>

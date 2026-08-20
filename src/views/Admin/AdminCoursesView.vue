@@ -4,7 +4,6 @@ const { t } = useI18n();
 import { ref, onMounted, computed } from 'vue';
 import {
   Plus,
-  Search,
   BookOpen,
   Video,
   Trash2,
@@ -363,18 +362,18 @@ onMounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="学院课程"
         subtitle="系统课程与课时资源管理"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         :placeholder="$t('admin.search_course_title_or')"
       >
         <Button
           variant="secondary"
           size="sm"
           :icon="LinkIcon"
-          @click="courseImportDialogRef?.open()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="courseImportDialogRef?.open()"
         >
           导入
         </Button>
@@ -382,8 +381,8 @@ onMounted(() => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="courseEditDialogRef?.open()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="courseEditDialogRef?.open()"
         >
           新建课程
         </Button>
@@ -392,8 +391,8 @@ onMounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchCourses"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchCourses"
         >
           刷新
         </Button>

@@ -11,7 +11,6 @@ import {
   Sun,
   Bone,
   Import,
-  Package,
   FileArchive,
   FolderOpen,
   Folder,
@@ -1338,7 +1337,7 @@ const copyIntegrationCode = async () => {
                       </span>
                       <span
                         v-if="v.version === plugin.version"
-                        class="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border border-emerald-500/20 shrink-0"
                       >
                         {{ label('当前推送', 'Active') }}
                       </span>
@@ -1616,7 +1615,7 @@ const copyIntegrationCode = async () => {
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
                       <span
-                        class="px-1.5 py-0.5 rounded text-[8px] font-bold"
+                        class="px-1.5 py-0.5 rounded text-[10px] font-bold"
                         :class="
                           fb.feedbackType === 'BUG'
                             ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
@@ -1632,12 +1631,12 @@ const copyIntegrationCode = async () => {
                       >
                     </div>
                     <div class="flex items-center gap-2">
-                      <span class="text-[9px] text-slate-500 dark:text-slate-300 font-mono">{{
+                      <span class="text-[10px] text-slate-500 dark:text-slate-300 font-mono">{{
                         new Date(fb.createdAt).toLocaleString()
                       }}</span>
                       <button
                         v-if="canEdit"
-                        class="text-[9px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer border-0 bg-transparent flex items-center"
+                        class="text-[10px] text-rose-400 hover:text-rose-300 transition-colors cursor-pointer border-0 bg-transparent flex items-center"
                         title="删除日志 / Delete entry"
                         @click="handleDeleteFeedback(fb.id)"
                       >

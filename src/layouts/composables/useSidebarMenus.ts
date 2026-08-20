@@ -223,36 +223,16 @@ export function useSidebarMenus() {
       })
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    topLevel.forEach((parent) => {
-      const children = (parentMap.get(parent.externalId) || []).sort(
-        (a, b) => (a.order || 0) - (b.order || 0),
-      );
-
-      if (!children.length) {
-        mainGroup.items.push({
+    if (topLevel.length > 0) {
+      groups.push({
+        title: label('主要分类', 'Categories'),
+        items: topLevel.map((parent) => ({
           name: parent.name,
           icon: getCategoryIcon(parent.name),
           path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
-        });
-        return;
-      }
-
-      groups.push({
-        title: parent.name,
-        items: [
-          {
-            name: `${label('全部', 'All')} ${parent.name}`,
-            icon: getCategoryIcon(parent.name),
-            path: `/mirror/source/${currentSourceId}?categoryId=${parent.id}`,
-          },
-          ...children.map((child) => ({
-            name: child.name,
-            icon: getCategoryIcon(child.name),
-            path: `/mirror/source/${currentSourceId}?categoryId=${child.id}`,
-          })),
-        ],
+        })),
       });
-    });
+    }
 
     return groups;
   });
@@ -276,15 +256,6 @@ export function useSidebarMenus() {
     const categories = manualStore.categories || [];
     if (!categories.length) return groups;
 
-    const parentMap = new Map<string, ManualCategory[]>();
-    categories.forEach((category) => {
-      if (!category.parentId) return;
-      if (!parentMap.has(category.parentId)) {
-        parentMap.set(category.parentId, []);
-      }
-      parentMap.get(category.parentId)!.push(category);
-    });
-
     const topLevel = categories
       .filter((category) => {
         const hasParent =
@@ -293,36 +264,16 @@ export function useSidebarMenus() {
       })
       .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-    topLevel.forEach((parent) => {
-      const children = (parentMap.get(parent.id) || []).sort(
-        (a, b) => (a.order || 0) - (b.order || 0),
-      );
-
-      if (!children.length) {
-        mainGroup.items.push({
+    if (topLevel.length > 0) {
+      groups.push({
+        title: label('主要分类', 'Categories'),
+        items: topLevel.map((parent) => ({
           name: parent.name,
           icon: getCategoryIcon(parent.name),
           path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
-        });
-        return;
-      }
-
-      groups.push({
-        title: parent.name,
-        items: [
-          {
-            name: `${label('全部', 'All')} ${parent.name}`,
-            icon: getCategoryIcon(parent.name),
-            path: `/manual/station/${currentStationId}?categoryId=${parent.id}`,
-          },
-          ...children.map((child) => ({
-            name: child.name,
-            icon: getCategoryIcon(child.name),
-            path: `/manual/station/${currentStationId}?categoryId=${child.id}`,
-          })),
-        ],
+        })),
       });
-    });
+    }
 
     return groups;
   });

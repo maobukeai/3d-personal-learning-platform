@@ -355,7 +355,7 @@ onMounted(() => {
                 </div>
                 <span
                   v-if="filter.count > 0"
-                  class="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] md:text-[10px]"
+                  class="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] md:text-[10px]"
                   :class="
                     activeFilter === filter.id
                       ? 'bg-white/20 text-white'

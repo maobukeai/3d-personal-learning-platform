@@ -4,7 +4,6 @@ import {
   Globe2,
   RefreshCw,
   ShieldCheck,
-  Search,
   Plus,
   ExternalLink,
   KeyRound,
@@ -436,9 +435,9 @@ onMounted(async () => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="Cloudflare 域名管理"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索域名/DNS记录..."
       >
         <template #title-badge>
@@ -451,8 +450,8 @@ onMounted(async () => {
           variant="outline"
           size="sm"
           :icon="ExternalLink"
-          @click="openCloudflareDashboard()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCloudflareDashboard()"
         >
           <span class="hidden sm:inline">控制台</span>
         </UiButton>
@@ -462,8 +461,8 @@ onMounted(async () => {
           :icon="RefreshCw"
           :loading="loadingZones"
           :disabled="!hasToken"
-          @click="fetchZones"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchZones"
         >
           刷新
         </UiButton>
@@ -616,7 +615,7 @@ onMounted(async () => {
                       zone.name
                     }}</strong>
                     <span
-                      class="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                      class="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
                       :class="
                         zone.status === 'active'
                           ? 'bg-emerald-50 text-emerald-600'
@@ -633,7 +632,7 @@ onMounted(async () => {
                     <span>{{ zone.plan }} · {{ zone.type }}</span>
                     <span
                       v-if="zone.paused"
-                      class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600"
+                      class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600"
                       >已暂停</span
                     >
                   </div>

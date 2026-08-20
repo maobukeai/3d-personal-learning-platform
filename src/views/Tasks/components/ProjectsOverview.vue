@@ -73,7 +73,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
             >
           </div>
           <span
-            class="px-1.5 py-0.5 rounded-full text-[8px] font-black shrink-0"
+            class="px-1.5 py-0.5 rounded-full text-[10px] font-black shrink-0"
             :class="
               healthScore >= 80
                 ? 'bg-emerald-500/10 text-emerald-600'
@@ -89,10 +89,10 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
           <strong class="text-2xl font-black tracking-tight" style="color: var(--text-primary)">{{
             healthScore
           }}</strong>
-          <span class="text-[9px] font-bold text-slate-400">/100</span>
+          <span class="text-[10px] font-bold text-slate-400">/100</span>
         </div>
         <div class="space-y-1 z-10">
-          <div class="flex items-center justify-between text-[9px] font-bold text-slate-400">
+          <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
             <span>本周已交: {{ completedThisWeek }}</span>
             <span>风险项目: {{ highRiskProjects }}</span>
           </div>
@@ -167,7 +167,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
 
         <div
           v-if="actionItems.length === 0"
-          class="flex-1 flex items-center justify-center text-[9px] font-bold text-slate-400 min-h-[36px]"
+          class="flex-1 flex items-center justify-center text-[10px] font-bold text-slate-400 min-h-[36px]"
         >
           暂无阻塞动作
         </div>
@@ -193,7 +193,7 @@ const activateOperationalLane = (lane: InsightOperationalLane) => {
             <button
               v-if="item.type === 'TASK_UNASSIGNED'"
               type="button"
-              class="h-4.5 px-1.5 rounded bg-accent text-[8px] font-black text-white hover:bg-accent-hover border-none cursor-pointer transition-colors disabled:opacity-50"
+              class="h-4.5 px-1.5 rounded bg-accent text-[10px] font-black text-white hover:bg-accent-hover border-none cursor-pointer transition-colors disabled:opacity-50"
               :disabled="resolvingActionId === item.id"
               @click="emit('assign-action', item)"
             >

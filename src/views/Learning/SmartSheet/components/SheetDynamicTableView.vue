@@ -133,7 +133,7 @@ const emit = defineEmits<{
     <!-- 底部一键新增行底栏 -->
     <div class="p-2 border-t border-white/10 bg-white/[0.02] flex items-center justify-start">
       <Button
-        variant="ghost"
+        variant="glass"
         size="sm"
         class="text-xs text-neutral-400 hover:text-white"
         @click="emit('add-row')"

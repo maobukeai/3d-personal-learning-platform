@@ -12,7 +12,6 @@ import {
   Database,
   Loader2,
   Layers,
-  Search,
   FileText,
   Lock,
   Check,
@@ -296,9 +295,9 @@ onMounted(async () => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="stationSearchQuery"
         title="手动资源站管理"
         :cards="consolidatedCards"
-        v-model="stationSearchQuery"
         :placeholder="$t('admin.search_sites_by_name')"
       >
         <template #title-badge>
@@ -311,8 +310,8 @@ onMounted(async () => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openCreate"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCreate"
         >
           {{ $t('admin.create_a_manual_resource') }}
         </Button>
@@ -321,8 +320,8 @@ onMounted(async () => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchStations"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchStations"
         >
           {{ $t('admin.refresh') }}
         </Button>

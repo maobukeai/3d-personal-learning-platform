@@ -587,10 +587,10 @@ void consolidatedCards.value;
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="团队管理"
         subtitle="全站团队组织、协作规范及数据资产的合规统计与治理"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         placeholder="搜索团队、负责人..."
       >
         <template #title-badge>
@@ -606,8 +606,8 @@ void consolidatedCards.value;
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="refreshAll"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="refreshAll"
         >
           刷新
         </UiButton>
@@ -615,8 +615,8 @@ void consolidatedCards.value;
           variant="secondary"
           size="sm"
           :icon="Download"
-          @click="exportCsv"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="exportCsv"
         >
           导出
         </UiButton>
@@ -624,8 +624,8 @@ void consolidatedCards.value;
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openCreateModal"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openCreateModal"
         >
           新建团队
         </UiButton>

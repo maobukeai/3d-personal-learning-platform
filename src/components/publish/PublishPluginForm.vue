@@ -6,6 +6,18 @@ import type { PublishFormData } from '@/composables/usePublishWork';
 const props = defineProps<{
   formData: PublishFormData;
 }>();
+
+const emit = defineEmits<{
+  (e: 'update:formData', value: PublishFormData): void;
+}>();
+
+const updateField = <K extends keyof PublishFormData>(key: K, value: PublishFormData[K]) => {
+  emit('update:formData', { ...props.formData, [key]: value });
+};
+
+const onFileChange = (value: File | File[] | null) => {
+  updateField('file', Array.isArray(value) ? (value[0] ?? null) : value);
+};
 </script>
 
 <template>
@@ -15,9 +27,10 @@ const props = defineProps<{
         >插件安装包/脚本文件 (.zip, .py) *</label
       >
       <FileDropZone
-        v-model="formData.file"
+        :model-value="formData.file"
         label="拖拽或点击上传插件/扩展包"
         accept=".zip,.py,.addon,.exe,.dmg"
+        @update:model-value="onFileChange"
       />
     </div>
 
@@ -26,14 +39,22 @@ const props = defineProps<{
         <label class="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
           >插件版本</label
         >
-        <Input v-model="formData.pluginVersion" placeholder="例: 1.2.0" />
+        <Input
+          :model-value="formData.pluginVersion"
+          placeholder="例: 1.2.0"
+          @update:model-value="(v) => updateField('pluginVersion', v)"
+        />
       </div>
 
       <div>
         <label class="block text-xs font-semibold text-[var(--text-secondary)] mb-1"
           >兼容环境</label
         >
-        <Input v-model="formData.pluginCompatibility" placeholder="例: Blender 4.x / 5.x" />
+        <Input
+          :model-value="formData.pluginCompatibility"
+          placeholder="例: Blender 4.x / 5.x"
+          @update:model-value="(v) => updateField('pluginCompatibility', v)"
+        />
       </div>
     </div>
   </div>

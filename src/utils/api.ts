@@ -5,14 +5,26 @@ import { useAuthStore } from '@/stores/auth';
 import { useSystemStore } from '@/stores/system';
 import { getApiErrorStatus } from '@/utils/error';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const getApiBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    // Explicitly configured remote API — always honor it.
+    return envUrl;
+  }
+  // Otherwise fall back to same-origin: the Vite dev server proxies /api in
+  // development, and Nginx proxies /api in production, so localhost,
+  // 127.0.0.1, LAN (192.168.x.x) and mobile devices all work without config.
+  return '';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 const NORMALIZED_API_BASE_URL = API_BASE_URL.replace(/\/$/, '');
 
 const isLocalUploadUrl = (value: string): boolean => {
   try {
     const parsed = new URL(value);
     return (
-      ['localhost', '127.0.0.1', '::1'].includes(parsed.hostname) &&
+      ['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname) &&
       parsed.pathname.startsWith('/uploads/')
     );
   } catch {
@@ -50,7 +62,7 @@ export const getAssetUrl = (url: string | null | undefined): string => {
 
         /* Do not upgrade local/dev addresses */
         const isLocal =
-          ['localhost', '127.0.0.1', '::1'].includes(host) ||
+          ['localhost', '127.0.0.1', '[::1]'].includes(host) ||
           /^192\.168\./.test(host) ||
           /^10\./.test(host) ||
           /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||

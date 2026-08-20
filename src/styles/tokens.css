@@ -11,10 +11,11 @@
    Design tokens — use static values in @theme (Tailwind v4)
    ============================================================ */
 @theme {
-  /* Typography */
+  /* Typography: Inter variable for latin/digits, system fonts for CJK
+     (PingFang SC / Microsoft YaHei render natively — no multi-MB CJK webfont) */
   --font-sans:
-    system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC',
-    'Hiragino Sans GB', Arial, sans-serif;
+    'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei',
+    'PingFang SC', 'Hiragino Sans GB', Arial, sans-serif;
 
   /* Shadows */
   --shadow-card: 0 1px 2px rgb(16 24 40 / 0.06);

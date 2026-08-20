@@ -422,7 +422,7 @@ defineExpose({
                 极速提取链接
                 <span
                   v-if="parsedNetdisk"
-                  class="ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded border transition-all"
+                  class="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded border transition-all"
                   :class="parsedNetdisk.color"
                 >
                   {{ parsedNetdisk.name }}
@@ -458,7 +458,7 @@ defineExpose({
                   <span class="text-[10px] text-slate-400">{{
                     $t('admin.click_to_upload_cover')
                   }}</span>
-                  <span class="text-[8px] text-slate-400">PNG/JPG/WebP &lt; 5MB</span>
+                  <span class="text-[10px] text-slate-400">PNG/JPG/WebP &lt; 5MB</span>
                 </div>
 
                 <label

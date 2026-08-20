@@ -11,7 +11,6 @@ import {
   Search,
   Box,
   ShieldCheck,
-  LayoutDashboard,
   FolderTree,
   MonitorPlay,
   Megaphone,
@@ -40,6 +39,7 @@ const GlobalSearchDialog = defineAsyncComponent(
   () => import('./components/GlobalSearchDialog.vue'),
 );
 const MobileSidebar = defineAsyncComponent(() => import('./components/MobileSidebar.vue'));
+const QuickTaskCapture = defineAsyncComponent(() => import('@/components/QuickTaskCapture.vue'));
 import NotificationCenter from './components/NotificationCenter.vue';
 import SidebarMenu from './components/SidebarMenu.vue';
 import WorkspaceSwitcher from './components/WorkspaceSwitcher.vue';
@@ -585,7 +585,7 @@ onUnmounted(() => {
             </span>
             <span
               v-if="systemStore.settings.PLATFORM_SUBTITLE"
-              class="text-[9px] font-medium whitespace-nowrap leading-none mt-0.5"
+              class="text-[10px] font-medium whitespace-nowrap leading-none mt-0.5"
               style="color: var(--text-muted)"
             >
               {{ systemStore.settings.PLATFORM_SUBTITLE }}
@@ -639,7 +639,7 @@ onUnmounted(() => {
           <Search />
           <span class="text-xs flex-1 truncate">{{ $t('layout.searchPlaceholder') }}</span>
           <kbd
-            class="text-[9px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
+            class="text-[10px] px-1.5 py-0.5 rounded border font-mono hidden xl:inline-block"
             style="border-color: var(--border-base); color: var(--text-muted)"
             >Ctrl+K</kbd
           >
@@ -785,7 +785,7 @@ onUnmounted(() => {
         <span class="text-[10px] font-semibold">{{ item.name }}</span>
         <div
           v-if="item.badge && item.badge > 0"
-          class="absolute -top-0.5 right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center px-1"
+          class="absolute -top-0.5 right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
         >
           {{ item.badge > 99 ? '99+' : item.badge }}
         </div>
@@ -883,6 +883,9 @@ onUnmounted(() => {
         </Button>
       </template>
     </Modal>
+
+    <!-- Mobile quick task capture (floating, authenticated users only) -->
+    <QuickTaskCapture v-if="authStore.isAuthenticated" />
   </div>
 </template>
 

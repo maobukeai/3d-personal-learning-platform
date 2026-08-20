@@ -37,6 +37,12 @@ export const registerStaticUploadsRoutes = (app: FastifyInstance): void => {
 
     reply.header('Content-Type', contentType);
     reply.header('Cache-Control', 'public, max-age=86400');
+    // SVG uploads are served same-origin; neuter scripts inside them so an
+    // uploaded SVG opened directly cannot execute JS in the site's origin.
+    if (contentType === 'image/svg+xml') {
+      reply.header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'");
+      reply.header('X-Content-Type-Options', 'nosniff');
+    }
     return reply.send(createReadStream(safePath));
   });
 };

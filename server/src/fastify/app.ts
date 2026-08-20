@@ -14,6 +14,7 @@ import { AppError, formatError } from '../utils/error';
 import { registerSlowLogHook } from './middlewares/slow-log.hook';
 import { buildCorsOriginChecker, registerAppHooks, handlePrismaError } from './utils/app-helpers';
 import { registerAllFastifyRoutes } from './routes';
+import { startTaskDueReminderScheduler } from '../services/task-due-reminder.service';
 
 /**
  * Fastify API 实例。
@@ -165,6 +166,8 @@ const startFastifyInternal = async (): Promise<void> => {
   try {
     await fapp.listen({ port: PORT, host: HOST });
     logger.info(`[Fastify] Server running on http://${HOST}:${PORT}`);
+    // 6) 任务到期提醒定时扫描（启动 1 分钟后首轮，之后每小时一次）
+    startTaskDueReminderScheduler();
   } catch (err) {
     logger.error('[Fastify] Failed to start server:', err);
     throw err;

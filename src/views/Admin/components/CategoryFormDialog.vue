@@ -392,7 +392,7 @@ defineExpose({
               {{ cat.name }}
               <span
                 v-if="cat.parentExternalId"
-                class="text-[9px] text-slate-400 dark:text-slate-500 ml-1"
+                class="text-[10px] text-slate-400 dark:text-slate-500 ml-1"
               >
                 (当前父: {{ getParentCategoryName(cat) }})
               </span>
@@ -544,7 +544,7 @@ defineExpose({
               class="text-[11px] text-slate-600 dark:text-slate-300 cursor-pointer select-none flex-1"
             >
               {{ cat.name }}
-              <span v-if="cat.parentId" class="text-[9px] text-slate-400 dark:text-slate-500 ml-1">
+              <span v-if="cat.parentId" class="text-[10px] text-slate-400 dark:text-slate-500 ml-1">
                 (当前父: {{ getParentCategoryName(cat) }})
               </span>
             </label>

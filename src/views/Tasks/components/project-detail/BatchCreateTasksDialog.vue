@@ -80,7 +80,7 @@ const resetForm = () => {
         <textarea
           v-model="batchTaskText"
           rows="6"
-          class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
+          class="w-full px-4 py-2.5 sm:py-3 bg-slate-100 dark:bg-white/5 border-none rounded-xl sm:rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all resize-none leading-relaxed"
           style="color: var(--text-primary)"
           :placeholder="t('projects.batchTaskPlaceholder')"
         ></textarea>
@@ -104,7 +104,7 @@ const resetForm = () => {
               {{ index + 1 }}. {{ tTask }}
             </span>
             <span
-              class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[7px] uppercase font-black tracking-wider shrink-0"
+              class="px-1 py-0.2 bg-accent/10 text-accent rounded text-[10px] uppercase font-black tracking-wider shrink-0"
               >{{ t('projects.toBeCreated') }}</span
             >
           </div>
@@ -114,7 +114,7 @@ const resetForm = () => {
       <div class="batch-form-grid grid grid-cols-2 gap-3 sm:gap-4">
         <div>
           <label
-            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+            class="block text-[10px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
             >{{ t('projects.batchAssignee') }}</label
           >
           <Select
@@ -138,7 +138,7 @@ const resetForm = () => {
         </div>
         <div>
           <label
-            class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+            class="block text-[10px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
             >{{ t('projects.batchPriority') }}</label
           >
           <Select v-model="batchPriority" class="!w-full custom-select">
@@ -162,14 +162,14 @@ const resetForm = () => {
 
       <div>
         <label
-          class="block text-[8px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
+          class="block text-[10px] sm:text-xs font-bold uppercase mb-1 sm:mb-2 ml-1 text-slate-400"
           >{{ t('projects.batchDueDate') }}</label
         >
         <DatePicker
           v-model="batchDueDate"
           type="date"
           :placeholder="t('tasks.dueDate')"
-          class="!w-full !rounded-2xl custom-date-picker"
+          class="!w-full !rounded-xl custom-date-picker"
           popper-class="custom-date-popper"
         />
       </div>

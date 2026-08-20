@@ -212,7 +212,7 @@ const getPlanIcon = (name: string) => {
                 >
               </div>
               <div
-                class="flex flex-nowrap items-center gap-x-1.5 xs:gap-x-2 mt-2 text-[9px] xs:text-[10px] sm:text-xs text-[var(--text-secondary)] overflow-x-auto scrollbar-hide min-w-0 mobile-row"
+                class="flex flex-nowrap items-center gap-x-1.5 xs:gap-x-2 mt-2 text-[10px] xs:text-[10px] sm:text-xs text-[var(--text-secondary)] overflow-x-auto scrollbar-hide min-w-0 mobile-row"
               >
                 <span class="flex items-center gap-0.5 shrink-0"
                   ><DollarSign class="w-3 h-3 shrink-0" />月付 ￥{{ plan.price
@@ -287,7 +287,7 @@ const getPlanIcon = (name: string) => {
             <span
               v-for="(feature, idx) in plan.features"
               :key="idx"
-              class="px-2 py-1 bg-[var(--bg-app)] rounded-lg text-[9px] xs:text-[10px] font-medium text-[var(--text-secondary)] shrink-0"
+              class="px-2 py-1 bg-[var(--bg-app)] rounded-lg text-[10px] xs:text-[10px] font-medium text-[var(--text-secondary)] shrink-0"
             >
               {{ feature }}
             </span>

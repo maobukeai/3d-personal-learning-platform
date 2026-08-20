@@ -235,7 +235,7 @@ const singleSelectedLabel = computed(() => {
     v-else
     placement="bottom-start"
     class="w-full"
-    popperClass="min-w-[var(--radix-select-trigger-width)] !p-1"
+    popper-class="min-w-[var(--radix-select-trigger-width)] !p-1"
     :disabled="disabled"
   >
     <template #reference>
@@ -265,9 +265,9 @@ const singleSelectedLabel = computed(() => {
         <div
           v-for="opt in options"
           :key="opt.value"
-          @click="toggleMultipleOption(opt.value)"
           class="relative flex items-center justify-between px-8 py-2 rounded-lg text-sm text-[var(--text-primary)] hover:bg-slate-100 dark:hover:bg-white/5 cursor-pointer outline-none select-none disabled:opacity-50 disabled:cursor-not-allowed data-[state=checked]:text-[var(--accent)] font-medium"
           :data-state="multipleIsSelected(opt.value) ? 'checked' : 'unchecked'"
+          @click="toggleMultipleOption(opt.value)"
         >
           <span>{{ opt.label }}</span>
           <span

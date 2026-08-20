@@ -203,7 +203,7 @@ const roleClass = (role: string) => ({
           </p>
           <div class="drawer-pills flex items-center gap-1.5 mt-1.5">
             <span
-              class="pill text-[9px] px-1 py-0.5 rounded leading-none"
+              class="pill text-[10px] px-1 py-0.5 rounded leading-none"
               :class="visibilityClass(team.visibility)"
             >
               <component
@@ -213,12 +213,12 @@ const roleClass = (role: string) => ({
               {{ visibilityLabel(team.visibility) }}
             </span>
             <span
-              class="pill text-[9px] px-1 py-0.5 rounded leading-none"
+              class="pill text-[10px] px-1 py-0.5 rounded leading-none"
               :class="riskClass(detail?.team?.metrics?.riskLevel || team.metrics?.riskLevel)"
             >
               {{ riskLabel(detail?.team?.metrics?.riskLevel || team.metrics?.riskLevel) }}
             </span>
-            <span class="pill tone-slate text-[9px] px-1 py-0.5 rounded leading-none"
+            <span class="pill tone-slate text-[10px] px-1 py-0.5 rounded leading-none"
               >{{ formatDate(team.createdAt) }} 创建</span
             >
           </div>

@@ -2,9 +2,8 @@
 import { computed, ref } from 'vue';
 import GlassCard from '@/components/ui/GlassCard.vue';
 import Badge from '@/components/ui/Badge.vue';
-import Button from '@/components/ui/Button.vue';
 import EmptyState from '@/components/EmptyState.vue';
-import { Trash2, Star, Plus } from 'lucide-vue-next';
+import { Trash2 } from 'lucide-vue-next';
 import type { CustomSheetTable, SheetRowData, SheetColumnDef } from '../types/sheet';
 
 const props = defineProps<{

@@ -210,6 +210,7 @@ export const taskSchema = z.object({
     .refine((val) => val === undefined || val === null || val >= 0, {
       message: 'Time spent must be at least 0',
     }),
+  recurrence: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']).optional().nullable(),
 });
 
 export const createTaskSchema = taskSchema.extend({

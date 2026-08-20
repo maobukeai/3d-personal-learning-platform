@@ -1,7 +1,7 @@
-import { computed, ref, watch, type Component } from 'vue';
+import { computed, ref, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Box, Layers, Puzzle, Sparkles } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
+import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
 import { getApiErrorMessage, logError } from '@/utils/error';
 

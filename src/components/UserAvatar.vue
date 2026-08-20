@@ -38,8 +38,8 @@ const handleImageError = () => {
 const sizeConfig = {
   xs: {
     container: 'w-5 h-5',
-    text: 'text-[8px]',
-    badge: 'px-0.5 py-0.5 text-[9px] scale-[0.5] origin-bottom-right',
+    text: 'text-[10px]',
+    badge: 'px-0.5 py-0.5 text-[10px] scale-[0.5] origin-bottom-right',
     icon: 'w-2.5 h-2.5',
     crown: false,
   },

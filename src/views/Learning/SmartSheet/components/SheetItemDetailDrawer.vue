@@ -2,7 +2,7 @@
 import Drawer from '@/components/ui/Drawer.vue';
 import Badge from '@/components/ui/Badge.vue';
 import Button from '@/components/ui/Button.vue';
-import { ExternalLink, Calendar, Clock, Tag, Tag as CategoryIcon, Edit2 } from 'lucide-vue-next';
+import { ExternalLink, Calendar, Clock, Tag as CategoryIcon, Edit2 } from 'lucide-vue-next';
 import type {
   SmartSheetItem,
   RecordStatus,

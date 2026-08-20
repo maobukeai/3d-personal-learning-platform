@@ -17,7 +17,7 @@ defineProps<Props>();
       class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
       style="border-color: var(--border-base)"
     >
-      <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+      <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
         {{ t('tasks.dueDate') }}
       </div>
       <span class="text-xs font-bold" style="color: var(--text-primary)">
@@ -28,7 +28,7 @@ defineProps<Props>();
       class="p-3 bg-slate-50 dark:bg-slate-800/30 rounded-xl border text-left"
       style="border-color: var(--border-base)"
     >
-      <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">
+      <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
         {{ t('projects.projectProgress') }}
       </div>
       <div class="flex items-center gap-2">

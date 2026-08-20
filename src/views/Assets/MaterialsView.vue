@@ -12,12 +12,6 @@ import {
   ShieldCheck,
   UploadCloud,
   XCircle,
-  Plus,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  MessageSquare,
-  Box,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
@@ -1572,8 +1566,8 @@ onUnmounted(() => {
       >
         <MaterialFiltersPanel
           v-if="activeTab !== 'requests'"
-          :is-open="isFilterOpen"
           v-model:collapsed="isFilterCollapsed"
+          :is-open="isFilterOpen"
           :active-tab="activeTab"
           :active-category="activeCategory"
           :selected-resolution="selectedResolution"
@@ -1605,12 +1599,12 @@ onUnmounted(() => {
             v-model:view-mode="viewMode"
             v-model:is-batch-mode="isBatchMode"
             :is-filter-collapsed="isFilterCollapsed"
-            @toggle-filter-collapse="isFilterCollapsed = false"
             :selected-ids="selectedIds"
             :visible-materials-count="visibleMaterials.length"
             :library-tab-options="libraryTabOptions"
             :view-mode-options="viewModeOptions"
             :is-filter-open="isFilterOpen"
+            @toggle-filter-collapse="isFilterCollapsed = false"
             @select-all="toggleSelectAllVisible"
             @bulk-delete="bulkDeleteMaterials"
             @bulk-unfavorite="bulkFavorite(false)"

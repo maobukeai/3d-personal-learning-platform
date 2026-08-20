@@ -229,7 +229,7 @@ onUnmounted(() => {
       <div class="flex flex-col gap-1.5">
         <div class="flex justify-between items-center">
           <label class="text-xs font-bold" style="color: var(--text-secondary)">分类 / 分组</label>
-          <span class="text-[9px] text-slate-500">用于分类过滤</span>
+          <span class="text-[10px] text-slate-500">用于分类过滤</span>
         </div>
         <Select
           v-model="form.category"

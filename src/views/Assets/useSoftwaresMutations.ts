@@ -5,12 +5,7 @@ import { getApiErrorMessage, logError } from '@/utils/error';
 import { useLabel } from '@/utils/i18n';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import type { UseSoftwaresQueryReturn } from './useSoftwaresQuery';
-import {
-  type SoftwareItem,
-  type SoftwareStatus,
-  normalizeSoftware,
-  CATEGORY_ALL,
-} from './softwaresSchema';
+import { type SoftwareItem, normalizeSoftware, CATEGORY_ALL } from './softwaresSchema';
 
 export function useSoftwaresMutations(query: UseSoftwaresQueryReturn) {
   const authStore = useAuthStore();

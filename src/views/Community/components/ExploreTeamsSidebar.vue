@@ -35,7 +35,7 @@ const router = useRouter();
           class="inline-flex items-center gap-1.5 px-2 py-0.5 bg-accent/10 backdrop-blur-md border border-accent/20 text-accent rounded-full mb-3"
         >
           <Sparkles class="w-2.5 h-2.5" />
-          <span class="text-[9px] sm:text-[10px] font-black uppercase tracking-wider">{{
+          <span class="text-[10px] sm:text-[10px] font-black uppercase tracking-wider">{{
             t('teams.title')
           }}</span>
         </div>
@@ -128,7 +128,7 @@ const router = useRouter();
           >
             {{ t('teams.createTitle') }}
           </h3>
-          <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
             Start Now
           </div>
         </div>
@@ -148,7 +148,7 @@ const router = useRouter();
           <div class="text-base font-black leading-none" style="color: var(--text-primary)">
             {{ activeTeamsCount }}
           </div>
-          <div class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
             {{ t('teams.activeTeams') }}
           </div>
         </div>

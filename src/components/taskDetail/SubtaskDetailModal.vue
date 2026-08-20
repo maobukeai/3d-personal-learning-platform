@@ -393,7 +393,7 @@ const handlePasteSubtaskDescription = async (event: ClipboardEvent) => {
               />
               <div
                 v-else
-                class="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[8px] shrink-0 z-10 ring-4 ring-white dark:ring-slate-900"
+                class="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-[10px] shrink-0 z-10 ring-4 ring-white dark:ring-slate-900"
               >
                 {{ cmt.userName?.[0] || 'U' }}
               </div>
@@ -402,7 +402,7 @@ const handlePasteSubtaskDescription = async (event: ClipboardEvent) => {
                 class="flex-1 min-w-0 bg-slate-100/35 dark:bg-white/3 hover:bg-slate-100/60 dark:hover:bg-white/6 p-2 rounded-xl border border-transparent hover:border-slate-200/50 dark:hover:border-white/5 transition-all"
               >
                 <div class="flex justify-between items-center gap-2 mb-1">
-                  <span class="text-[9px] font-bold text-slate-700 dark:text-slate-200">
+                  <span class="text-[10px] font-bold text-slate-700 dark:text-slate-200">
                     {{ cmt.userName }}
                   </span>
                   <div class="flex items-center gap-1.5 shrink-0">

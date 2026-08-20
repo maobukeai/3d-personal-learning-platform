@@ -542,7 +542,7 @@ defineExpose({ open });
             >
               {{ detailNote.user.name }}
               <span
-                class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded"
+                class="text-[10px] font-black px-1.5 py-0.2 bg-purple-500/10 dark:bg-purple-400/10 text-purple-600 dark:text-purple-400 rounded"
                 >{{ t('notes.author') }}</span
               >
             </h4>
@@ -559,13 +559,13 @@ defineExpose({ open });
             class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs"
           >
             <p
-              class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5"
+              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2.5"
             >
               {{ t('notes.articleDashboard') }}
             </p>
             <div class="grid grid-cols-2 gap-2">
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">{{
+                <span class="text-[10px] text-[var(--text-muted)] block">{{
                   t('notes.viewsUnit')
                 }}</span>
                 <span
@@ -574,7 +574,7 @@ defineExpose({ open });
                 >
               </div>
               <div class="bg-slate-50 dark:bg-zinc-800/40 p-2 rounded-xl text-center">
-                <span class="text-[9px] text-[var(--text-muted)] block">{{
+                <span class="text-[10px] text-[var(--text-muted)] block">{{
                   t('notes.likesUnit')
                 }}</span>
                 <span
@@ -589,7 +589,7 @@ defineExpose({ open });
           <div
             class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs space-y-3"
           >
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider">
+            <p class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider">
               {{ t('notes.typography') }}
             </p>
 
@@ -626,19 +626,21 @@ defineExpose({ open });
           <div
             class="bg-[var(--bg-card)] border border-[var(--border-base)] p-3 rounded-2xl shadow-xs"
           >
-            <p class="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2">
+            <p
+              class="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-wider mb-2"
+            >
               {{ t('notes.notebookTags') }}
             </p>
             <div class="flex flex-wrap gap-1">
               <span
                 v-if="detailNote.category"
-                class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[9px] font-black"
+                class="px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/15 text-accent text-[10px] font-black"
                 >{{ detailNote.category }}</span
               >
               <span
                 v-for="tag in parseTags(detailNote.tags)"
                 :key="tag"
-                class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
+                class="px-2 py-0.5 rounded-lg bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[10px] font-black border border-[var(--border-base)]"
                 >#{{ tag }}</span
               >
             </div>
@@ -749,7 +751,7 @@ defineExpose({ open });
                   >
                     {{ detailNote.user.name }}
                     <span
-                      class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded"
+                      class="text-[10px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded"
                       >{{ t('notes.author') }}</span
                     >
                   </h4>
@@ -939,13 +941,13 @@ defineExpose({ open });
                 <div class="flex flex-wrap gap-1">
                   <span
                     v-if="detailNote.category"
-                    class="px-1.5 py-0.2 rounded-md bg-accent/10 border border-accent/15 text-accent text-[9px] font-black"
+                    class="px-1.5 py-0.2 rounded-md bg-accent/10 border border-accent/15 text-accent text-[10px] font-black"
                     >{{ detailNote.category }}</span
                   >
                   <span
                     v-for="tag in parseTags(detailNote.tags)"
                     :key="tag"
-                    class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[9px] font-black border border-[var(--border-base)]"
+                    class="px-1.5 py-0.2 rounded-md bg-slate-50 dark:bg-zinc-800/40 text-[var(--text-secondary)] text-[10px] font-black border border-[var(--border-base)]"
                     >#{{ tag }}</span
                   >
                 </div>
@@ -1044,7 +1046,7 @@ defineExpose({ open });
                         {{ item.user.name }}
                         <span
                           v-if="item.userId === detailNote.userId"
-                          class="text-[8px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
+                          class="text-[10px] font-black px-1.5 py-0.2 bg-purple-500/10 text-purple-500 dark:text-purple-400 rounded-md"
                           >{{ t('notes.author') }}</span
                         >
                       </span>

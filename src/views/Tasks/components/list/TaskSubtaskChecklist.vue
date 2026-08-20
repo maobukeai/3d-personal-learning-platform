@@ -65,7 +65,6 @@ const checkAndSyncParentStatus = async (subtasksList: Subtask[]) => {
         title: props.task.title,
         status: TaskStatus.DONE,
       });
-      props.task.status = TaskStatus.DONE;
       ElMessage.success('所有子任务已完成，已自动更新主任务为已完成！');
       emit('refresh');
     } catch {
@@ -77,7 +76,6 @@ const checkAndSyncParentStatus = async (subtasksList: Subtask[]) => {
         title: props.task.title,
         status: TaskStatus.IN_PROGRESS,
       });
-      props.task.status = TaskStatus.IN_PROGRESS;
       ElMessage.info('有子任务重新开启，主任务已自动恢复为进行中');
       emit('refresh');
     } catch {
@@ -96,7 +94,6 @@ const handleSaveSubtaskModal = async (updatedSubtask: Subtask) => {
         title: props.task.title,
         subtasks: subtasksStr,
       });
-      props.task.subtasks = subtasksStr;
       emit('refresh', response.data);
       ElMessage.success('子任务更新成功');
       checkAndSyncParentStatus(list);
@@ -117,7 +114,6 @@ const toggleSubtaskInline = async (subIdx: number) => {
         title: props.task.title,
         subtasks: subtasksStr,
       });
-      props.task.subtasks = subtasksStr;
       emit('refresh', response.data);
       checkAndSyncParentStatus(list);
     } catch (err: any) {
@@ -136,7 +132,6 @@ const removeSubtaskInline = async (subIdx: number) => {
       title: props.task.title,
       subtasks: subtasksStr,
     });
-    props.task.subtasks = subtasksStr;
     emit('refresh', response.data);
     ElMessage.success(t('tasks.subtaskDeleted'));
     checkAndSyncParentStatus(list);
@@ -155,7 +150,6 @@ const handleAssigneeChange = async (subIdx: number, assigneeId: string | null) =
         title: props.task.title,
         subtasks: subtasksStr,
       });
-      props.task.subtasks = subtasksStr;
       emit('refresh', response.data);
     } catch {
       ElMessage.error(t('tasks.assignSubtaskAssigneeFailed'));
@@ -179,7 +173,6 @@ const addSubtaskInline = async () => {
       title: props.task.title,
       subtasks: subtasksStr,
     });
-    props.task.subtasks = subtasksStr;
     newSubtaskText.value = '';
     emit('refresh', response.data);
     ElMessage.success(t('tasks.subtaskAdded'));
@@ -237,7 +230,6 @@ const onDrop = async (e: DragEvent, targetSubId: string) => {
       title: props.task.title,
       subtasks: subtasksStr,
     });
-    props.task.subtasks = subtasksStr;
     emit('refresh', response.data);
     ElMessage.success('子任务排序已更新');
   } catch (err: any) {

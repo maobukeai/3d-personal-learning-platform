@@ -82,13 +82,13 @@ defineExpose({
             {{ cat.name }}
             <span
               v-if="cat.slug"
-              class="text-[9px] font-mono bg-slate-100 dark:bg-slate-800 px-1 text-slate-400 rounded"
+              class="text-[10px] font-mono bg-slate-100 dark:bg-slate-800 px-1 text-slate-400 rounded"
             >
               {{ cat.slug }}
             </span>
             <span
               v-if="cat.parentId"
-              class="text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded font-semibold"
+              class="text-[10px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 px-1.5 py-0.5 rounded font-semibold"
             >
               子分类 (父: {{ getParentCategoryName(cat) }})
             </span>

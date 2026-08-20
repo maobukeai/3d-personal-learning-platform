@@ -29,7 +29,6 @@ import api from '@/utils/api';
 import { getApiErrorMessage } from '@/utils/error';
 import { ElMessage, ElMessageBox } from '@/utils/feedbackBridge';
 import Button from '@/components/ui/Button.vue';
-import Input from '@/components/ui/Input.vue';
 import FormDialog from '@/components/FormDialog.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
 
@@ -599,16 +598,16 @@ onMounted(() => {
         <!-- Left column: Drag & Drop upload region -->
         <div class="lg:col-span-1">
           <div
-            @dragover="onDragOver"
-            @dragleave="onDragLeave"
-            @drop="onDrop"
-            @click="triggerFileInput"
             :class="[
               'border-2 border-dashed rounded-3xl p-6 text-center cursor-pointer transition-all duration-300 flex flex-col items-center justify-center min-h-[180px]',
               isDragging
                 ? 'border-indigo-500 bg-indigo-500/[0.04] scale-[1.01] shadow-lg shadow-indigo-500/5'
                 : 'border-[var(--border-base)] bg-[var(--bg-card)] hover:border-indigo-400 hover:bg-slate-500/[0.01]',
             ]"
+            @dragover="onDragOver"
+            @dragleave="onDragLeave"
+            @drop="onDrop"
+            @click="triggerFileInput"
           >
             <input ref="fileInput" type="file" class="hidden" @change="onFileSelected" />
 
@@ -733,27 +732,27 @@ onMounted(() => {
               <div class="flex items-center gap-1 shrink-0">
                 <!-- Download -->
                 <button
-                  @click="handleDownload(file)"
                   class="p-2 rounded-xl text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-emerald-500/5 transition-all cursor-pointer border-none bg-transparent"
                   title="下载文件"
+                  @click="handleDownload(file)"
                 >
                   <Download class="w-4 h-4" />
                 </button>
 
                 <!-- Share -->
                 <button
-                  @click="openShareDialog(file)"
                   class="p-2 rounded-xl text-[var(--text-secondary)] hover:text-indigo-500 hover:bg-indigo-500/5 transition-all cursor-pointer border-none bg-transparent"
                   title="分享链接"
+                  @click="openShareDialog(file)"
                 >
                   <Share2 class="w-4 h-4" />
                 </button>
 
                 <!-- Delete -->
                 <button
-                  @click="handleDelete(file)"
                   class="p-2 rounded-xl text-[var(--text-secondary)] hover:text-rose-500 hover:bg-rose-500/5 transition-all cursor-pointer border-none bg-transparent"
                   title="删除文件"
+                  @click="handleDelete(file)"
                 >
                   <Trash2 class="w-4 h-4" />
                 </button>

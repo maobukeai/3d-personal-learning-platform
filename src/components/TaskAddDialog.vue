@@ -52,6 +52,7 @@ export interface TaskCreatePayload {
   projectId: string;
   teamId: string;
   participantIds: string[];
+  recurrence?: string | null;
 }
 
 const emit = defineEmits<{
@@ -70,7 +71,15 @@ const localNewTask = ref({
   projectId: '',
   teamId: '',
   participantIds: [] as string[],
+  recurrence: '' as string,
 });
+
+const recurrenceOptions = [
+  { value: '', label: '不重复' },
+  { value: 'DAILY', label: '每天' },
+  { value: 'WEEKLY', label: '每周' },
+  { value: 'MONTHLY', label: '每月' },
+];
 
 const tagInput = ref('');
 
@@ -90,6 +99,7 @@ watch(
         projectId: props.defaultProjectId,
         teamId: props.defaultTeamId,
         participantIds: [],
+        recurrence: '',
       };
       tagInput.value = '';
     }
@@ -130,7 +140,7 @@ const handleSubmit = () => {
         <input
           v-model="localNewTask.title"
           type="text"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm font-bold"
+          class="w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm font-bold"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -149,7 +159,7 @@ const handleSubmit = () => {
         <textarea
           v-model="localNewTask.description"
           rows="4"
-          class="w-full px-4 py-3 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm resize-none leading-relaxed"
+          class="w-full px-4 py-3 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-sm resize-none leading-relaxed"
           style="
             background-color: var(--bg-app);
             border-color: var(--border-base);
@@ -185,9 +195,24 @@ const handleSubmit = () => {
             v-model="localNewTask.dueDate"
             type="date"
             placeholder="日期"
-            class="!w-full !rounded-2xl custom-date-picker"
+            class="!w-full !rounded-xl custom-date-picker"
             popper-class="custom-date-popper"
           />
+        </div>
+        <div>
+          <label
+            class="block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 ml-1"
+          >
+            重复
+          </label>
+          <Select v-model="localNewTask.recurrence" class="!w-full custom-select">
+            <SelectOption
+              v-for="opt in recurrenceOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </Select>
         </div>
         <div>
           <label
@@ -263,7 +288,7 @@ const handleSubmit = () => {
             <input
               v-model="tagInput"
               type="text"
-              class="flex-1 px-4 py-2.5 rounded-2xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
+              class="flex-1 px-4 py-2.5 rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-accent/20 text-xs"
               style="
                 background-color: var(--bg-app);
                 border-color: var(--border-base);

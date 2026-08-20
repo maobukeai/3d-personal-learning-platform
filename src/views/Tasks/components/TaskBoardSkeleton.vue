@@ -13,7 +13,7 @@ defineProps<Props>();
       <div
         v-for="i in 3"
         :key="i"
-        class="flex-1 bg-card rounded-2xl border p-4 space-y-3 animate-pulse h-full"
+        class="flex-1 bg-card rounded-xl border p-4 space-y-3 animate-pulse h-full"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <div class="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>

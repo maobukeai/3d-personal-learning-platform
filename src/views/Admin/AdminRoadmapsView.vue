@@ -8,7 +8,6 @@ import {
   Trash2,
   Edit2,
   Milestone,
-  Search,
   FolderOpen,
   Calendar,
   Layers3,
@@ -152,10 +151,10 @@ onMounted(() => {
     <main class="min-h-0 flex-1 overflow-y-auto p-2 sm:p-2.5 space-y-2 scrollbar-hide">
       <!-- Ultra-Compact Single Row Header -->
       <AdminHeader
+        v-model="searchQuery"
         title="官方学习路线管理"
         subtitle="定义和维护官方 3D 学习图谱"
         :cards="consolidatedCards"
-        v-model="searchQuery"
         :placeholder="$t('admin.find_official_routes_quickly')"
       >
         <template #title-badge>
@@ -169,8 +168,8 @@ onMounted(() => {
           variant="primary"
           size="sm"
           :icon="Plus"
-          @click="openEditModal()"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="openEditModal()"
         >
           新建学习路线
         </Button>
@@ -179,8 +178,8 @@ onMounted(() => {
           size="sm"
           :icon="RefreshCw"
           :loading="isLoading"
-          @click="fetchRoadmaps"
           class="!h-7.5 !text-xs !px-2.5"
+          @click="fetchRoadmaps"
         >
           刷新
         </Button>
@@ -272,11 +271,11 @@ onMounted(() => {
                         </h3>
                         <div class="flex items-center gap-1.5">
                           <span
-                            class="px-1 py-0.2 rounded text-[8px] font-extrabold bg-slate-100 dark:bg-white/5 text-slate-400 border border-slate-200/50 dark:border-white/5"
+                            class="px-1 py-0.2 rounded text-[10px] font-extrabold bg-slate-100 dark:bg-white/5 text-slate-400 border border-slate-200/50 dark:border-white/5"
                           >
                             {{ roadmap.steps?.length || 0 }} 个步骤
                           </span>
-                          <span class="text-[8px] text-slate-400 flex items-center gap-0.5">
+                          <span class="text-[10px] text-slate-400 flex items-center gap-0.5">
                             <Flame class="w-2 h-2 text-indigo-500 animate-pulse" />
                             系统发布
                           </span>
@@ -318,7 +317,7 @@ onMounted(() => {
                     class="space-y-2 mb-4 bg-slate-50/50 dark:bg-white/2 p-3 rounded-xl border border-slate-200/30 dark:border-white/5"
                   >
                     <div
-                      class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
+                      class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1"
                     >
                       <BookOpen class="w-2.5 h-2.5 text-indigo-500" />
                       <span>{{ $t('admin.core_knowledge_outline_preview') }}</span>
@@ -342,7 +341,7 @@ onMounted(() => {
                           >
                             {{ step.title }}
                           </h4>
-                          <p class="text-[8px] text-slate-400 truncate mt-0.2">
+                          <p class="text-[10px] text-slate-400 truncate mt-0.2">
                             {{ step.description }}
                           </p>
                         </div>
@@ -351,7 +350,7 @@ onMounted(() => {
                       <!-- Over-limit step counter indicator -->
                       <div
                         v-if="roadmap.steps.length > 3"
-                        class="pt-0.5 text-[8px] text-indigo-500/90 font-black flex items-center gap-1 pl-0.5"
+                        class="pt-0.5 text-[10px] text-indigo-500/90 font-black flex items-center gap-1 pl-0.5"
                       >
                         <span>{{
                           $t('admin.there_are_also_roadmap', { count: roadmap.steps.length - 3 })
@@ -375,7 +374,7 @@ onMounted(() => {
 
                 <!-- Card Footer Metadata -->
                 <div
-                  class="pt-3 border-t flex items-center justify-between text-[9px] text-slate-400"
+                  class="pt-3 border-t flex items-center justify-between text-[10px] text-slate-400"
                   style="border-color: var(--border-base)"
                 >
                   <div class="flex items-center gap-1">

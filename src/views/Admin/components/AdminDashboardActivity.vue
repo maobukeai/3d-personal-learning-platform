@@ -140,7 +140,7 @@ const getStatusBadgeVariant = (status?: string) => {
                 <b class="text-xs font-bold block truncate text-[var(--text-primary)]">{{
                   asset.title
                 }}</b>
-                <small class="text-[9px] text-[var(--text-secondary)] mt-0.5 block truncate">{{
+                <small class="text-[10px] text-[var(--text-secondary)] mt-0.5 block truncate">{{
                   asset.user?.name || asset.user?.email || '未知作者'
                 }}</small>
               </span>
@@ -269,7 +269,7 @@ const getStatusBadgeVariant = (status?: string) => {
                 <b class="text-xs font-bold block truncate text-[var(--text-primary)]">{{
                   user.name || '未命名用户'
                 }}</b>
-                <small class="truncate block text-[9px] text-slate-400 mt-0.5">{{
+                <small class="truncate block text-[10px] text-slate-400 mt-0.5">{{
                   user.email
                 }}</small>
               </span>

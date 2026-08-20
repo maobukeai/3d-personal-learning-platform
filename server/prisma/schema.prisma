@@ -612,7 +612,7 @@ model Task {
   id                        String                    @id @default(uuid())
   title                     String
   description               String?                   @db.Text
-  status                    String                    // 'TODO', 'IN_PROGRESS', 'DONE'
+  status                    String                    // 'TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'
   priority                  String                    @default("MEDIUM") // 'LOW', 'MEDIUM', 'HIGH', 'URGENT'
   tags                      String?                   @db.Text // JSON string of tag names
   subtasks                  String?                   @db.Text // JSON string of [{ id: string, text: string, done: boolean }]
@@ -629,6 +629,7 @@ model Task {
   comments                  TaskComment[]
   timeEstimate              Int                       @default(0)
   timeSpent                 Int                       @default(0)
+  recurrence                String?                   // 'DAILY', 'WEEKLY', 'MONTHLY' — 完成时自动生成下一实例
   dependencies              TaskDependency[]          @relation("TaskDeps")
   dependents                TaskDependency[]          @relation("TaskBlockedBy")
   activities                TaskActivity[]

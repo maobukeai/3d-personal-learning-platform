@@ -529,7 +529,7 @@ defineExpose({
                           </span>
                           <span
                             v-if="source.publishedAt"
-                            class="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            class="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
                           >
                             {{ source.publishedAt.slice(0, 10) }}
                           </span>
@@ -822,7 +822,7 @@ defineExpose({
                           </div>
                           <p
                             v-if="model.id === '__AUTO__'"
-                            class="mt-0.5 text-[9px] text-indigo-500/80 dark:text-indigo-400/70"
+                            class="mt-0.5 text-[10px] text-indigo-500/80 dark:text-indigo-400/70"
                           >
                             按优先级自动选择，失败时无缝切换
                           </p>

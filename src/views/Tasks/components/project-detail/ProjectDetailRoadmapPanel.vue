@@ -275,7 +275,7 @@ loadCheckedSubTasks();
 <template>
   <div class="space-y-6">
     <div
-      class="p-4 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md relative overflow-hidden"
+      class="p-4 rounded-xl border border-slate-200/50 dark:border-white/5 bg-white/50 dark:bg-slate-900/40 backdrop-blur-md relative overflow-hidden"
     >
       <div
         class="absolute -right-10 -top-10 w-36 h-36 bg-emerald-500/5 dark:bg-emerald-500/10 rounded-full blur-3xl"
@@ -300,7 +300,7 @@ loadCheckedSubTasks();
           class="flex items-center gap-2.5 shrink-0 self-start sm:self-center bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 p-1.5 px-2.5 rounded-xl"
         >
           <div class="flex flex-col items-end">
-            <span class="text-[8px] font-black uppercase text-slate-400 tracking-wider">{{
+            <span class="text-[10px] font-black uppercase text-slate-400 tracking-wider">{{
               t('projects.roadmapProgress')
             }}</span>
             <span class="text-xs font-black text-emerald-500"
@@ -335,7 +335,7 @@ loadCheckedSubTasks();
           ></div>
 
           <div
-            class="absolute -left-[25px] sm:-left-[41px] top-0.5 w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-lg sm:rounded-2xl flex items-center justify-center z-10 border-2 border-white dark:border-slate-900 transition-all duration-300"
+            class="absolute -left-[25px] sm:-left-[41px] top-0.5 w-6.5 h-6.5 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl flex items-center justify-center z-10 border-2 border-white dark:border-slate-900 transition-all duration-300"
             :class="{
               'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-105 ring-4 ring-emerald-500/10':
                 getStepStatus(step, index) === 'completed',
@@ -381,7 +381,7 @@ loadCheckedSubTasks();
               <div class="space-y-0.5 flex-1 min-w-0">
                 <div class="flex items-center gap-1.5">
                   <span
-                    class="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded"
+                    class="text-[10px] font-black uppercase tracking-widest px-1.5 py-0.2 rounded"
                     :class="{
                       'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400':
                         getStepStatus(step, index) === 'completed',
@@ -396,7 +396,7 @@ loadCheckedSubTasks();
                   </span>
                   <span
                     v-if="activeStepId === step.id"
-                    class="text-[8px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5"
+                    class="text-[10px] font-black text-accent bg-accent/10 px-1.5 py-0.2 rounded flex items-center gap-0.5"
                   >
                     <Sparkle class="w-2.5 h-2.5" /> {{ t('projects.exploring') }}
                   </span>
@@ -432,7 +432,7 @@ loadCheckedSubTasks();
 
       <div
         v-if="activeStep"
-        class="p-4 sm:p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-4 shadow-xl relative overflow-hidden text-left"
+        class="p-4 sm:p-5 rounded-xl border border-slate-200/50 dark:border-white/5 bg-white/70 dark:bg-slate-900/50 backdrop-blur-md space-y-4 shadow-xl relative overflow-hidden text-left"
       >
         <div class="absolute -right-12 -top-12 w-24 h-24 bg-accent/5 rounded-full blur-2xl"></div>
 
@@ -446,7 +446,7 @@ loadCheckedSubTasks();
               <Gauge class="w-4 h-4" />
             </div>
             <div class="space-y-0.5">
-              <h4 class="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+              <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                 {{ t('projects.explorerAnalyzer') }}
               </h4>
               <p class="text-[11px] font-bold text-slate-700 dark:text-slate-200">
@@ -501,7 +501,7 @@ loadCheckedSubTasks();
           class="space-y-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
         >
           <div
-            class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5"
+            class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5"
           >
             <TrendingUp class="w-3 h-3 text-accent" />
             <span>{{ t('projects.skillsAssessment') }}</span>
@@ -509,7 +509,7 @@ loadCheckedSubTasks();
 
           <div class="space-y-1.5">
             <div>
-              <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
+              <div class="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
                 <span>{{ t('projects.skillDifficulty') }}</span>
                 <span class="font-bold text-slate-700 dark:text-slate-300">
                   {{ getMetricsForStep(activeStep, roadmap.steps.indexOf(activeStep)).difficulty }}%
@@ -528,7 +528,7 @@ loadCheckedSubTasks();
             </div>
 
             <div>
-              <div class="flex items-center justify-between text-[9px] text-slate-500 mb-0.5">
+              <div class="flex items-center justify-between text-[10px] text-slate-500 mb-0.5">
                 <span>{{ t('projects.practicalWeight') }}</span>
                 <span class="font-bold text-slate-700 dark:text-slate-300">
                   {{ getMetricsForStep(activeStep, roadmap.steps.indexOf(activeStep)).practical }}%
@@ -553,7 +553,9 @@ loadCheckedSubTasks();
               </span>
               <span class="font-black text-slate-700 dark:text-slate-200">
                 {{ getMetricsForStep(activeStep, roadmap.steps.indexOf(activeStep)).duration }}
-                <span class="text-[9px] font-normal text-slate-400">{{ t('projects.hours') }}</span>
+                <span class="text-[10px] font-normal text-slate-400">{{
+                  t('projects.hours')
+                }}</span>
               </span>
             </div>
           </div>
@@ -564,7 +566,7 @@ loadCheckedSubTasks();
           class="space-y-1.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
         >
           <div
-            class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest"
           >
             <ListTodo class="w-3 h-3 text-accent" />
             <span>{{ t('projects.skillsChecklist') }}</span>
@@ -608,7 +610,7 @@ loadCheckedSubTasks();
           class="space-y-2 pt-2.5 border-t border-slate-100 dark:border-slate-800 relative z-10"
         >
           <div
-            class="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-widest"
+            class="flex items-center gap-1 text-[10px] font-black text-slate-400 uppercase tracking-widest"
           >
             <GraduationCap class="w-3 h-3 text-accent" />
             <span>{{ t('projects.recommendedCourses') }}</span>
@@ -638,8 +640,8 @@ loadCheckedSubTasks();
                 >
                   {{ course.title }}
                 </h4>
-                <div class="flex items-center justify-between text-[8px] text-slate-400">
-                  <span class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[8px]">
+                <div class="flex items-center justify-between text-[10px] text-slate-400">
+                  <span class="px-1 py-0.2 bg-slate-100 dark:bg-slate-800 rounded text-[10px]">
                     {{
                       course.difficulty === 'BEGINNER'
                         ? t('common.difficulty.beginner')
@@ -649,7 +651,7 @@ loadCheckedSubTasks();
                     }}
                   </span>
                   <span
-                    class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[8px]"
+                    class="text-accent flex items-center gap-0.5 font-bold group-hover/card:translate-x-0.5 transition-transform text-[10px]"
                   >
                     {{ t('projects.goMaster') }} <ArrowRight class="w-2 h-2" />
                   </span>

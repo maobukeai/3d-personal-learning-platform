@@ -244,7 +244,10 @@ onUnmounted(() => {
                 >
                   {{ asset.title }}
                 </p>
-                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400 truncate">
+                <p
+                  :class="isMobile ? 'text-[10px]' : 'text-[10px]'"
+                  class="text-slate-400 truncate"
+                >
                   {{ getCategoryLabel(asset.category) }} · {{ asset.type }}
                 </p>
               </div>
@@ -293,7 +296,7 @@ onUnmounted(() => {
                 >
                   {{ course.title }}
                 </p>
-                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
+                <p :class="isMobile ? 'text-[10px]' : 'text-[10px]'" class="text-slate-400">
                   {{ course.difficulty }} · {{ course._count?.lessons || 0 }} 课时
                 </p>
               </div>
@@ -346,7 +349,7 @@ onUnmounted(() => {
                 >
                   {{ team.name }}
                 </p>
-                <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
+                <p :class="isMobile ? 'text-[10px]' : 'text-[10px]'" class="text-slate-400">
                   {{ getCategoryLabel(team.category) }} · {{ team._count?.members || 0 }} 成员
                 </p>
               </div>
@@ -428,7 +431,7 @@ onUnmounted(() => {
               >
                 {{ t('search.browseAssets') }}
               </p>
-              <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
+              <p :class="isMobile ? 'text-[10px]' : 'text-[10px]'" class="text-slate-400">
                 {{ t('search.browseAssetsDesc') }}
               </p>
             </div>
@@ -454,7 +457,7 @@ onUnmounted(() => {
               >
                 {{ t('search.startLearning') }}
               </p>
-              <p :class="isMobile ? 'text-[9px]' : 'text-[10px]'" class="text-slate-400">
+              <p :class="isMobile ? 'text-[10px]' : 'text-[10px]'" class="text-slate-400">
                 {{ t('search.startLearningDesc') }}
               </p>
             </div>

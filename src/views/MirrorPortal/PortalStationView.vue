@@ -5,23 +5,9 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import {
-  Loader2,
-  ChevronLeft,
-  ChevronRight,
-  FolderOpen,
-  Sparkles,
-  Zap,
-  Crown,
-  ShieldCheck,
-  HardDriveDownload,
-  Search,
-  X,
-  ChevronUp,
-  ChevronDown as ChevronDownIcon,
-} from 'lucide-vue-next';
+import { Loader2, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-vue-next';
 import MirrorFilterBar from '@/views/Mirror/components/MirrorFilterBar.vue';
 import MirrorResourceCard from '@/views/Mirror/components/MirrorResourceCard.vue';
 import MirrorResourceDrawer from '@/views/Mirror/components/MirrorResourceDrawer.vue';
@@ -31,7 +17,6 @@ import { useMirrorStore } from '@/stores/mirror';
 const route = useRoute();
 const router = useRouter();
 const mirrorStore = useMirrorStore();
-const isHeroCollapsed = ref(false);
 
 const {
   scrollContainerRef,
@@ -52,28 +37,6 @@ const {
   setViewMode,
   loadData,
 } = useMirrorSourceView();
-
-const stationName = computed(() => {
-  try {
-    const cfg = (mirrorStore.currentStation as any)?.syncConfig
-      ? JSON.parse((mirrorStore.currentStation as any).syncConfig)
-      : {};
-    if (cfg.proxyConfig?.brandName) return cfg.proxyConfig.brandName;
-  } catch {}
-  return (
-    mirrorStore.currentStation?.displayName || mirrorStore.currentStation?.name || '镜像资源站'
-  );
-});
-
-const stationSubtitle = computed(() => {
-  try {
-    const cfg = (mirrorStore.currentStation as any)?.syncConfig
-      ? JSON.parse((mirrorStore.currentStation as any).syncConfig)
-      : {};
-    if (cfg.proxyConfig?.brandSubtitle) return cfg.proxyConfig.brandSubtitle;
-  } catch {}
-  return '高速海量数字资源库 · 百度 / 夸克网盘秒存下载';
-});
 
 function handleNavigateDetail(resourceId: string) {
   router.push(`/portal/resource/${resourceId}`);
@@ -142,71 +105,8 @@ watch(
 <template>
   <div
     ref="scrollContainerRef"
-    class="portal-station-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide space-y-4"
+    class="portal-station-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide space-y-3"
   >
-    <!-- Brand Hero Banner Card -->
-    <div
-      class="relative rounded-3xl overflow-hidden bg-gradient-to-r from-blue-600/10 via-indigo-600/5 to-purple-600/10 dark:from-blue-500/10 dark:via-slate-800/60 dark:to-indigo-500/10 border border-blue-200/80 dark:border-blue-500/20 backdrop-blur-md p-4 md:p-5 transition-all duration-300 shadow-xs"
-    >
-      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="space-y-1.5 min-w-0">
-          <div class="flex items-center gap-2">
-            <span class="p-1 rounded-lg bg-blue-600 text-white shadow-xs">
-              <Zap class="w-4 h-4" />
-            </span>
-            <h2
-              class="text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight"
-            >
-              {{ stationName }}
-            </h2>
-            <span
-              class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/20"
-            >
-              专享独立代理站
-            </span>
-          </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-            {{ stationSubtitle }}
-          </p>
-
-          <!-- 3 Service Highlights -->
-          <div
-            class="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300"
-          >
-            <span class="inline-flex items-center gap-1">
-              <Sparkles class="w-3.5 h-3.5 text-blue-500" />
-              <span
-                >已同步收录
-                <strong class="text-blue-600 dark:text-blue-400 font-black">{{
-                  mirrorStore.totalResources
-                }}</strong>
-                款精选资源</span
-              >
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <HardDriveDownload class="w-3.5 h-3.5 text-emerald-500" />
-              <span>百度/夸克双盘秒提取</span>
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <Crown class="w-3.5 h-3.5 text-amber-500" />
-              <span>SVIP 每日 50 次 · VIP 每日 30 次</span>
-            </span>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
-          <button
-            type="button"
-            class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold shadow-sm shadow-blue-500/20 transition-all cursor-pointer flex items-center gap-1.5"
-            @click="router.push('/billing')"
-          >
-            <Crown class="w-3.5 h-3.5" />
-            <span>获取每日提取配额</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <!-- 2-Row Optimized Compact Filter Bar -->
     <MirrorFilterBar
       :station="mirrorStore.currentStation"

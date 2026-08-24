@@ -317,7 +317,9 @@ export const extractDownloadLink = async (req: ManualRequest, reply: FastifyRepl
       return reply.status(404).send({ error: '此资源未配置下载链接' });
     }
 
-    const quotaResult = await extractQuotaService.checkAndConsumeQuota(req.userId, req.userRole);
+    const userId = (req as any).userId as string;
+    const userRole = (req as any).userRole as string | undefined;
+    const quotaResult = await extractQuotaService.checkAndConsumeQuota(userId, userRole);
     if (!quotaResult.success) {
       return reply.status(403).send({
         error: '提取配额不足',

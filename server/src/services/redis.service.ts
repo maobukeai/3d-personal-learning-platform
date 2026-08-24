@@ -154,32 +154,6 @@ class RedisService {
     this.localCache.delete(key);
   }
 
-  async incr(key: string, ttlSeconds: number = 86400 * 2): Promise<number> {
-    if (this.isRedisEnabled && this.redisClient) {
-      try {
-        const val = await this.redisClient.incr(key);
-        if (val === 1 && ttlSeconds > 0) {
-          await this.redisClient.expire(key, ttlSeconds);
-        }
-        return val;
-      } catch (err) {
-        logger.error(`Redis INCR error for key ${key}:`, err);
-      }
-    }
-
-    // Local fallback
-    const cached = this.localCache.get(key);
-    let val = 0;
-    if (cached && Date.now() < cached.expiresAt) {
-      val =
-        typeof cached.value === 'number' ? cached.value : parseInt(String(cached.value), 10) || 0;
-    }
-    val += 1;
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    this.localCache.set(key, { value: val, expiresAt });
-    return val;
-  }
-
   /**
    * Acquire a distributed lock using the Redlock algorithm.
    *
@@ -264,25 +238,30 @@ class RedisService {
    * Atomically increments a numeric counter by 1 and (on first creation) sets an expiry.
    * Falls back to a local-cache get-increment-set when Redis is unavailable.
    */
-  async incr(key: string, ttlSeconds: number): Promise<void> {
+  async incr(key: string, ttlSeconds: number = 86400 * 2): Promise<number> {
     if (this.isRedisEnabled && this.redisClient) {
       try {
-        const newVal = await this.redisClient.incr(key);
-        if (newVal === 1) {
-          // First increment — set expiry so the key eventually cleans itself up
+        const val = await this.redisClient.incr(key);
+        if (val === 1 && ttlSeconds > 0) {
           await this.redisClient.expire(key, ttlSeconds);
         }
-        return;
+        return val;
       } catch (err) {
         logger.error(`Redis INCR error for key ${key}:`, err);
       }
     }
 
-    // Local fallback: read → increment → write
+    // Local fallback
     const cached = this.localCache.get(key);
-    const current = cached && Date.now() < cached.expiresAt ? (cached.value as number) : 0;
-    const expiresAt = cached?.expiresAt ?? Date.now() + ttlSeconds * 1000;
-    this.localCache.set(key, { value: current + 1, expiresAt });
+    let val = 0;
+    if (cached && Date.now() < cached.expiresAt) {
+      val =
+        typeof cached.value === 'number' ? cached.value : parseInt(String(cached.value), 10) || 0;
+    }
+    val += 1;
+    const expiresAt = Date.now() + ttlSeconds * 1000;
+    this.localCache.set(key, { value: val, expiresAt });
+    return val;
   }
 
   async invalidateUserCache(userId: string): Promise<void> {

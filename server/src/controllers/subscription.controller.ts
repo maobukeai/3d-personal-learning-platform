@@ -621,7 +621,7 @@ export const getExtractQuota = async (
   reply: FastifyReply,
 ): Promise<void> => {
   const userId = request.userId as string;
-  const userRole = request.userRole as string | undefined;
+  const userRole = (request as any).userRole as string | undefined;
   try {
     const { extractQuotaService } = await import('../services/extract-quota.service');
     const quotaInfo = await extractQuotaService.getDailyQuotaInfo(userId, userRole);

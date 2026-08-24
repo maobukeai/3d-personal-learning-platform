@@ -26,9 +26,11 @@ import MirrorResourceComments from '@/views/Mirror/components/detail/MirrorResou
 import MirrorResourceExtractCard from '@/views/Mirror/components/detail/MirrorResourceExtractCard.vue';
 import MirrorResourceExtractModal from '@/views/Mirror/components/detail/MirrorResourceExtractModal.vue';
 import MirrorResourceSecurityVerifyModal from '@/views/Mirror/components/detail/MirrorResourceSecurityVerifyModal.vue';
+import PortalBillingModal from '@/views/MirrorPortal/components/PortalBillingModal.vue';
 import { useMirrorResourceDetail } from '@/views/Mirror/composables/useMirrorResourceDetail';
 
 const mirrorStore = useMirrorStore();
+const showBillingModal = ref(false);
 const extractQuota = ref<{
   total: number | 'UNLIMITED';
   used: number;
@@ -146,7 +148,7 @@ function handleNavigateDetail(id: string) {
           class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer"
           @click="authStore.setShowLoginModal(true)"
         >
-          立即登录
+          立即登录 / 注册
         </button>
       </div>
 
@@ -160,6 +162,13 @@ function handleNavigateDetail(id: string) {
             >会员权限不足（需要 {{ getPlanName(resource.requiredPlan ?? 0) }} 会员）。</span
           >
         </div>
+        <button
+          type="button"
+          class="px-4 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-xs cursor-pointer"
+          @click="showBillingModal = true"
+        >
+          升级会员
+        </button>
       </div>
 
       <!-- Main Layout Grid -->
@@ -374,6 +383,7 @@ function handleNavigateDetail(id: string) {
       @verified="handleSecurityVerified"
     />
     <MirrorResourceExtractModal v-model:show="showLinkDialog" :active-link="activeLink" />
+    <PortalBillingModal v-model:show="showBillingModal" />
   </div>
 </template>
 

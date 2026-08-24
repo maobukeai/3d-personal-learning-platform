@@ -130,7 +130,11 @@ export function useMirrorResourceDetail() {
   function handleStartExtract(link: { name: string; type: string }) {
     if (!authStore.isAuthenticated) {
       ElMessage.warning('请先登录后提取资源');
-      router.push(`/login?redirect=${route.fullPath}`);
+      if (route.path.startsWith('/portal')) {
+        authStore.setShowLoginModal(true);
+      } else {
+        router.push(`/login?redirect=${route.fullPath}`);
+      }
       return;
     }
     if (resource.value?.hasAccess === false) {

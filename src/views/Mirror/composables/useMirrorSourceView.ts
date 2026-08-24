@@ -12,7 +12,26 @@ export function useMirrorSourceView() {
   const authStore = useAuthStore();
 
   const scrollContainerRef = ref<HTMLElement | null>(null);
-  const sourceId = computed(() => route.params.id as string);
+  let isFetchingData = false;
+
+  const sourceId = computed(() => {
+    if (route.params.id) return route.params.id as string;
+    const slug = (route.params.slug as string)?.trim().toLowerCase();
+    if (slug) {
+      const found = mirrorStore.stations.find((s) => {
+        if (s.id.toLowerCase() === slug || s.name.toLowerCase() === slug) return true;
+        try {
+          const cfg = s.syncConfig ? JSON.parse(s.syncConfig) : {};
+          if (cfg.proxyConfig?.customSlug?.trim().toLowerCase() === slug) return true;
+        } catch {}
+        return false;
+      });
+      if (found) return found.id;
+      return slug;
+    }
+    return '';
+  });
+
   const viewMode = ref<ViewModeType>(
     (localStorage.getItem('mirror_view_mode') as ViewModeType) || 'grid-comfortable',
   );
@@ -54,62 +73,71 @@ export function useMirrorSourceView() {
     router.replace({ query }).catch(() => {});
   }
 
-  async function loadData() {
-    if (!sourceId.value) return;
+  async function loadData(explicitSourceId?: string) {
+    const targetSourceId = explicitSourceId || sourceId.value;
+    if (!targetSourceId) return;
+    if (isFetchingData) return;
+    isFetchingData = true;
 
-    await Promise.all([
-      mirrorStore.fetchStation(sourceId.value),
-      mirrorStore.fetchCategories(sourceId.value),
-    ]);
+    try {
+      await Promise.all([
+        mirrorStore.fetchStation(targetSourceId),
+        mirrorStore.fetchCategories(targetSourceId),
+      ]);
 
-    if (mirrorStore.isNotFound || !mirrorStore.currentStation) {
-      await mirrorStore.fetchStations();
-      const validStation =
-        mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
-      if (validStation && validStation.id !== sourceId.value) {
-        router.replace(`/mirror/source/${validStation.id}`);
-        return;
+      if (mirrorStore.isNotFound || !mirrorStore.currentStation) {
+        await mirrorStore.fetchStations();
+        const validStation =
+          mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+        if (validStation && validStation.id !== targetSourceId) {
+          if (!route.path.startsWith('/portal')) {
+            router.replace(`/mirror/source/${validStation.id}`);
+            return;
+          }
+        }
       }
+
+      if (!mirrorStore.currentStation) return;
+
+      // Restore filters and pagination from route query if available
+      const qCategory = route.query.categoryId as string | undefined;
+      if (qCategory !== undefined) {
+        mirrorStore.setActiveCategory(qCategory || null);
+      }
+
+      const qSearch = route.query.search as string | undefined;
+      if (qSearch !== undefined) {
+        mirrorStore.setSearchQuery(qSearch);
+      }
+
+      const qPage = route.query.page ? parseInt(route.query.page as string, 10) : 1;
+      mirrorStore.currentPage = !isNaN(qPage) && qPage >= 1 ? qPage : 1;
+      jumpPageInput.value = mirrorStore.currentPage.toString();
+
+      const qSort = route.query.sort as string | undefined;
+      if (qSort) {
+        mirrorStore.setSortBy(qSort);
+      }
+
+      const qPageSize = route.query.pageSize ? parseInt(route.query.pageSize as string, 10) : 20;
+      if (!isNaN(qPageSize) && pageSizeOptions.includes(qPageSize)) {
+        pageSize.value = qPageSize;
+      }
+
+      await mirrorStore.fetchResources(targetSourceId, {
+        page: mirrorStore.currentPage,
+        pageSize: pageSize.value,
+        categoryId: mirrorStore.activeCategoryId || undefined,
+        search: mirrorStore.searchQuery || undefined,
+        sort: mirrorStore.sortBy,
+      });
+
+      // Restore scroll position after DOM render
+      await nextTick();
+      restoreScroll();
+    } finally {
+      isFetchingData = false;
     }
-
-    if (!mirrorStore.currentStation) return;
-
-    // Restore filters and pagination from route query if available
-    const qCategory = route.query.categoryId as string | undefined;
-    if (qCategory !== undefined) {
-      mirrorStore.setActiveCategory(qCategory || null);
-    }
-
-    const qSearch = route.query.search as string | undefined;
-    if (qSearch !== undefined) {
-      mirrorStore.setSearchQuery(qSearch);
-    }
-
-    const qPage = route.query.page ? parseInt(route.query.page as string, 10) : 1;
-    mirrorStore.currentPage = !isNaN(qPage) && qPage >= 1 ? qPage : 1;
-    jumpPageInput.value = mirrorStore.currentPage.toString();
-
-    const qSort = route.query.sort as string | undefined;
-    if (qSort) {
-      mirrorStore.setSortBy(qSort);
-    }
-
-    const qPageSize = route.query.pageSize ? parseInt(route.query.pageSize as string, 10) : 20;
-    if (!isNaN(qPageSize) && pageSizeOptions.includes(qPageSize)) {
-      pageSize.value = qPageSize;
-    }
-
-    await mirrorStore.fetchResources(sourceId.value, {
-      page: mirrorStore.currentPage,
-      pageSize: pageSize.value,
-      categoryId: mirrorStore.activeCategoryId || undefined,
-      search: mirrorStore.searchQuery || undefined,
-      sort: mirrorStore.sortBy,
-    });
-
-    // Restore scroll position after DOM render
-    await nextTick();
-    restoreScroll();
   }
 
   function goToPage(page: number, shouldScrollTop = true) {
@@ -225,9 +253,9 @@ export function useMirrorSourceView() {
   });
 
   watch(
-    () => route.params.id,
-    () => {
-      if (route.name === 'MirrorSource' && route.params.id) {
+    () => [route.params.id, route.params.slug],
+    ([newId, newSlug], [oldId, oldSlug]) => {
+      if (newId !== oldId || newSlug !== oldSlug) {
         mirrorStore.reset();
         loadData();
       }

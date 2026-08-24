@@ -8,6 +8,7 @@ import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
 import { extractQuotaService } from '../../services/extract-quota.service';
+import { extractLogService } from '../../services/extract-log.service';
 import {
   fastifyAuthenticate,
   fastifyOptionalAuthenticate,
@@ -182,6 +183,7 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       totalResources: s.totalResources,
       iconUrl: s.iconUrl,
       description: s.description,
+      syncConfig: s.syncConfig,
       hasAccess: s.hasAccess,
       minPlanPriority: s.minPlanPriority,
       createdAt: s.createdAt,
@@ -213,12 +215,13 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
     { ...optionalAuth, schema: { params: sourceIdParamsSchema } },
     async (request, reply) => {
       const { sourceId } = request.params as { sourceId: string };
-      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+      const resolvedId = await mirrorService.resolveSourceId(sourceId);
+      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: resolvedId } });
       if (!sourceExists) {
         return reply.status(404).send({ error: '镜像源不存在' });
       }
 
-      const categories = await mirrorService.getCategories(sourceId);
+      const categories = await mirrorService.getCategories(resolvedId);
       return reply.send(categories);
     },
   );
@@ -232,7 +235,8 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
     },
     async (request, reply) => {
       const { sourceId } = request.params as { sourceId: string };
-      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+      const resolvedId = await mirrorService.resolveSourceId(sourceId);
+      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: resolvedId } });
       if (!sourceExists) {
         return reply.status(404).send({ error: '镜像源不存在' });
       }
@@ -250,7 +254,7 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       const search = query.search || undefined;
       const sort = query.sort || undefined;
 
-      const result = await mirrorService.getResources(sourceId, {
+      const result = await mirrorService.getResources(resolvedId, {
         page,
         pageSize,
         categoryId,
@@ -268,12 +272,13 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
     { ...optionalAuth, schema: { params: sourceIdParamsSchema } },
     async (request, reply) => {
       const { sourceId } = request.params as { sourceId: string };
-      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: sourceId } });
+      const resolvedId = await mirrorService.resolveSourceId(sourceId);
+      const sourceExists = await prisma.mirrorSource.findUnique({ where: { id: resolvedId } });
       if (!sourceExists) {
         return reply.status(404).send({ error: '镜像源不存在' });
       }
 
-      const stats = await mirrorService.getSourceStats(sourceId);
+      const stats = await mirrorService.getSourceStats(resolvedId);
       return reply.send(stats);
     },
   );
@@ -551,19 +556,38 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       const encryptedLink = encryptText(link, key);
       const encryptedPassword = password ? encryptText(password, key) : '';
 
+      const driveName = link.includes('quark.cn')
+        ? '夸克网盘'
+        : link.includes('baidu.com')
+          ? '百度网盘'
+          : link.includes('alipan.com') || link.includes('aliyundrive.com')
+            ? '阿里云盘'
+            : link.includes('123pan.com')
+              ? '123云盘'
+              : '资源网盘';
+
+      // 异步记录提取历史
+      extractLogService
+        .recordExtract({
+          userId,
+          resourceId: resource.id,
+          resourceTitle: resource.title,
+          resourceType: 'MIRROR',
+          sourceId: resource.sourceId,
+          driveName,
+          driveLink: link,
+          drivePassword: password || '',
+          thumbnailUrl: resource.thumbnailUrl || '',
+        })
+        .catch((err) => {
+          logger.warn('[Mirror] Failed to record extract log:', err?.message);
+        });
+
       return reply.send({
         encryptedLink,
         encryptedPassword,
         quota: quotaResult.info,
-        driveName: link.includes('quark.cn')
-          ? '夸克网盘'
-          : link.includes('baidu.com')
-            ? '百度网盘'
-            : link.includes('alipan.com') || link.includes('aliyundrive.com')
-              ? '阿里云盘'
-              : link.includes('123pan.com')
-                ? '123云盘'
-                : '资源网盘',
+        driveName,
       });
     },
   );
@@ -703,4 +727,24 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       return reply.send({ liked, count });
     },
   );
+
+  // GET /mirror/user-extract-logs —— 获取当前用户的网盘提取历史记录
+  app.get('/mirror/user-extract-logs', { ...auth }, async (request, reply) => {
+    const userId = request.userId!;
+    const query = request.query as { page?: string; pageSize?: string };
+    const page = query?.page ? parseInt(query.page, 10) || 1 : 1;
+    const pageSize = query?.pageSize ? parseInt(query.pageSize, 10) || 20 : 20;
+
+    const data = await extractLogService.getUserExtractLogs(userId, page, pageSize);
+    return reply.send(data);
+  });
+
+  // DELETE /mirror/user-extract-logs/:id —— 删除单条提取记录
+  app.delete('/mirror/user-extract-logs/:id', { ...auth }, async (request, reply) => {
+    const userId = request.userId!;
+    const { id } = request.params as { id: string };
+
+    const success = await extractLogService.deleteUserExtractLog(userId, id);
+    return reply.send({ success });
+  });
 };

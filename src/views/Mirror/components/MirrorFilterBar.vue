@@ -178,9 +178,14 @@ const hasActiveFilters = computed(() =>
 
 function handleTagFilter(tag: string) {
   const current = (props.searchQuery || '').trim();
-  if (current.includes(tag)) return;
-  const next = current ? `${current} ${tag}` : tag;
-  emit('update:searchQuery', next);
+  // 再次点击已激活的标签则取消检索
+  if (current === tag) {
+    emit('update:searchQuery', '');
+    emit('search');
+    return;
+  }
+  // 否则直接替换为当前点击的标签
+  emit('update:searchQuery', tag);
   emit('search');
 }
 </script>

@@ -47,7 +47,9 @@ async function ensureStationLoaded() {
     await mirrorStore.fetchStations();
   }
 
-  const targetIdentifier = ((route.params.slug || route.params.id) as string)?.trim().toLowerCase();
+  const slugParam = (route.params.slug as string)?.trim().toLowerCase();
+  const idParam = (route.params.id as string)?.trim().toLowerCase();
+  const targetIdentifier = slugParam || idParam;
   const currentHost = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
 
   let matchedStation = null;
@@ -79,8 +81,13 @@ async function ensureStationLoaded() {
     });
   }
 
+  if (!matchedStation) {
+    matchedStation =
+      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+  }
+
   if (matchedStation) {
-    mirrorStore.setCurrentStation(matchedStation);
+    mirrorStore.currentStation = matchedStation;
 
     // 智能路由规范化：优先保持专属短别名 /portal/:slug 路径
     let customSlug = '';
@@ -100,19 +107,14 @@ async function ensureStationLoaded() {
         return;
       }
     }
-  }
 
-  loadData();
+    loadData(matchedStation.id);
+  }
 }
 
-onMounted(ensureStationLoaded);
-
-watch(
-  () => [route.params.id, route.params.slug],
-  () => {
-    ensureStationLoaded();
-  },
-);
+onMounted(() => {
+  ensureStationLoaded();
+});
 </script>
 
 <template>

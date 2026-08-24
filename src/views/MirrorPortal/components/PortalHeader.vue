@@ -90,6 +90,10 @@ function getStationRoutePath(station: any) {
   return `/portal/mirror/${station.id}`;
 }
 
+const currentStationHomePath = computed(() => {
+  return getStationRoutePath(mirrorStore.currentStation);
+});
+
 function handleSelectStation(id: string) {
   isStationDropdownOpen.value = false;
   const target = mirrorStore.stations.find((s) => s.id === id);
@@ -135,7 +139,7 @@ onMounted(() => {
   >
     <!-- Brand / Title & Station Selector -->
     <div class="flex items-center gap-3 shrink-0">
-      <router-link to="/portal" class="flex items-center gap-3 group">
+      <router-link :to="currentStationHomePath" class="flex items-center gap-3 group">
         <div
           class="w-8.5 h-8.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-sm shadow-xs overflow-hidden border border-slate-200 dark:border-slate-800 transition-transform group-hover:scale-102"
         >

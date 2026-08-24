@@ -4,6 +4,38 @@ import { QueueService } from '../../services/queue.service';
 import type { Prisma } from '@prisma/client';
 
 export class MirrorService {
+  async resolveSourceId(sourceIdOrSlug: string): Promise<string> {
+    if (!sourceIdOrSlug) return '';
+    const trimmed = sourceIdOrSlug.trim();
+
+    // First try direct id
+    const directSource = await prisma.mirrorSource.findUnique({
+      where: { id: trimmed },
+      select: { id: true },
+    });
+    if (directSource) return directSource.id;
+
+    // Next try matching by name or customSlug in syncConfig
+    const sources = await prisma.mirrorSource.findMany({
+      select: { id: true, name: true, syncConfig: true },
+    });
+
+    const lower = trimmed.toLowerCase();
+    for (const s of sources) {
+      if (s.name.toLowerCase() === lower) return s.id;
+      if (s.syncConfig) {
+        try {
+          const parsed = JSON.parse(s.syncConfig);
+          if (parsed.proxyConfig?.customSlug?.trim().toLowerCase() === lower) {
+            return s.id;
+          }
+        } catch {}
+      }
+    }
+
+    return trimmed;
+  }
+
   async getUserPlanPriority(userId: string): Promise<number> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -12,22 +44,48 @@ export class MirrorService {
     return user?.subscription?.plan?.priority ?? 0;
   }
 
-  async getAccessibleSources(userId: string) {
-    const planPriority = await this.getUserPlanPriority(userId);
+  async getAccessibleSources(userId?: string) {
+    let planPriority = 0;
+    if (userId) {
+      planPriority = await this.getUserPlanPriority(userId);
+    }
 
     const sources = await prisma.mirrorSource.findMany({
       where: { status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
     });
 
-    return sources.map((s) => ({
-      ...s,
-      hasAccess: planPriority >= s.minPlanPriority,
-      minPlanPriority: s.minPlanPriority,
-    }));
+    return sources.map((s) => {
+      let safeSyncConfig: string | undefined = undefined;
+      if (s.syncConfig) {
+        try {
+          const parsed = JSON.parse(s.syncConfig);
+          if (parsed.proxyConfig) {
+            safeSyncConfig = JSON.stringify({
+              proxyConfig: {
+                proxyEnabled: Boolean(parsed.proxyConfig.proxyEnabled),
+                customSlug: parsed.proxyConfig.customSlug || '',
+                customDomain: parsed.proxyConfig.customDomain || '',
+                brandName: parsed.proxyConfig.brandName || '',
+                brandSubtitle: parsed.proxyConfig.brandSubtitle || '',
+                brandLogoUrl: parsed.proxyConfig.brandLogoUrl || '',
+              },
+            });
+          }
+        } catch {}
+      }
+
+      return {
+        ...s,
+        syncConfig: safeSyncConfig,
+        hasAccess: planPriority >= s.minPlanPriority,
+        minPlanPriority: s.minPlanPriority,
+      };
+    });
   }
 
-  async getSource(sourceId: string, userId?: string) {
+  async getSource(sourceIdOrSlug: string, userId?: string) {
+    const sourceId = await this.resolveSourceId(sourceIdOrSlug);
     const source = await prisma.mirrorSource.findUnique({
       where: { id: sourceId },
       include: {
@@ -42,14 +100,35 @@ export class MirrorService {
       planPriority = await this.getUserPlanPriority(userId);
     }
 
+    let safeSyncConfig: string | undefined = undefined;
+    if (source.syncConfig) {
+      try {
+        const parsed = JSON.parse(source.syncConfig);
+        if (parsed.proxyConfig) {
+          safeSyncConfig = JSON.stringify({
+            proxyConfig: {
+              proxyEnabled: Boolean(parsed.proxyConfig.proxyEnabled),
+              customSlug: parsed.proxyConfig.customSlug || '',
+              customDomain: parsed.proxyConfig.customDomain || '',
+              brandName: parsed.proxyConfig.brandName || '',
+              brandSubtitle: parsed.proxyConfig.brandSubtitle || '',
+              brandLogoUrl: parsed.proxyConfig.brandLogoUrl || '',
+            },
+          });
+        }
+      } catch {}
+    }
+
     return {
       ...source,
+      syncConfig: safeSyncConfig,
       hasAccess: planPriority >= source.minPlanPriority,
       minPlanPriority: source.minPlanPriority,
     };
   }
 
-  async getCategories(sourceId: string) {
+  async getCategories(sourceIdOrSlug: string) {
+    const sourceId = await this.resolveSourceId(sourceIdOrSlug);
     return prisma.mirrorCategory.findMany({
       where: { sourceId },
       orderBy: { order: 'asc' },
@@ -57,7 +136,7 @@ export class MirrorService {
   }
 
   async getResources(
-    sourceId: string,
+    sourceIdOrSlug: string,
     options: {
       page?: number;
       pageSize?: number;
@@ -66,6 +145,7 @@ export class MirrorService {
       sort?: string;
     },
   ) {
+    const sourceId = await this.resolveSourceId(sourceIdOrSlug);
     const { page = 1, pageSize = 20, categoryId, search, sort = 'newest' } = options;
 
     const where: Prisma.MirrorResourceWhereInput = { sourceId };

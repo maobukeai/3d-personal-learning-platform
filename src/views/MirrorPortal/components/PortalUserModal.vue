@@ -22,6 +22,7 @@ import { getPlanName } from '@/utils/plans';
 import { formatDate } from '@/utils/format';
 import { ElMessage } from '@/utils/feedbackBridge';
 import api from '@/utils/api';
+import PortalExtractHistory from './PortalExtractHistory.vue';
 
 const props = defineProps<{
   show: boolean;
@@ -34,7 +35,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore();
 
-const activeTab = ref<'profile' | 'billing'>('profile');
+const activeTab = ref<'profile' | 'extracts' | 'billing'>('profile');
 const transactions = ref<any[]>([]);
 const isLoadingHistory = ref(false);
 const extractQuota = ref<{
@@ -164,6 +165,18 @@ watch(
           @click="activeTab = 'profile'"
         >
           账号权益
+        </button>
+        <button
+          type="button"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+          :class="
+            activeTab === 'extracts'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+          "
+          @click="activeTab = 'extracts'"
+        >
+          提取历史
         </button>
         <button
           type="button"
@@ -338,8 +351,13 @@ watch(
         </div>
       </div>
 
+      <!-- Tab Content: Extract History -->
+      <div v-else-if="activeTab === 'extracts'">
+        <PortalExtractHistory @close-modal="emit('update:show', false)" />
+      </div>
+
       <!-- Tab Content: Billing Transactions -->
-      <div v-else class="space-y-3 py-1">
+      <div v-else-if="activeTab === 'billing'" class="space-y-3 py-1">
         <div v-if="isLoadingHistory" class="py-8 flex items-center justify-center">
           <Loader2 class="w-5 h-5 animate-spin text-blue-500" />
         </div>

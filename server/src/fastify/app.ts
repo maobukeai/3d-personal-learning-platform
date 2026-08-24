@@ -61,13 +61,21 @@ const startFastifyInternal = async (): Promise<void> => {
     '/api/auth/logout',
   ]);
 
-  // 全局 rateLimit 兜底限流保护（300次/分钟）
+  // 全局 rateLimit 兜底限流保护（600次/分钟）
   await fapp.register(rateLimit, {
-    max: 300,
+    max: 600,
     timeWindow: '1 minute',
     allowList: (request: FastifyRequest) => {
       const path = request.url.split('?')[0] ?? '';
-      return RATE_LIMIT_SKIP_PATHS.has(path);
+      if (RATE_LIMIT_SKIP_PATHS.has(path)) return true;
+      // 豁免镜像站与公开资产只读查询的高频并发
+      if (
+        request.method === 'GET' &&
+        (path.startsWith('/api/mirror/') || path.startsWith('/api/manual/'))
+      ) {
+        return true;
+      }
+      return false;
     },
     errorResponseBuilder: () => ({
       statusCode: 429,

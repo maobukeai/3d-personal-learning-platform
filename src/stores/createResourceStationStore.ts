@@ -137,10 +137,11 @@ export function createResourceStationStore<TStation, TCategory, TResource>(
         const res = await api.get(`${apiBaseUrl}/${entitiesPath}/${stationId}/resources`, {
           params,
         });
-        resources.value = res.data.resources;
-        totalResources.value = res.data.total;
-        totalPages.value = res.data.totalPages;
-        currentPage.value = res.data.page;
+        resources.value = res.data.resources || [];
+        totalResources.value = res.data.total || 0;
+        totalPages.value =
+          res.data.totalPages || Math.ceil((res.data.total || 0) / (params.pageSize || 20)) || 1;
+        currentPage.value = res.data.page || 1;
       } catch (e) {
         logError(e, {
           operation: 'resourceStation.fetchResources',

@@ -84,6 +84,27 @@ const router = createRouter({
         ]
       : []),
     {
+      path: '/portal',
+      component: () => import('@/layouts/MirrorPortalLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'MirrorPortalHome',
+          component: () => import('@/views/MirrorPortal/PortalStationView.vue'),
+        },
+        {
+          path: 'mirror/:id',
+          name: 'MirrorPortalStation',
+          component: () => import('@/views/MirrorPortal/PortalStationView.vue'),
+        },
+        {
+          path: 'resource/:id',
+          name: 'MirrorPortalResourceDetail',
+          component: () => import('@/views/MirrorPortal/PortalResourceDetailView.vue'),
+        },
+      ],
+    },
+    {
       path: '/',
       component: MainLayout,
       children: [
@@ -435,6 +456,19 @@ const router = createRouter({
 });
 
 router.beforeEach(async (to) => {
+  // Subdomain / Standalone portal auto-sensing (e.g. zy.domain.com or mirror.domain.com)
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    const isPortalDomain =
+      host.startsWith('zy.') ||
+      host.startsWith('mirror.') ||
+      host.startsWith('zycku.') ||
+      host.startsWith('proxy.');
+    if (isPortalDomain && (to.path === '/' || to.path === '/dashboard')) {
+      return { name: 'MirrorPortalHome' };
+    }
+  }
+
   const authStore = useAuthStore();
   const systemStore = useSystemStore();
   const isPublicShareRoute = to.path.startsWith('/share/');

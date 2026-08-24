@@ -1,0 +1,51 @@
+{
+  "mission_id": "mission_portal_mirror_standalone",
+  "timestamp": "2026-08-24T23:23:45.000Z",
+  "classification": "L2",
+  "status": "COMPLETE",
+  "target": "实现镜像站独立代理门户站（纯净布局、统一账号鉴权、会员信息与充值闭环、个人中心、域名感知与路由双模）",
+  "dispatched_agents": [
+    "architect-agent",
+    "frontend-agent",
+    "browser-qa-agent",
+    "test-agent",
+    "review-agent"
+  ],
+  "budget": {
+    "max_commands": 50,
+    "executed_commands": 12
+  },
+  "phases": [
+    {
+      "name": "Architecture & Route Planning",
+      "status": "COMPLETED"
+    },
+    {
+      "name": "Component & Modal Development",
+      "status": "COMPLETED"
+    },
+    {
+      "name": "Portal Layout & Detail Integration",
+      "status": "COMPLETED"
+    },
+    {
+      "name": "Domain Guard & Nginx Configuration",
+      "status": "COMPLETED"
+    },
+    {
+      "name": "Automated Testing & Build Verification",
+      "status": "COMPLETED"
+    },
+    {
+      "name": "DevTools Real Browser QA & Evidence Collection",
+      "status": "COMPLETED"
+    }
+  ],
+  "quality_gate": {
+    "decision": "PASS",
+    "unit_tests": "131/131 PASSED",
+    "build_status": "SUCCESS",
+    "devtools_console_errors": 0,
+    "evidence_captured": true
+  }
+}

@@ -870,4 +870,54 @@ cd /var/www/3d-lms
 ./fast_update.sh
 ```
 
-这就是推荐的节奏：本地保证代码质量，服务器一键拉取、构建、同步数据库并平滑重载。d
+这就是推荐的节奏：本地保证代码质量，服务器一键拉取、构建、同步数据库并平滑重载。
+
+---
+
+## 十二、独立镜像代理门户站（二级域名绑定与配置）
+
+如果您想为镜像站开辟专属二级域名（如 `zy.lilan8.cn` 或 `mirror.lilan8.cn`），使其访问直接进入纯净独立的资源门户，配置步骤如下：
+
+### 1. 域名 DNS 解析
+
+在阿里云、腾讯云或 Cloudflare 等域名管理平台，添加一条 **A 记录**：
+
+- 主机记录：`zy`（或 `mirror`）
+- 记录值：`您的服务器公网 IP`
+
+### 2. Nginx 配置（新建 `/etc/nginx/conf.d/mirror-portal.conf`）
+
+```nginx
+server {
+    listen 80;
+    server_name zy.lilan8.cn; # 替换为您自己的二级域名
+
+    root /var/www/3d-lms/dist;
+    index index.html;
+
+    # 开启 Gzip
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API 代理共享同一服务
+    location /api/ {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+### 3. 重载 Nginx
+
+```bash
+nginx -t && systemctl reload nginx
+```
+
+此时通过 `http://zy.lilan8.cn` 访问，系统将自动识别并展示纯净镜像门户站，共享同一账号体系、会员计费与网盘提取权限！

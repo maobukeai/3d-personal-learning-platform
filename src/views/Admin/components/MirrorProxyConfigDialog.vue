@@ -114,11 +114,43 @@ watch([subdomainPrefix, selectedZone, customZoneInput, isCustomZone], () => {
   }
 });
 
+function initFormFromSource(src: any) {
+  if (!src) return;
+  let cfg: any = {};
+  if (src.syncConfig) {
+    try {
+      const parsed =
+        typeof src.syncConfig === 'string' ? JSON.parse(src.syncConfig) : src.syncConfig;
+      cfg = parsed.proxyConfig || {};
+    } catch {}
+  }
+
+  form.value = {
+    proxyEnabled: Boolean(cfg.proxyEnabled),
+    customSlug: cfg.customSlug || '',
+    customDomain: cfg.customDomain || '',
+    brandName: cfg.brandName || src.displayName || '',
+    brandSubtitle: cfg.brandSubtitle || '',
+    brandLogoUrl: cfg.brandLogoUrl || src.iconUrl || '',
+    serverIp: cfg.serverIp || '',
+    cloudflareProxied: cfg.cloudflareProxied !== false,
+    cloudflareZoneId: cfg.cloudflareZoneId || '',
+    cloudflareDnsRecordId: cfg.cloudflareDnsRecordId || '',
+    lastDnsSyncAt: cfg.lastDnsSyncAt || '',
+  };
+
+  if (cfg.customDomain) {
+    const primaryDomain = cfg.customDomain.split(/[,，\s]+/)[0] || '';
+    subdomainPrefix.value = primaryDomain;
+  }
+}
+
 function handleSourceSwitch(sourceId: string) {
   currentSourceId.value = sourceId;
   const newSrc = props.sources?.find((s) => s.id === sourceId);
   if (newSrc) {
     emit('update:source', newSrc);
+    initFormFromSource(newSrc);
   }
   loadProxyConfig(sourceId);
 }
@@ -148,7 +180,6 @@ async function handleLogoUpload(event: Event) {
 async function loadProxyConfig(sourceIdToLoad?: string) {
   const targetId = sourceIdToLoad || currentSource.value?.id;
   if (!targetId) return;
-  isLoading.value = true;
   try {
     const res = await api.get(`/api/admin/mirror/sources/${targetId}/proxy-config`);
     const cfg = res.data?.proxyConfig || {};
@@ -159,23 +190,23 @@ async function loadProxyConfig(sourceIdToLoad?: string) {
       selectedZone.value = availableZones.value[0].name;
     }
 
-    form.value = {
-      proxyEnabled: Boolean(cfg.proxyEnabled),
-      customSlug: cfg.customSlug || '',
-      customDomain: cfg.customDomain || '',
-      brandName: cfg.brandName || currentSource.value?.displayName || '',
-      brandSubtitle: cfg.brandSubtitle || '',
-      brandLogoUrl: cfg.brandLogoUrl || currentSource.value?.iconUrl || '',
-      serverIp: cfg.serverIp || '',
-      cloudflareProxied: cfg.cloudflareProxied !== false,
-      cloudflareZoneId: cfg.cloudflareZoneId || '',
-      cloudflareDnsRecordId: cfg.cloudflareDnsRecordId || '',
-      lastDnsSyncAt: cfg.lastDnsSyncAt || '',
-    };
+    // 平滑同步云端字段
+    if (cfg.proxyEnabled !== undefined) form.value.proxyEnabled = Boolean(cfg.proxyEnabled);
+    if (cfg.customSlug !== undefined) form.value.customSlug = cfg.customSlug;
+    if (cfg.customDomain !== undefined) form.value.customDomain = cfg.customDomain;
+    if (cfg.brandName) form.value.brandName = cfg.brandName;
+    if (cfg.brandSubtitle !== undefined) form.value.brandSubtitle = cfg.brandSubtitle;
+    if (cfg.brandLogoUrl) form.value.brandLogoUrl = cfg.brandLogoUrl;
+    if (cfg.serverIp) form.value.serverIp = cfg.serverIp;
+    if (cfg.cloudflareProxied !== undefined)
+      form.value.cloudflareProxied = cfg.cloudflareProxied !== false;
+    if (cfg.cloudflareZoneId) form.value.cloudflareZoneId = cfg.cloudflareZoneId;
+    if (cfg.cloudflareDnsRecordId) form.value.cloudflareDnsRecordId = cfg.cloudflareDnsRecordId;
+    if (cfg.lastDnsSyncAt) form.value.lastDnsSyncAt = cfg.lastDnsSyncAt;
 
     // Extract prefix if domain exists
-    if (cfg.customDomain) {
-      const primaryDomain = cfg.customDomain.split(/[,，\s]+/)[0] || '';
+    if (form.value.customDomain) {
+      const primaryDomain = form.value.customDomain.split(/[,，\s]+/)[0] || '';
       const matchedZone = availableZones.value.find(
         (z) => primaryDomain === z.name || primaryDomain.endsWith('.' + z.name),
       );
@@ -186,13 +217,9 @@ async function loadProxyConfig(sourceIdToLoad?: string) {
       } else {
         subdomainPrefix.value = primaryDomain;
       }
-    } else {
-      subdomainPrefix.value = '';
     }
   } catch (error) {
     logError(error, { operation: 'admin.loadProxyConfig', component: 'MirrorProxyConfigDialog' });
-  } finally {
-    isLoading.value = false;
   }
 }
 
@@ -281,6 +308,11 @@ watch(
   ([show, sourceId]) => {
     if (show && sourceId) {
       currentSourceId.value = sourceId as string;
+      const targetSrc =
+        (props.sources && props.sources.find((s) => s.id === sourceId)) || props.source;
+      if (targetSrc) {
+        initFormFromSource(targetSrc);
+      }
       loadProxyConfig(sourceId as string);
     }
   },
@@ -295,12 +327,7 @@ watch(
     size="lg"
     @close="emit('update:show', false)"
   >
-    <div v-if="isLoading" class="flex flex-col items-center justify-center py-16">
-      <Loader2 class="w-8 h-8 animate-spin text-blue-500 mb-2" />
-      <span class="text-xs text-slate-400">正在加载代理站配置...</span>
-    </div>
-
-    <div v-else class="space-y-4">
+    <div class="space-y-4">
       <!-- 🌟 多镜像源站点即时切换栏 -->
       <div
         v-if="sources && sources.length > 1"

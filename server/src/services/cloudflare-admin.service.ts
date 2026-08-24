@@ -71,6 +71,9 @@ async function cloudflareRequest<T>(
 }
 
 class CloudflareAdminService {
+  private cachedZones: CloudflareZoneSummary[] | null = null;
+  private cachedZonesExpiresAt: number = 0;
+
   async getConfig(): Promise<CloudflareDomainConfig> {
     const rows = await prisma.systemSetting.findMany({
       where: { key: { in: [CONFIG_TOKEN_KEY, CONFIG_ACCOUNT_KEY] } },
@@ -85,6 +88,8 @@ class CloudflareAdminService {
   }
 
   async saveConfig(apiToken: string, accountId?: string | null): Promise<CloudflareDomainConfig> {
+    this.cachedZones = null;
+    this.cachedZonesExpiresAt = 0;
     const trimmedToken = apiToken.trim();
     if (trimmedToken) {
       await prisma.systemSetting.upsert({
@@ -106,6 +111,8 @@ class CloudflareAdminService {
   }
 
   async clearConfig(): Promise<void> {
+    this.cachedZones = null;
+    this.cachedZonesExpiresAt = 0;
     await prisma.systemSetting.deleteMany({
       where: { key: { in: [CONFIG_TOKEN_KEY, CONFIG_ACCOUNT_KEY] } },
     });
@@ -150,7 +157,11 @@ class CloudflareAdminService {
     return config.apiToken;
   }
 
-  async listZones(): Promise<CloudflareZoneSummary[]> {
+  async listZones(forceRefresh: boolean = false): Promise<CloudflareZoneSummary[]> {
+    if (!forceRefresh && this.cachedZones && Date.now() < this.cachedZonesExpiresAt) {
+      return this.cachedZones;
+    }
+
     const config = await this.getConfig();
     if (!config.apiToken) {
       throw new AppError(
@@ -209,6 +220,9 @@ class CloudflareAdminService {
       }
       page += 1;
     }
+
+    this.cachedZones = zones;
+    this.cachedZonesExpiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes cache
 
     return zones;
   }

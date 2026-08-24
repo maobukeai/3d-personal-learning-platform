@@ -2366,7 +2366,11 @@ export const getSourceProxyConfig = async (
   let availableZones: Array<{ id: string; name: string }> = [];
   if (cfConfig.hasToken) {
     try {
-      const rawZones = await cloudflareAdminService.listZones();
+      const fetchZonesPromise = cloudflareAdminService.listZones();
+      const timeoutPromise = new Promise<any[]>((_, reject) =>
+        setTimeout(() => reject(new Error('Cloudflare fetch timeout')), 2000),
+      );
+      const rawZones = (await Promise.race([fetchZonesPromise, timeoutPromise])) as any[];
       availableZones = rawZones.map((z) => ({ id: z.id, name: z.name }));
     } catch {}
   }

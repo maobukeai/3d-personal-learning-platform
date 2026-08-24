@@ -105,7 +105,7 @@ watch(
 <template>
   <div
     ref="scrollContainerRef"
-    class="portal-station-view h-full overflow-y-auto p-3 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide space-y-3"
+    class="portal-station-view h-full overflow-y-auto p-3.5 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide space-y-4"
   >
     <!-- 2-Row Optimized Compact Filter Bar -->
     <MirrorFilterBar
@@ -136,16 +136,16 @@ watch(
         <div
           v-for="n in 10"
           :key="n"
-          class="rounded-3xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 p-3.5 space-y-3 animate-pulse"
+          class="rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-3 animate-pulse"
         >
-          <div class="w-full aspect-[16/10] bg-slate-200 dark:bg-slate-700/60 rounded-2xl" />
-          <div class="h-4 bg-slate-200 dark:bg-slate-700/60 rounded-lg w-4/5" />
-          <div class="h-3 bg-slate-200 dark:bg-slate-700/60 rounded-lg w-1/2" />
+          <div class="w-full aspect-[16/10] bg-slate-200/70 dark:bg-slate-800 rounded-xl" />
+          <div class="h-4 bg-slate-200/70 dark:bg-slate-800 rounded-md w-4/5" />
+          <div class="h-3 bg-slate-200/70 dark:bg-slate-800 rounded-md w-1/2" />
           <div
-            class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-700/40"
+            class="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800"
           >
-            <div class="h-3 bg-slate-200 dark:bg-slate-700/60 rounded w-1/3" />
-            <div class="h-6 w-16 bg-slate-200 dark:bg-slate-700/60 rounded-xl" />
+            <div class="h-3 bg-slate-200/70 dark:bg-slate-800 rounded w-1/3" />
+            <div class="h-5 w-14 bg-slate-200/70 dark:bg-slate-800 rounded-md" />
           </div>
         </div>
       </div>
@@ -153,25 +153,25 @@ watch(
       <!-- Empty State -->
       <div
         v-else-if="mirrorStore.resources.length === 0"
-        class="flex flex-col items-center justify-center py-20 bg-white/40 dark:bg-slate-800/30 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700/60 p-6 text-center space-y-3"
+        class="flex flex-col items-center justify-center py-20 bg-white/50 dark:bg-slate-900/40 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-6 text-center space-y-3"
       >
         <div
-          class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center text-blue-500"
+          class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"
         >
-          <FolderOpen class="w-7 h-7" />
+          <FolderOpen class="w-6 h-6" />
         </div>
         <div>
-          <p class="text-sm font-bold text-slate-800 dark:text-slate-200">未找到符合条件的资源</p>
+          <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">暂无匹配的资源资产</p>
           <p v-if="mirrorStore.searchQuery" class="text-xs text-slate-400 mt-1">
-            当前搜索词：“{{ mirrorStore.searchQuery }}”
+            当前筛选关键词：“{{ mirrorStore.searchQuery }}”
           </p>
         </div>
         <button
           type="button"
-          class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+          class="px-4 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-semibold rounded-xl transition-all shadow-2xs cursor-pointer"
           @click="handleResetAll"
         >
-          清空搜索条件并重置
+          重置检索条件
         </button>
       </div>
 
@@ -206,21 +206,21 @@ watch(
       <!-- Pagination Bar -->
       <div
         v-if="mirrorStore.totalPages > 1 || mirrorStore.totalResources > 20"
-        class="flex flex-wrap items-center justify-between gap-3 mt-10 p-3.5 bg-white/70 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/50 backdrop-blur-xs shadow-xs"
+        class="flex flex-wrap items-center justify-between gap-3 mt-8 p-3 bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 backdrop-blur-md shadow-2xs"
       >
         <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <span>每页显示：</span>
+          <span>每页：</span>
           <div
-            class="flex items-center gap-1 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700"
+            class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60"
           >
             <button
               v-for="size in pageSizeOptions"
               :key="size"
               type="button"
-              class="px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer"
+              class="px-2 py-0.5 rounded-md font-medium text-xs transition-all cursor-pointer"
               :class="
                 pageSize === size
-                  ? 'bg-blue-600 text-white shadow-xs font-bold'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               "
               @click="handlePageSizeChange(size)"
@@ -234,16 +234,16 @@ watch(
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all cursor-pointer"
+            class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer"
             :disabled="mirrorStore.currentPage <= 1"
             @click="goToPage(mirrorStore.currentPage - 1)"
           >
             <ChevronLeft class="w-4 h-4" />
           </button>
 
-          <span class="text-xs md:text-sm font-semibold text-slate-600 dark:text-slate-300 px-2">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-1.5">
             第
-            <span class="text-blue-600 dark:text-blue-400 font-black">{{
+            <span class="text-slate-900 dark:text-white font-bold">{{
               mirrorStore.currentPage
             }}</span>
             / {{ mirrorStore.totalPages }} 页
@@ -254,7 +254,7 @@ watch(
 
           <button
             type="button"
-            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all cursor-pointer"
+            class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer"
             :disabled="mirrorStore.currentPage >= mirrorStore.totalPages"
             @click="goToPage(mirrorStore.currentPage + 1)"
           >
@@ -262,12 +262,12 @@ watch(
           </button>
         </div>
 
-        <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-700 pl-3">
-          <span class="text-xs text-slate-400">跳至</span>
+        <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-3">
+          <span class="text-xs text-slate-400">前往</span>
           <input
             v-model="jumpPageInput"
             type="text"
-            class="w-12 px-1.5 py-1 text-center text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            class="w-10 px-1.5 py-0.5 text-center text-xs rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
             @keyup.enter="handlePageJump"
           />
           <span class="text-xs text-slate-400">页</span>

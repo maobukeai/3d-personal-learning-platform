@@ -117,22 +117,22 @@ watch(
     <div class="space-y-4">
       <!-- User Summary Card -->
       <div
-        class="flex items-center gap-3.5 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-purple-500/5 to-transparent border border-blue-200/60 dark:border-blue-500/20"
+        class="flex items-center gap-3.5 p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
       >
         <div
-          class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-lg font-black shrink-0 shadow-md shadow-blue-500/20"
+          class="w-11 h-11 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center text-base font-bold shrink-0 shadow-2xs"
         >
           {{ (authStore.user?.name || authStore.user?.email || 'U').slice(0, 1).toUpperCase() }}
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <h3 class="font-bold text-slate-900 dark:text-white truncate text-base">
+            <h3 class="font-bold text-slate-900 dark:text-white truncate text-sm">
               {{ authStore.user?.name || '平台用户' }}
             </h3>
             <span
-              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-600 dark:text-amber-400"
+              class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200"
             >
-              {{ getPlanName(authStore.user?.subscription?.plan?.priority ?? 0) }} 会员
+              {{ getPlanName(authStore.user?.subscription?.plan?.priority ?? 0) }}
             </span>
           </div>
           <p class="text-xs text-slate-400 truncate mt-0.5">{{ authStore.user?.email }}</p>
@@ -140,7 +140,7 @@ watch(
 
         <button
           type="button"
-          class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
+          class="p-2 rounded-xl bg-white dark:bg-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer border border-slate-200/60 dark:border-slate-600/60"
           :title="isDark ? '切换浅色模式' : '切换深色模式'"
           @click="toggleTheme"
         >
@@ -151,15 +151,15 @@ watch(
 
       <!-- Navigation Tabs -->
       <div
-        class="flex items-center gap-2 border-b border-slate-200/80 dark:border-slate-700/60 pb-2"
+        class="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200/60 dark:border-slate-700/60"
       >
         <button
           type="button"
-          class="px-3 py-1 text-xs font-bold rounded-lg transition-all"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
           :class="
             activeTab === 'profile'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           "
           @click="activeTab = 'profile'"
         >
@@ -167,11 +167,11 @@ watch(
         </button>
         <button
           type="button"
-          class="px-3 py-1 text-xs font-bold rounded-lg transition-all"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
           :class="
             activeTab === 'billing'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-slate-600 dark:text-slate-400'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           "
           @click="activeTab = 'billing'"
         >
@@ -182,52 +182,52 @@ watch(
       <!-- Tab Content: Profile & Privileges -->
       <div v-if="activeTab === 'profile'" class="space-y-3 py-1">
         <div
-          class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5"
+          class="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5"
         >
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-500 dark:text-slate-400">会员有效期：</span>
-            <span class="font-bold text-slate-800 dark:text-slate-200">
+            <span class="font-semibold text-slate-800 dark:text-slate-200">
               {{
                 (authStore.user?.subscription as any)?.endDate
                   ? formatDate((authStore.user?.subscription as any).endDate)
-                  : '永久 / 免费期'
+                  : '标准免费计划'
               }}
             </span>
           </div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-500 dark:text-slate-400">积分余额：</span>
-            <span class="font-bold text-blue-600 dark:text-blue-400"
+            <span class="font-bold text-slate-900 dark:text-white"
               >{{ authStore.user?.points ?? 0 }} 积分</span
             >
           </div>
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-500 dark:text-slate-400">账号角色：</span>
-            <span class="font-semibold text-slate-700 dark:text-slate-300">{{
-              authStore.user?.role === 'ADMIN' ? '系统管理员' : '正式学员'
+            <span class="font-medium text-slate-700 dark:text-slate-300">{{
+              authStore.user?.role === 'ADMIN' ? '系统管理员' : '正式成员'
             }}</span>
           </div>
         </div>
 
         <!-- 每日网盘提取与获取配额 -->
         <div
-          class="p-3.5 rounded-xl bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-transparent border border-blue-200/70 dark:border-blue-500/30 space-y-2.5"
+          class="p-3.5 rounded-xl bg-white dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 space-y-2.5"
         >
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-1.5">
-              <HardDriveDownload class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+              <HardDriveDownload class="w-4 h-4 text-slate-500" />
+              <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">
                 每日网盘资源获取次数
               </span>
             </div>
             <span
               v-if="extractQuota?.isAdmin"
-              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400"
+              class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
             >
-              无限制 / 随心获取
+              无限制
             </span>
             <span
               v-else-if="extractQuota?.total === 50"
-              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-600 dark:text-amber-400"
+              class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400"
             >
               SVIP 专享 50 次/天
             </span>

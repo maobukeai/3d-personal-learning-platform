@@ -180,30 +180,33 @@ const handle2FAVerify = async () => {
     @close="handleClose"
   >
     <div class="flex flex-col items-center justify-center text-center mb-5">
-      <div class="logo-badge mb-3">
-        <Sparkles class="h-6 w-6 text-blue-500 animate-pulse" />
+      <div
+        class="w-10 h-10 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-sm shadow-xs mb-2.5"
+      >
+        <Lock v-if="authMode === 'login'" class="w-4.5 h-4.5" />
+        <UserIcon v-else class="w-4.5 h-4.5" />
       </div>
-      <h2 class="text-lg font-black text-slate-900 dark:text-white">
-        {{ authMode === 'login' ? '快捷登录' : '创建新账号' }}
+      <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">
+        {{ authMode === 'login' ? '登录到您的账号' : '创建新账号' }}
       </h2>
-      <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+      <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
         {{
           authMode === 'login'
-            ? '登录后解锁收藏、编辑、上传与每日网盘高速提取'
-            : '快速注册加入，享受会员专属权益与海量资源'
+            ? '访问全量资源资产与高速提取服务'
+            : '立即注册享受平台特权与每日高速提取额度'
         }}
       </p>
 
       <!-- Mode Switcher Tab -->
       <div
-        class="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl mt-4 w-full border border-slate-200 dark:border-slate-700"
+        class="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800/90 rounded-xl mt-3.5 w-full border border-slate-200/60 dark:border-slate-700/60"
       >
         <button
           type="button"
-          class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
           :class="
             authMode === 'login'
-              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           "
           @click="authMode = 'login'"
@@ -212,10 +215,10 @@ const handle2FAVerify = async () => {
         </button>
         <button
           type="button"
-          class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer"
+          class="flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer"
           :class="
             authMode === 'register'
-              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
+              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
           "
           @click="authMode = 'register'"
@@ -245,7 +248,7 @@ const handle2FAVerify = async () => {
         type="submit"
         variant="primary"
         size="md"
-        class="w-full flex justify-center items-center font-bold bg-blue-600 hover:bg-blue-700 text-white"
+        class="w-full flex justify-center items-center font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100"
         :loading="isLoading"
       >
         <span>确认验证</span>
@@ -256,7 +259,7 @@ const handle2FAVerify = async () => {
     <!-- Normal Login Form -->
     <form v-else-if="authMode === 'login'" class="space-y-3.5" @submit.prevent="handleLogin">
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">电子邮箱</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">电子邮箱</label>
         <Input
           v-model="loginForm.email"
           type="email"
@@ -267,7 +270,7 @@ const handle2FAVerify = async () => {
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">密码</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">密码</label>
         <Input
           v-model="loginForm.password"
           type="password"
@@ -281,7 +284,7 @@ const handle2FAVerify = async () => {
         type="submit"
         variant="primary"
         size="md"
-        class="w-full flex justify-center items-center font-bold bg-blue-600 hover:bg-blue-700 text-white"
+        class="w-full flex justify-center items-center font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 mt-2"
         :loading="isLoading"
       >
         <span>立即登录</span>
@@ -293,7 +296,7 @@ const handle2FAVerify = async () => {
           还没有账号？
           <button
             type="button"
-            class="text-blue-600 hover:text-blue-700 dark:text-blue-400 hover:underline font-bold cursor-pointer inline"
+            class="text-slate-900 dark:text-white hover:underline font-bold cursor-pointer inline ml-1"
             @click="authMode = 'register'"
           >
             立即快速注册
@@ -305,7 +308,7 @@ const handle2FAVerify = async () => {
     <!-- In-Place Register Form -->
     <form v-else class="space-y-3" @submit.prevent="handleRegister">
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">用户昵称</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">用户昵称</label>
         <Input
           v-model="registerForm.name"
           type="text"
@@ -316,7 +319,7 @@ const handle2FAVerify = async () => {
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">电子邮箱</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">电子邮箱</label>
         <Input
           v-model="registerForm.email"
           type="email"
@@ -327,7 +330,7 @@ const handle2FAVerify = async () => {
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">邮箱验证码</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">邮箱验证码</label>
         <div class="flex items-center gap-2">
           <Input
             v-model="registerForm.verificationCode"
@@ -339,7 +342,7 @@ const handle2FAVerify = async () => {
           />
           <button
             type="button"
-            class="h-9 px-3 text-xs font-bold rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-100 disabled:opacity-50 transition-colors whitespace-nowrap cursor-pointer shrink-0 flex items-center gap-1"
+            class="h-9 px-3 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200/80 disabled:opacity-40 transition-colors whitespace-nowrap cursor-pointer shrink-0 flex items-center gap-1"
             :disabled="isSendingCode || countdown > 0 || !registerForm.email"
             @click="handleSendVerificationCode"
           >
@@ -350,7 +353,7 @@ const handle2FAVerify = async () => {
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">设置密码</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">设置密码</label>
         <Input
           v-model="registerForm.password"
           type="password"
@@ -361,7 +364,7 @@ const handle2FAVerify = async () => {
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">确认密码</label>
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300">确认密码</label>
         <Input
           v-model="registerForm.confirmPassword"
           type="password"
@@ -375,7 +378,7 @@ const handle2FAVerify = async () => {
         type="submit"
         variant="primary"
         size="md"
-        class="w-full flex justify-center items-center font-bold bg-blue-600 hover:bg-blue-700 text-white mt-2"
+        class="w-full flex justify-center items-center font-bold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 mt-2"
         :loading="isLoading"
       >
         <span>立即注册并登录</span>

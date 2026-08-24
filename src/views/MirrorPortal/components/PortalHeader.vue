@@ -2,18 +2,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
-  Sparkles,
   Search,
   Crown,
-  User as UserIcon,
   ChevronDown,
-  LogOut,
   Moon,
   Sun,
-  ShieldCheck,
-  Zap,
-  Globe,
+  Layers,
   X,
+  SlidersHorizontal,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useMirrorStore } from '@/stores/mirror';
@@ -69,7 +65,7 @@ const currentStationName = computed(() => {
     if (cfg.proxyConfig?.brandName) return cfg.proxyConfig.brandName;
   } catch {}
   return (
-    mirrorStore.currentStation?.displayName || mirrorStore.currentStation?.name || '镜像资源站'
+    mirrorStore.currentStation?.displayName || mirrorStore.currentStation?.name || '数字资源中心'
   );
 });
 
@@ -80,7 +76,7 @@ const currentStationSubtitle = computed(() => {
       : {};
     if (cfg.proxyConfig?.brandSubtitle) return cfg.proxyConfig.brandSubtitle;
   } catch {}
-  return '高速海量数字资源库';
+  return '资源资产索引与分发中心';
 });
 
 function handleSelectStation(id: string) {
@@ -122,13 +118,13 @@ onMounted(() => {
 
 <template>
   <header
-    class="portal-header shrink-0 h-16 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between gap-3"
+    class="portal-header shrink-0 h-15 border-b border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between gap-4 transition-colors"
   >
     <!-- Brand / Title & Station Selector -->
     <div class="flex items-center gap-3 shrink-0">
-      <router-link to="/portal" class="flex items-center gap-3">
+      <router-link to="/portal" class="flex items-center gap-3 group">
         <div
-          class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 overflow-hidden border border-blue-500/30"
+          class="w-8.5 h-8.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-sm shadow-xs overflow-hidden border border-slate-200 dark:border-slate-800 transition-transform group-hover:scale-102"
         >
           <img
             v-if="currentStationLogo"
@@ -136,22 +132,19 @@ onMounted(() => {
             alt="Logo"
             class="w-full h-full object-cover"
           />
-          <Zap v-else class="w-5 h-5" />
+          <Layers v-else class="w-4.5 h-4.5" />
         </div>
         <div>
           <div class="flex items-center gap-2">
             <h1
-              class="font-black text-sm md:text-base text-slate-900 dark:text-white tracking-tight leading-none"
+              class="font-bold text-sm md:text-base text-slate-900 dark:text-slate-100 tracking-tight leading-none"
             >
               {{ currentStationName }}
             </h1>
-            <span
-              class="hidden lg:inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
-            >
-              专享代理站
-            </span>
           </div>
-          <p class="text-[11px] text-slate-400 font-medium mt-0.5 leading-none hidden sm:block">
+          <p
+            class="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5 leading-none hidden sm:block"
+          >
             {{ currentStationSubtitle }}
           </p>
         </div>
@@ -161,68 +154,70 @@ onMounted(() => {
       <div v-if="mirrorStore.stations.length > 1" class="relative ml-1 hidden md:block">
         <button
           type="button"
-          class="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors"
+          class="flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200/70 dark:hover:bg-slate-700/70 transition-colors cursor-pointer"
           @click="isStationDropdownOpen = !isStationDropdownOpen"
         >
-          <span>切换节点</span>
-          <ChevronDown class="w-3 h-3" />
+          <SlidersHorizontal class="w-3 h-3 text-slate-400" />
+          <span>切换资源库</span>
+          <ChevronDown class="w-3 h-3 text-slate-400" />
         </button>
 
         <div
           v-if="isStationDropdownOpen"
-          class="absolute left-0 mt-1.5 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-50 animate-in fade-in zoom-in-95"
+          class="absolute left-0 mt-2 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 z-50 animate-in fade-in zoom-in-95"
         >
           <button
             v-for="st in mirrorStore.stations"
             :key="st.id"
             type="button"
-            class="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center justify-between"
+            class="w-full text-left px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50 flex items-center justify-between transition-colors cursor-pointer"
             @click="handleSelectStation(st.id)"
           >
             <span>{{ st.displayName || st.name }}</span>
             <span
               v-if="st.id === mirrorStore.currentStation?.id"
-              class="w-1.5 h-1.5 rounded-full bg-blue-600"
+              class="w-1.5 h-1.5 rounded-full bg-slate-900 dark:bg-white"
             />
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Center: Top Placed Full-Featured Search Bar -->
-    <div class="flex-1 max-w-xl mx-2 md:mx-4 min-w-0">
+    <!-- Center: Refined Minimal Search Bar -->
+    <div class="flex-1 max-w-lg mx-2 md:mx-4 min-w-0">
       <div class="relative flex items-center group w-full">
         <Search
-          class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none"
+          class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-800 dark:group-focus-within:text-slate-200 transition-colors pointer-events-none"
         />
         <input
           :value="mirrorStore.searchQuery"
           type="text"
-          placeholder="搜索资源、课件、材质或模型 (按 Enter 搜索)..."
-          class="w-full h-9.5 pl-10 pr-9 text-xs md:text-sm rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-xs"
+          placeholder="搜索资源、模型、材质或插件 (Enter)..."
+          class="w-full h-9 pl-9.5 pr-8 text-xs rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-transparent focus:border-slate-300 dark:focus:border-slate-600 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:bg-white dark:focus:bg-slate-900 transition-all shadow-2xs"
           @input="mirrorStore.setSearchQuery(($event.target as HTMLInputElement).value)"
           @keyup.enter="handleTopSearch"
         />
         <button
           v-if="mirrorStore.searchQuery"
           type="button"
-          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
           @click="
             mirrorStore.setSearchQuery('');
             handleTopSearch();
           "
         >
-          <X class="w-3.5 h-3.5" />
+          <X class="w-3 h-3" />
         </button>
       </div>
     </div>
 
     <!-- Right: Auth, Membership, User -->
-    <div class="flex items-center gap-2.5 shrink-0">
+    <div class="flex items-center gap-2 shrink-0">
       <!-- Dark / Light mode toggle -->
       <button
         type="button"
-        class="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        class="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+        title="切换主题"
         @click="toggleTheme"
       >
         <Sun v-if="isDark" class="w-4 h-4 text-amber-400" />
@@ -234,17 +229,16 @@ onMounted(() => {
         <!-- Membership Badge / Upgrade Button -->
         <button
           type="button"
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold shadow-sm shadow-amber-500/20 active:scale-98 transition-all cursor-pointer"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold shadow-xs active:scale-98 transition-all cursor-pointer"
           @click="emit('open-billing')"
         >
-          <Crown class="w-3.5 h-3.5" />
-          <span class="hidden sm:inline">
+          <Crown class="w-3.5 h-3.5 text-amber-400 dark:text-amber-500" />
+          <span>
             {{ getPlanName(authStore.user?.subscription?.plan?.priority ?? 0) }}
           </span>
-          <span class="inline sm:hidden">VIP</span>
           <span
             v-if="!authStore.user?.subscription?.plan?.priority"
-            class="px-1.5 py-0.2 bg-white/20 rounded-full text-[10px]"
+            class="px-1.5 py-0.2 bg-white/20 dark:bg-black/10 rounded-md text-[10px]"
             >升级</span
           >
         </button>
@@ -252,16 +246,16 @@ onMounted(() => {
         <!-- User Profile Trigger -->
         <button
           type="button"
-          class="flex items-center gap-2 p-1 pl-2 pr-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700/60 transition-all cursor-pointer"
+          class="flex items-center gap-2 p-1 pl-2 pr-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700/80 border border-slate-200/60 dark:border-slate-700/60 transition-all cursor-pointer"
           @click="emit('open-user')"
         >
           <div
-            class="w-6 h-6 rounded-lg bg-blue-600 text-white font-bold text-xs flex items-center justify-center"
+            class="w-6 h-6 rounded-lg bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 font-bold text-xs flex items-center justify-center"
           >
             {{ (authStore.user?.name || authStore.user?.email || 'U').slice(0, 1).toUpperCase() }}
           </div>
           <span
-            class="text-xs font-bold text-slate-700 dark:text-slate-200 max-w-[90px] truncate hidden md:inline-block"
+            class="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[90px] truncate hidden md:inline-block"
           >
             {{ authStore.user?.name || '个人中心' }}
           </span>
@@ -272,7 +266,7 @@ onMounted(() => {
       <template v-else>
         <button
           type="button"
-          class="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold shadow-xs shadow-blue-500/20 transition-all cursor-pointer"
+          class="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white active:scale-98 text-white dark:text-slate-900 text-xs font-bold shadow-xs transition-all cursor-pointer"
           @click="emit('open-login')"
         >
           登录 / 注册

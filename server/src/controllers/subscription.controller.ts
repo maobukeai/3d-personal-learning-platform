@@ -615,3 +615,19 @@ export const checkSubscription = async (
     reply.status(500).send({ error: '检查订阅状态失败' });
   }
 };
+
+export const getExtractQuota = async (
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> => {
+  const userId = request.userId as string;
+  const userRole = request.userRole as string | undefined;
+  try {
+    const { extractQuotaService } = await import('../services/extract-quota.service');
+    const quotaInfo = await extractQuotaService.getDailyQuotaInfo(userId, userRole);
+    reply.send(quotaInfo);
+  } catch (error) {
+    logger.error('获取网盘提取每日配额失败:', error);
+    reply.status(500).send({ error: '获取网盘提取每日配额失败' });
+  }
+};

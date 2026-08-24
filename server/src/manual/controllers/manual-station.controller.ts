@@ -4,6 +4,7 @@ import prisma from '../../services/prisma';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
 import { UploadedFile } from '../../types/upload';
+import { extractQuotaService } from '../../services/extract-quota.service';
 
 type ManualRequest = FastifyRequest & {
   body: any;
@@ -316,7 +317,19 @@ export const extractDownloadLink = async (req: ManualRequest, reply: FastifyRepl
       return reply.status(404).send({ error: '此资源未配置下载链接' });
     }
 
-    reply.send({ downloadUrl: resource.contentUrl });
+    const quotaResult = await extractQuotaService.checkAndConsumeQuota(req.userId, req.userRole);
+    if (!quotaResult.success) {
+      return reply.status(403).send({
+        error: '提取配额不足',
+        message: quotaResult.error,
+        quota: quotaResult.info,
+      });
+    }
+
+    reply.send({
+      downloadUrl: resource.contentUrl,
+      quota: quotaResult.info,
+    });
   } catch (error) {
     reply.status(500).send({ error: error instanceof Error ? error.message : 'An error occurred' });
   }

@@ -11,6 +11,8 @@ import {
   ExternalLink,
   Loader2,
   Sparkles,
+  HardDriveDownload,
+  ShieldCheck,
 } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -35,6 +37,14 @@ const authStore = useAuthStore();
 const activeTab = ref<'profile' | 'billing'>('profile');
 const transactions = ref<any[]>([]);
 const isLoadingHistory = ref(false);
+const extractQuota = ref<{
+  total: number | 'UNLIMITED';
+  used: number;
+  remaining: number | 'UNLIMITED';
+  planName: string;
+  isAdmin: boolean;
+} | null>(null);
+const isLoadingQuota = ref(false);
 
 const isDark = ref(
   typeof document !== 'undefined'
@@ -52,6 +62,19 @@ function toggleTheme() {
       document.documentElement.classList.remove('dark');
       preferences.setTheme('glass-light');
     }
+  }
+}
+
+async function fetchExtractQuota() {
+  if (!authStore.isAuthenticated) return;
+  isLoadingQuota.value = true;
+  try {
+    const res = await api.get('/api/subscriptions/extract-quota');
+    extractQuota.value = res.data;
+  } catch {
+    extractQuota.value = null;
+  } finally {
+    isLoadingQuota.value = false;
   }
 }
 
@@ -77,10 +100,15 @@ function handleLogout() {
 watch(
   () => [props.show, activeTab.value],
   ([show, tab]) => {
-    if (show && tab === 'billing') {
-      fetchUserTransactions();
+    if (show) {
+      if (tab === 'profile') {
+        fetchExtractQuota();
+      } else if (tab === 'billing') {
+        fetchUserTransactions();
+      }
     }
   },
+  { immediate: true },
 );
 </script>
 
@@ -177,6 +205,114 @@ watch(
             <span class="font-semibold text-slate-700 dark:text-slate-300">{{
               authStore.user?.role === 'ADMIN' ? '系统管理员' : '正式学员'
             }}</span>
+          </div>
+        </div>
+
+        <!-- 每日网盘提取与获取配额 -->
+        <div
+          class="p-3.5 rounded-xl bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-transparent border border-blue-200/70 dark:border-blue-500/30 space-y-2.5"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5">
+              <HardDriveDownload class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                每日网盘资源获取次数
+              </span>
+            </div>
+            <span
+              v-if="extractQuota?.isAdmin"
+              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400"
+            >
+              无限制 / 随心获取
+            </span>
+            <span
+              v-else-if="extractQuota?.total === 50"
+              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/15 text-amber-600 dark:text-amber-400"
+            >
+              SVIP 专享 50 次/天
+            </span>
+            <span
+              v-else-if="extractQuota?.total === 30"
+              class="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-500/15 text-purple-600 dark:text-purple-400"
+            >
+              VIP 专享 30 次/天
+            </span>
+            <span
+              v-else
+              class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+            >
+              免费 0 次/天
+            </span>
+          </div>
+
+          <div class="flex items-baseline justify-between text-xs pt-0.5">
+            <span class="text-slate-500 dark:text-slate-400">今日提取进度：</span>
+            <div class="font-bold text-slate-800 dark:text-slate-200">
+              <template v-if="extractQuota?.isAdmin">
+                <span class="text-blue-600 dark:text-blue-400 font-black text-sm">{{
+                  extractQuota?.used ?? 0
+                }}</span>
+                <span class="text-slate-400">
+                  / 无限次 (已用 {{ extractQuota?.used ?? 0 }} 次)</span
+                >
+              </template>
+              <template
+                v-else-if="typeof extractQuota?.total === 'number' && extractQuota.total > 0"
+              >
+                <span class="text-blue-600 dark:text-blue-400 font-black text-sm">{{
+                  extractQuota?.used ?? 0
+                }}</span>
+                <span class="text-slate-400"> / {{ extractQuota.total }} 次</span>
+                <span class="text-emerald-600 dark:text-emerald-400 text-[11px] ml-1.5 font-bold">
+                  (剩余 {{ extractQuota.remaining }} 次)
+                </span>
+              </template>
+              <template v-else>
+                <span class="text-slate-400">0 / 0 次</span>
+                <span class="text-amber-600 dark:text-amber-400 text-[11px] ml-1.5 font-semibold">
+                  (需升级 VIP 每日享 30~50 次)
+                </span>
+              </template>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div
+            v-if="
+              !extractQuota?.isAdmin &&
+              typeof extractQuota?.total === 'number' &&
+              extractQuota.total > 0
+            "
+            class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden"
+          >
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              :class="
+                extractQuota.used / extractQuota.total >= 1
+                  ? 'bg-rose-500'
+                  : extractQuota.used / extractQuota.total >= 0.8
+                    ? 'bg-amber-500'
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+              "
+              :style="{
+                width: `${Math.min(100, Math.round((extractQuota.used / extractQuota.total) * 100))}%`,
+              }"
+            />
+          </div>
+          <div class="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+            <span>每日 00:00 自动刷新配额</span>
+            <span
+              v-if="
+                !extractQuota?.isAdmin &&
+                typeof extractQuota?.remaining === 'number' &&
+                extractQuota.remaining <= 5 &&
+                typeof extractQuota?.total === 'number' &&
+                extractQuota.total > 0
+              "
+              class="text-amber-500 font-bold"
+            >
+              今日额度即将用尽
+            </span>
           </div>
         </div>
 

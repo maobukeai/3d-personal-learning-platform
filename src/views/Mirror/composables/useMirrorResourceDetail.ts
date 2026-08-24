@@ -163,7 +163,20 @@ export function useMirrorResourceDetail() {
         type: link.type || 'baidu',
       };
       showLinkDialog.value = true;
-      ElMessage.success('身份核验通过，已解密网盘链接！');
+      if (res.data?.quota) {
+        const q = res.data.quota;
+        if (q.isAdmin) {
+          ElMessage.success('身份核验通过，已安全提取网盘链接（管理员无限次）！');
+        } else if (typeof q.remaining === 'number') {
+          ElMessage.success(
+            `提取成功！今日剩余获取次数：${q.remaining} 次（总共 ${q.total} 次/天）`,
+          );
+        } else {
+          ElMessage.success('身份核验通过，已解密网盘链接！');
+        }
+      } else {
+        ElMessage.success('身份核验通过，已解密网盘链接！');
+      }
     } catch (e) {
       ElMessage.error(getApiErrorMessage(e, '提取失败'));
     } finally {

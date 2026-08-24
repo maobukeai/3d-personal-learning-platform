@@ -7,6 +7,7 @@ import { encryptText } from '../../utils/crypto';
 import { clampLimit, clampPage } from '../../utils/pagination';
 import { config } from '../../config/env';
 import { logger } from '../../utils/logger';
+import { extractQuotaService } from '../../services/extract-quota.service';
 import {
   fastifyAuthenticate,
   fastifyOptionalAuthenticate,
@@ -529,6 +530,17 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
         return reply.status(404).send({ error: '该资源暂未配置下载提取链接' });
       }
 
+      const userId = (request as any).userId;
+      const userRole = (request as any).userRole;
+      const quotaResult = await extractQuotaService.checkAndConsumeQuota(userId, userRole);
+      if (!quotaResult.success) {
+        return reply.status(403).send({
+          error: '提取配额不足',
+          message: quotaResult.error,
+          quota: quotaResult.info,
+        });
+      }
+
       const envKey = process.env.EXTRACT_ENCRYPTION_KEY;
       if (!envKey && process.env.NODE_ENV === 'production') {
         logger.warn(
@@ -542,6 +554,7 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       return reply.send({
         encryptedLink,
         encryptedPassword,
+        quota: quotaResult.info,
         driveName: link.includes('quark.cn')
           ? '夸克网盘'
           : link.includes('baidu.com')

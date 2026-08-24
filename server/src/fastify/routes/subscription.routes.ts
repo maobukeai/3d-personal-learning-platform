@@ -87,5 +87,7 @@ export const registerSubscriptionRoutes = (app: FastifyInstance): void => {
 
   app.get('/subscriptions/limits', { ...auth }, subscriptionController.getSubscriptionLimits);
 
+  app.get('/subscriptions/extract-quota', { ...auth }, subscriptionController.getExtractQuota);
+
   app.get('/subscriptions/check', { ...auth }, subscriptionController.checkSubscription);
 };

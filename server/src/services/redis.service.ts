@@ -154,6 +154,32 @@ class RedisService {
     this.localCache.delete(key);
   }
 
+  async incr(key: string, ttlSeconds: number = 86400 * 2): Promise<number> {
+    if (this.isRedisEnabled && this.redisClient) {
+      try {
+        const val = await this.redisClient.incr(key);
+        if (val === 1 && ttlSeconds > 0) {
+          await this.redisClient.expire(key, ttlSeconds);
+        }
+        return val;
+      } catch (err) {
+        logger.error(`Redis INCR error for key ${key}:`, err);
+      }
+    }
+
+    // Local fallback
+    const cached = this.localCache.get(key);
+    let val = 0;
+    if (cached && Date.now() < cached.expiresAt) {
+      val =
+        typeof cached.value === 'number' ? cached.value : parseInt(String(cached.value), 10) || 0;
+    }
+    val += 1;
+    const expiresAt = Date.now() + ttlSeconds * 1000;
+    this.localCache.set(key, { value: val, expiresAt });
+    return val;
+  }
+
   /**
    * Acquire a distributed lock using the Redlock algorithm.
    *

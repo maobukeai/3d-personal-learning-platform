@@ -15,6 +15,7 @@ import {
   LayoutGrid,
   Aperture,
   Square,
+  Columns,
 } from 'lucide-vue-next';
 import {
   preferences,
@@ -23,6 +24,7 @@ import {
   type ThemeBackgroundPreference,
   type AccentColorModePreference,
   type AccentColorIntervalPreference,
+  type SidebarMode,
 } from '@/utils/preferences';
 import { useLabel } from '@/utils/i18n';
 import { applyAccentColorToDocument, applyThemeToDocument } from '@/composables/useAppearance';
@@ -35,6 +37,7 @@ const currentBackground = ref<ThemeBackgroundPreference>(preferences.getBackgrou
 const currentAccent = ref(preferences.getAccentColor());
 const activeAccentColor = ref(currentAccent.value);
 const currentLanguage = ref<LocalePreference>(preferences.getLanguage());
+const currentSidebarMode = ref<SidebarMode>(preferences.getSidebarMode());
 
 const currentAccentMode = ref<AccentColorModePreference>(preferences.getAccentColorMode());
 const currentAccentInterval = ref<AccentColorIntervalPreference>(
@@ -140,6 +143,51 @@ const backgroundOptions = computed<
   },
 ]);
 
+const layoutOptions = computed<
+  Array<{
+    id: SidebarMode;
+    label: string;
+    description: string;
+    tag: string;
+    styleTag: string;
+    icon: Component;
+  }>
+>(() => [
+  {
+    id: 'classic',
+    label: label('经典折叠侧栏', 'Classic Collapsible'),
+    description: label(
+      '保留原版双态交互（顶部按钮一键折叠为微轨/展开为侧栏，支持拖拽调宽），彻底优化代码架构与单列无框排版。',
+      'Original dual-mode collapsible sidebar (toggle rail/panel, resizable), fully refactored with clean modern UI.',
+    ),
+    tag: label('原版优化', 'Original Opt'),
+    styleTag: label('原版经典双态交互', 'Classic Dual-Mode'),
+    icon: Columns,
+  },
+  {
+    id: 'top',
+    label: label('全景顶栏模式', 'Top Navigation Only'),
+    description: label(
+      '桌面端完全移除左侧全局主栏，全站导航收纳至顶栏，邮件/任务等工具独占侧栏，获得最大横向操作空间。',
+      'Single workspace, navigation in topbar, GitHub & Vercel style without left main sidebar.',
+    ),
+    tag: label('全屏沉浸', 'Spacious'),
+    styleTag: label('GitHub / Vercel 风格', 'GitHub / Vercel Style'),
+    icon: SunMoon,
+  },
+  {
+    id: 'rail',
+    label: label('极简常驻微轨', 'Mini Icon Rail Only'),
+    description: label(
+      '左侧始终保持 56px 极简微图标轨，不占桌面横向空间，工具页面深度沉浸。',
+      '56px permanent floating icon rail, auto-immersive tools, Linear & Slack style.',
+    ),
+    tag: label('极简悬浮', 'Minimal Rail'),
+    styleTag: label('Linear / Slack 风格', 'Linear / Slack Style'),
+    icon: LayoutGrid,
+  },
+]);
+
 const snapshot = computed(() =>
   JSON.stringify({
     theme: currentTheme.value,
@@ -148,6 +196,7 @@ const snapshot = computed(() =>
     language: currentLanguage.value,
     accentMode: currentAccentMode.value,
     accentInterval: currentAccentInterval.value,
+    sidebarMode: currentSidebarMode.value,
   }),
 );
 
@@ -264,6 +313,7 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   const accentInterval = settings.appearanceAccentInterval as
     | AccentColorIntervalPreference
     | undefined;
+  const sidebarMode = settings.layoutSidebarMode as SidebarMode | undefined;
   const hasValidBackground =
     background === 'grid' ||
     background === 'aurora' ||
@@ -277,6 +327,9 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   }
   if (language === 'zh-CN' || language === 'en-US') {
     applyLanguage(language);
+  }
+  if (sidebarMode === 'rail' || sidebarMode === 'top' || sidebarMode === 'expanded') {
+    applySidebarMode(sidebarMode);
   }
 
   if (accent && /^#[0-9a-f]{6}$/i.test(accent)) {
@@ -323,6 +376,13 @@ const applyLoadedSettings = (settings: Record<string, string>) => {
   );
 };
 
+const applySidebarMode = (mode: SidebarMode) => {
+  currentSidebarMode.value = mode;
+  preferences.setSidebarMode(mode);
+  window.dispatchEvent(new Event('storage'));
+  window.dispatchEvent(new CustomEvent('sidebar-mode-changed', { detail: { mode } }));
+};
+
 const loadCloudSettings = async () => {
   try {
     isLoadingCloud.value = true;
@@ -352,9 +412,10 @@ const saveAppearance = async () => {
       { key: 'appearanceLanguage', value: currentLanguage.value },
       { key: 'appearanceAccentMode', value: currentAccentMode.value },
       { key: 'appearanceAccentInterval', value: currentAccentInterval.value },
+      { key: 'layoutSidebarMode', value: currentSidebarMode.value },
     ]);
     savedSnapshot.value = snapshot.value;
-    ElMessage.success(label('外观设置已同步', 'Appearance settings synced'));
+    ElMessage.success(label('外观与布局设置已同步', 'Appearance & layout settings synced'));
   } catch {
     ElMessage.error(label('同步外观设置失败', 'Failed to sync appearance settings'));
   } finally {
@@ -369,6 +430,7 @@ const resetLocal = () => {
   applyAccentMode('static');
   applyAccentInterval('1m');
   applyLanguage('zh-CN');
+  applySidebarMode('classic');
 };
 
 const handleAccentColorApplied = (e: Event) => {
@@ -420,6 +482,77 @@ onUnmounted(() => {
         >
           {{ label('保存到云端', 'Save to Cloud') }}
         </Button>
+      </div>
+    </section>
+
+    <!-- 导航布局方案 (3套方案切换) -->
+    <section class="theme-panel layout-panel p-4">
+      <div class="panel-title mobile-row mb-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <LayoutGrid class="w-4 h-4 text-[var(--accent)]" />
+          <span class="text-xs font-bold text-[var(--text-primary)]">{{
+            label('导航布局方案', 'Navigation Layout Style')
+          }}</span>
+        </div>
+        <strong class="truncate text-xs text-[var(--accent)] font-semibold">{{
+          layoutOptions.find((item) => item.id === currentSidebarMode)?.label
+        }}</strong>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <button
+          v-for="layout in layoutOptions"
+          :key="layout.id"
+          type="button"
+          class="relative flex flex-col text-left p-3.5 rounded-xl border transition-all duration-200 cursor-pointer overflow-hidden group"
+          :class="[
+            currentSidebarMode === layout.id
+              ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-sm shadow-[var(--accent)]/10'
+              : 'border-[var(--border-base)] bg-[var(--bg-card)] hover:border-[var(--border-hover)] hover:bg-[var(--bg-hover)]/30',
+          ]"
+          @click="applySidebarMode(layout.id)"
+        >
+          <div class="flex items-center justify-between w-full mb-2">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
+                :class="[
+                  currentSidebarMode === layout.id
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--bg-hover)] text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]',
+                ]"
+              >
+                <component :is="layout.icon" class="w-3.5 h-3.5" />
+              </div>
+              <strong class="text-xs font-semibold text-[var(--text-primary)]">{{
+                layout.label
+              }}</strong>
+            </div>
+            <span
+              class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+              :class="[
+                currentSidebarMode === layout.id
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--bg-hover)] text-[var(--text-muted)]',
+              ]"
+            >
+              {{ layout.tag }}
+            </span>
+          </div>
+          <p class="text-[11px] text-[var(--text-secondary)] leading-relaxed mt-1 flex-1">
+            {{ layout.description }}
+          </p>
+          <div
+            class="flex items-center justify-between pt-2.5 mt-2.5 border-t border-[var(--border-base)]/40 w-full text-[10.5px]"
+          >
+            <span class="text-[var(--text-muted)]">
+              {{ layout.styleTag }}
+            </span>
+            <CheckCircle2
+              v-if="currentSidebarMode === layout.id"
+              class="w-3.5 h-3.5 text-[var(--accent)]"
+            />
+          </div>
+        </button>
       </div>
     </section>
 

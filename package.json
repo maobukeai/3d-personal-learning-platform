@@ -21,7 +21,9 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "audit:mobile": "node scripts/mobile-quality-audit.mjs",
+    "audit:mobile:render": "node scripts/mobile-render-check.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

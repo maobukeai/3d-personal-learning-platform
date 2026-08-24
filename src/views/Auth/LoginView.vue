@@ -275,7 +275,7 @@ const handle2FAVerify = async () => {
                 </label>
                 <RouterLink
                   to="/forgot-password"
-                  class="text-xs font-bold text-accent hover:text-accent-hover transition-colors"
+                  class="text-xs font-bold text-accent hover:text-accent-hover transition-colors inline-flex items-center py-1.5 min-h-[28px]"
                 >
                   {{ label('忘记密码？', 'Forgot password?') }}
                 </RouterLink>
@@ -315,7 +315,7 @@ const handle2FAVerify = async () => {
             {{ label('还没有账号？', 'No account yet?') }}
             <RouterLink
               to="/register"
-              class="font-bold text-accent hover:text-accent-hover transition-colors ml-1"
+              class="font-bold text-accent hover:text-accent-hover transition-colors ml-1 inline-flex items-center py-1.5 min-h-[28px]"
               >{{ label('立即免费注册', 'Create one') }}</RouterLink
             >
           </p>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useSlots, provide, ref } from 'vue';
+import { computed, useAttrs, useSlots, provide, ref } from 'vue';
 import {
   SelectRoot,
   SelectTrigger,
@@ -170,6 +170,11 @@ const selectedLabels = computed(() => {
 });
 const hasDefaultSlot = computed(() => !!slots.default);
 
+// SelectRoot is renderless, so inline style/width on <Select> never reaches
+// the DOM — forward it to the trigger explicitly (class already forwarded).
+const attrs = useAttrs();
+const triggerStyle = computed(() => attrs.style);
+
 const singleSelectedLabel = computed(() => {
   if (props.multiple) return '';
   if (props.modelValue === undefined || props.modelValue === null || props.modelValue === '')
@@ -188,6 +193,7 @@ const singleSelectedLabel = computed(() => {
       aria-haspopup="listbox"
       class="select-trigger inline-flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-white/10 dark:bg-black/20 backdrop-blur-md text-[var(--text-primary)] hover:bg-white/20 dark:hover:bg-black/30 transition-all outline-none focus:border-[var(--accent)] cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 w-full"
       :class="[sizeClasses, props.class]"
+      :style="triggerStyle"
     >
       <span class="truncate text-left flex-1 min-w-0 pr-2">
         <template v-if="singleSelectedLabel">{{ singleSelectedLabel }}</template>

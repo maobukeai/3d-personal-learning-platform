@@ -28,8 +28,12 @@ export function useSpriteDraggable(
   const clampSpritePosition = () => {
     if (spriteX.value !== null && spriteY.value !== null) {
       const buttonSize = 62;
+      const bottomPadding = isMobile.value ? 76 : 10;
       spriteX.value = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, spriteX.value));
-      spriteY.value = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, spriteY.value));
+      spriteY.value = Math.max(
+        10,
+        Math.min(window.innerHeight - buttonSize - bottomPadding, spriteY.value),
+      );
     }
   };
 
@@ -95,8 +99,9 @@ export function useSpriteDraggable(
     let newX = spriteDragInitialX + deltaX;
     let newY = spriteDragInitialY + deltaY;
     const buttonSize = 62;
+    const bottomPadding = isMobile.value ? 76 : 10;
     newX = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, newX));
-    newY = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, newY));
+    newY = Math.max(10, Math.min(window.innerHeight - buttonSize - bottomPadding, newY));
 
     spriteX.value = newX;
     spriteY.value = newY;
@@ -146,8 +151,9 @@ export function useSpriteDraggable(
     let newX = spriteDragInitialX + deltaX;
     let newY = spriteDragInitialY + deltaY;
     const buttonSize = 62;
+    const bottomPadding = isMobile.value ? 76 : 10;
     newX = Math.max(10, Math.min(window.innerWidth - buttonSize - 10, newX));
-    newY = Math.max(10, Math.min(window.innerHeight - buttonSize - 10, newY));
+    newY = Math.max(10, Math.min(window.innerHeight - buttonSize - bottomPadding, newY));
 
     spriteX.value = newX;
     spriteY.value = newY;

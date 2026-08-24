@@ -112,7 +112,7 @@ const isSuccessStatus = (label: string): boolean => {
     >
       <!-- Left: Title & Minimalist Inline Indicators -->
       <div class="flex items-center gap-2.5 min-w-0 w-full justify-start z-10">
-        <div class="flex items-center gap-1.5 shrink-0">
+        <div class="flex flex-wrap items-center gap-1.5 min-w-0">
           <span v-if="subtitle" class="text-[11px] font-medium text-[var(--text-muted)]">{{
             subtitle
           }}</span>
@@ -165,7 +165,7 @@ const isSuccessStatus = (label: string): boolean => {
 
       <!-- Center: Absolutely Centered Search Input Box on Desktop -->
       <div v-if="showSearch" class="w-full lg:w-64 max-w-sm flex items-center justify-center z-10">
-        <label class="search-box !min-h-0 !h-7.5 w-full text-xs">
+        <label class="search-box !min-h-0 !h-9 w-full text-xs">
           <Search class="!w-3.5 !h-3.5" />
           <input v-model="searchQuery" type="search" :placeholder="placeholder" class="text-xs" />
         </label>
@@ -173,7 +173,7 @@ const isSuccessStatus = (label: string): boolean => {
       <div v-else class="hidden lg:block"></div>
 
       <!-- Right: Compact Action Buttons -->
-      <div class="flex items-center gap-1.5 shrink-0 lg:w-full justify-end z-10">
+      <div class="flex flex-wrap items-center justify-end gap-1.5 lg:w-full z-10 min-w-0">
         <slot />
       </div>
     </div>

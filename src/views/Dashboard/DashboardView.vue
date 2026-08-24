@@ -400,7 +400,7 @@ onUnmounted(() => {
       :subtitle="`${currentDateLabel} · ${lastUpdatedText}`"
       :icon="Gauge"
     >
-      <div class="shrink-0 w-36">
+      <div class="shrink-0 w-28 sm:w-36">
         <CustomDatePicker
           v-model="selectedDateString"
           placeholder="选择日期"
@@ -413,7 +413,7 @@ onUnmounted(() => {
         aria-label="刷新"
         variant="secondary"
         size="md"
-        class="w-9.5 p-0"
+        class="w-9 sm:w-9.5 p-0 shrink-0"
         :icon="RefreshCw"
         @click="refreshAll"
       />
@@ -422,20 +422,20 @@ onUnmounted(() => {
         variant="primary"
         size="md"
         :icon="Brain"
-        class="flex-1 min-w-[140px] md:flex-initial"
+        class="flex-1 min-w-0 sm:min-w-[120px] md:flex-initial px-2.5 sm:px-4"
         @click="openImportDialog('ai_assistant')"
       >
-        AI 规划
+        <span class="truncate">AI 规划</span>
       </Button>
       <Button
         v-if="canCreateProject"
         variant="secondary"
         size="md"
         :icon="FileText"
-        class="flex-1 min-w-[140px] md:flex-initial"
+        class="flex-1 min-w-0 sm:min-w-[120px] md:flex-initial px-2.5 sm:px-4"
         @click="openImportDialog('traditional')"
       >
-        文本导入
+        <span class="truncate">文本导入</span>
       </Button>
     </PageHeader>
 

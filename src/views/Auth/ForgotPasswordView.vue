@@ -287,7 +287,7 @@ const handleResetWith2FA = async () => {
           <div class="mt-6 pt-5 border-t border-white/10 dark:border-white/5 w-full">
             <RouterLink
               to="/login"
-              class="flex items-center justify-center gap-2 text-sm font-bold text-[var(--text-secondary)] hover:text-accent-hover transition-colors group"
+              class="flex items-center justify-center gap-2 text-sm font-bold text-[var(--text-secondary)] hover:text-accent-hover transition-colors group min-h-9"
             >
               <ArrowLeft class="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
               {{ label('返回登录页面', 'Back to Login') }}
@@ -298,9 +298,11 @@ const handleResetWith2FA = async () => {
 
       <p class="text-center mt-6 text-xs text-[var(--text-secondary)]">
         {{ label('需要更多帮助？', 'Need more help?') }}
-        <a href="#" class="text-accent hover:text-accent-hover font-bold ml-1 transition-colors">{{
-          label('联系技术支持', 'Contact support')
-        }}</a>
+        <a
+          href="#"
+          class="text-accent hover:text-accent-hover font-bold ml-1 transition-colors inline-flex items-center py-1.5 min-h-[28px]"
+          >{{ label('联系技术支持', 'Contact support') }}</a
+        >
       </p>
     </div>
   </div>

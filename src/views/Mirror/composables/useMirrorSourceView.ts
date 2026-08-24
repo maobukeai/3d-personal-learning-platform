@@ -1,0 +1,266 @@
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useMirrorStore, type MirrorResource } from '@/stores/mirror';
+import { useAuthStore } from '@/stores/auth';
+import { useScrollRestoration } from '@/composables/useScrollRestoration';
+import type { ViewModeType } from '../components/MirrorFilterBar.vue';
+
+export function useMirrorSourceView() {
+  const route = useRoute();
+  const router = useRouter();
+  const mirrorStore = useMirrorStore();
+  const authStore = useAuthStore();
+
+  const scrollContainerRef = ref<HTMLElement | null>(null);
+  const sourceId = computed(() => route.params.id as string);
+  const viewMode = ref<ViewModeType>(
+    (localStorage.getItem('mirror_view_mode') as ViewModeType) || 'grid-comfortable',
+  );
+  const selectedPreviewResource = ref<MirrorResource | null>(null);
+  const isDrawerOpen = ref(false);
+  const jumpPageInput = ref('1');
+  const pageSize = ref(20);
+  const pageSizeOptions = [20, 40, 60];
+
+  const { saveScroll, restoreScroll } = useScrollRestoration(scrollContainerRef, {
+    key: () => `mirror_source_${sourceId.value}`,
+  });
+
+  const hasAccess = computed(() => {
+    if (!mirrorStore.currentStation) return null;
+    const userPriority = authStore.user?.subscription?.plan?.priority ?? 0;
+    return userPriority >= mirrorStore.currentStation.minPlanPriority;
+  });
+
+  function syncRouteQuery() {
+    const query: Record<string, string> = {};
+    if (mirrorStore.activeCategoryId) {
+      query.categoryId = mirrorStore.activeCategoryId;
+    }
+    if (mirrorStore.searchQuery && mirrorStore.searchQuery.trim()) {
+      query.search = mirrorStore.searchQuery.trim();
+    }
+    if (mirrorStore.currentPage > 1) {
+      query.page = mirrorStore.currentPage.toString();
+    }
+    if (mirrorStore.sortBy && mirrorStore.sortBy !== 'newest') {
+      query.sort = mirrorStore.sortBy;
+    }
+    if (pageSize.value !== 20) {
+      query.pageSize = pageSize.value.toString();
+    }
+
+    // Replace query without triggering duplicate re-renders
+    router.replace({ query }).catch(() => {});
+  }
+
+  async function loadData() {
+    if (!sourceId.value) return;
+
+    await Promise.all([
+      mirrorStore.fetchStation(sourceId.value),
+      mirrorStore.fetchCategories(sourceId.value),
+    ]);
+
+    if (mirrorStore.isNotFound || !mirrorStore.currentStation) {
+      await mirrorStore.fetchStations();
+      const validStation =
+        mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+      if (validStation && validStation.id !== sourceId.value) {
+        router.replace(`/mirror/source/${validStation.id}`);
+        return;
+      }
+    }
+
+    if (!mirrorStore.currentStation) return;
+
+    // Restore filters and pagination from route query if available
+    const qCategory = route.query.categoryId as string | undefined;
+    if (qCategory !== undefined) {
+      mirrorStore.setActiveCategory(qCategory || null);
+    }
+
+    const qSearch = route.query.search as string | undefined;
+    if (qSearch !== undefined) {
+      mirrorStore.setSearchQuery(qSearch);
+    }
+
+    const qPage = route.query.page ? parseInt(route.query.page as string, 10) : 1;
+    mirrorStore.currentPage = !isNaN(qPage) && qPage >= 1 ? qPage : 1;
+    jumpPageInput.value = mirrorStore.currentPage.toString();
+
+    const qSort = route.query.sort as string | undefined;
+    if (qSort) {
+      mirrorStore.setSortBy(qSort);
+    }
+
+    const qPageSize = route.query.pageSize ? parseInt(route.query.pageSize as string, 10) : 20;
+    if (!isNaN(qPageSize) && pageSizeOptions.includes(qPageSize)) {
+      pageSize.value = qPageSize;
+    }
+
+    await mirrorStore.fetchResources(sourceId.value, {
+      page: mirrorStore.currentPage,
+      pageSize: pageSize.value,
+      categoryId: mirrorStore.activeCategoryId || undefined,
+      search: mirrorStore.searchQuery || undefined,
+      sort: mirrorStore.sortBy,
+    });
+
+    // Restore scroll position after DOM render
+    await nextTick();
+    restoreScroll();
+  }
+
+  function goToPage(page: number, shouldScrollTop = true) {
+    if (!mirrorStore.currentStation || !sourceId.value) return;
+    mirrorStore.currentPage = page;
+    syncRouteQuery();
+
+    mirrorStore.fetchResources(sourceId.value, {
+      page,
+      pageSize: pageSize.value,
+      categoryId: mirrorStore.activeCategoryId || undefined,
+      search: mirrorStore.searchQuery || undefined,
+      sort: mirrorStore.sortBy,
+    });
+
+    if (shouldScrollTop && scrollContainerRef.value) {
+      scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function selectCategory(categoryId: string | null) {
+    if (!mirrorStore.currentStation || !sourceId.value) return;
+    mirrorStore.setActiveCategory(categoryId);
+    mirrorStore.currentPage = 1;
+    syncRouteQuery();
+
+    mirrorStore.fetchResources(sourceId.value, {
+      page: 1,
+      pageSize: pageSize.value,
+      categoryId: categoryId || undefined,
+      search: mirrorStore.searchQuery || undefined,
+      sort: mirrorStore.sortBy,
+    });
+
+    if (scrollContainerRef.value) {
+      scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function doSearch() {
+    if (!mirrorStore.currentStation || !sourceId.value) return;
+    mirrorStore.currentPage = 1;
+    syncRouteQuery();
+
+    mirrorStore.fetchResources(sourceId.value, {
+      page: 1,
+      pageSize: pageSize.value,
+      categoryId: mirrorStore.activeCategoryId || undefined,
+      search: mirrorStore.searchQuery || undefined,
+      sort: mirrorStore.sortBy,
+    });
+
+    if (scrollContainerRef.value) {
+      scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function handleSortChange(newSort: string) {
+    mirrorStore.setSortBy(newSort);
+    doSearch();
+  }
+
+  function handlePageSizeChange(newSize: number) {
+    pageSize.value = newSize;
+    goToPage(1);
+  }
+
+  function handleResetAll() {
+    mirrorStore.setSearchQuery('');
+    mirrorStore.setActiveCategory(null);
+    mirrorStore.currentPage = 1;
+    mirrorStore.setSortBy('newest');
+    syncRouteQuery();
+
+    if (sourceId.value) {
+      mirrorStore.fetchResources(sourceId.value, {
+        page: 1,
+        pageSize: pageSize.value,
+        sort: 'newest',
+      });
+    }
+
+    if (scrollContainerRef.value) {
+      scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function handlePageJump() {
+    const page = parseInt(jumpPageInput.value, 10);
+    if (!isNaN(page) && page >= 1 && page <= mirrorStore.totalPages) {
+      goToPage(page);
+    } else {
+      jumpPageInput.value = mirrorStore.currentPage.toString();
+    }
+  }
+
+  function setViewMode(mode: ViewModeType) {
+    viewMode.value = mode;
+    try {
+      localStorage.setItem('mirror_view_mode', mode);
+    } catch {
+      // Ignore
+    }
+  }
+
+  function handleNavigateDetail(resourceId: string) {
+    saveScroll();
+    router.push(`/mirror/resource/${resourceId}`);
+  }
+
+  onMounted(() => {
+    loadData();
+  });
+
+  watch(
+    () => route.params.id,
+    () => {
+      if (route.name === 'MirrorSource' && route.params.id) {
+        mirrorStore.reset();
+        loadData();
+      }
+    },
+  );
+
+  watch(
+    () => mirrorStore.currentPage,
+    (newPage) => {
+      jumpPageInput.value = newPage.toString();
+    },
+  );
+
+  return {
+    scrollContainerRef,
+    sourceId,
+    viewMode,
+    selectedPreviewResource,
+    isDrawerOpen,
+    jumpPageInput,
+    pageSize,
+    pageSizeOptions,
+    hasAccess,
+    mirrorStore,
+    loadData,
+    goToPage,
+    selectCategory,
+    doSearch,
+    handleSortChange,
+    handlePageSizeChange,
+    handleResetAll,
+    handlePageJump,
+    setViewMode,
+    handleNavigateDetail,
+  };
+}

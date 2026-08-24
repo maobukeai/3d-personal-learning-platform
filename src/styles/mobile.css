@@ -316,13 +316,17 @@
     min-width: 0;
   }
 
-  /* 按钮与输入框在行内可收缩 */
-  .mobile-row button,
+  /* 按钮与输入框在行内可收缩；按钮保留 28px 触控宽度下限 */
   .mobile-row a,
   .mobile-row input,
   .mobile-row select {
     flex-shrink: 1;
     min-width: 0;
+  }
+
+  .mobile-row button {
+    flex-shrink: 1;
+    min-width: 28px;
   }
 
   /* 通用网格：默认 2 列 */
@@ -375,6 +379,76 @@
   .mobile-adaptive .animate-pulse-slow {
     animation: none;
   }
+
+  /* ---------- 触控目标下限 ----------
+     交互控件在移动端不小于可点尺寸：含文字的按钮/输入 ≥32px 高，
+     按钮宽度 ≥28px；复选框/单选/隐藏控件不受影响；.mobile-table
+     密集表格内仅豁免 input/textarea（保留单元格编辑器紧凑度），
+     按钮仍受下限约束。:where() 零特异性，不与工具类争优先级。 */
+  .content-surface :is(button:not([class*='sr-only']), [role='button'], [role='tab']),
+  .enterprise-page :is(button:not([class*='sr-only']), [role='button'], [role='tab']),
+  .mobile-adaptive :is(button:not([class*='sr-only']), [role='button'], [role='tab']),
+  .auth-shell :is(button:not([class*='sr-only']), [role='button'], [role='tab']) {
+    min-height: 32px;
+  }
+
+  .content-surface :is(button:not([class*='sr-only']), [role='button']),
+  .enterprise-page :is(button:not([class*='sr-only']), [role='button']),
+  .mobile-adaptive :is(button:not([class*='sr-only']), [role='button']),
+  .auth-shell :is(button:not([class*='sr-only']), [role='button']) {
+    min-width: 28px;
+  }
+
+  .content-surface
+    :where(
+      input[type='text'],
+      input[type='search'],
+      input[type='email'],
+      input[type='password'],
+      input[type='number'],
+      input[type='url'],
+      input[type='tel'],
+      input[type='date'],
+      textarea
+    ):not(.mobile-table *),
+  .enterprise-page
+    :where(
+      input[type='text'],
+      input[type='search'],
+      input[type='email'],
+      input[type='password'],
+      input[type='number'],
+      input[type='url'],
+      input[type='tel'],
+      input[type='date'],
+      textarea
+    ):not(.mobile-table *),
+  .mobile-adaptive
+    :where(
+      input[type='text'],
+      input[type='search'],
+      input[type='email'],
+      input[type='password'],
+      input[type='number'],
+      input[type='url'],
+      input[type='tel'],
+      input[type='date'],
+      textarea
+    ):not(.mobile-table *),
+  .auth-shell
+    :where(
+      input[type='text'],
+      input[type='search'],
+      input[type='email'],
+      input[type='password'],
+      input[type='number'],
+      input[type='url'],
+      input[type='tel'],
+      input[type='date'],
+      textarea
+    ):not(.mobile-table *) {
+    min-height: 32px;
+  }
 }
 
 /* auth-shell 同时携带 .mobile-adaptive 时保持自身内边距（全局，确保特异性） */
@@ -414,5 +488,60 @@
   .topbar {
     padding-left: 8px;
     padding-right: 8px;
+  }
+}
+
+/* ============================================================
+   超窄屏断点：≤ 360px —— 压缩顶栏图标与头像，保证头像完整可见
+   ============================================================ */
+@media (max-width: 360px) {
+  .topbar .topbar-icon-btn {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .topbar .dropdown-trigger-btn [class*='group/avatar'] {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+}
+
+/* ============================================================
+   移动端安全区域与浮层自适应增强
+   ============================================================ */
+@media (max-width: 767px) {
+  /* 底部 Tabbar 安全区 */
+  .mobile-bottom-nav {
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+
+  /* 移动端页面底部留白（避免被底部导航和安全区遮挡） */
+  .mobile-main-content {
+    padding-bottom: calc(
+      var(--mobile-bottom-nav-height, 50px) + env(safe-area-inset-bottom, 0px) + 8px
+    );
+  }
+
+  /* 3D Canvas / 手势区域禁止外层滚动干扰 */
+  .touch-action-none,
+  .model-viewer-canvas-wrap canvas,
+  .graph-canvas-container canvas {
+    touch-action: none !important;
+  }
+
+  /* 抽屉在移动端自适应为满宽/底部拉起 */
+  .el-drawer,
+  .asset-details-drawer,
+  .task-details-drawer {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  /* 移动端富文本图片/代码块不溢出 */
+  .prose img,
+  .prose pre,
+  .markdown-body pre {
+    max-width: 100% !important;
+    overflow-x: auto !important;
   }
 }

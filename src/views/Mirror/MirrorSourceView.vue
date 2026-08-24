@@ -5,160 +5,37 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import { Loader2, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-vue-next';
-import { useMirrorStore, type MirrorResource } from '@/stores/mirror';
-import { useAuthStore } from '@/stores/auth';
-
-import MirrorFilterBar, { type ViewModeType } from './components/MirrorFilterBar.vue';
+import MirrorFilterBar from './components/MirrorFilterBar.vue';
 import MirrorResourceCard from './components/MirrorResourceCard.vue';
 import MirrorResourceDrawer from './components/MirrorResourceDrawer.vue';
+import { useMirrorSourceView } from './composables/useMirrorSourceView';
 
-const route = useRoute();
-const router = useRouter();
-const mirrorStore = useMirrorStore();
-const authStore = useAuthStore();
-
-const sourceId = computed(() => route.params.id as string);
-const viewMode = ref<ViewModeType>('grid-comfortable');
-const selectedPreviewResource = ref<MirrorResource | null>(null);
-const isDrawerOpen = ref(false);
-const jumpPageInput = ref('1');
-const pageSize = ref(20);
-const pageSizeOptions = [20, 40, 60];
-
-const hasAccess = computed(() => {
-  if (!mirrorStore.currentStation) return null;
-  const userPriority = authStore.user?.subscription?.plan?.priority ?? 0;
-  return userPriority >= mirrorStore.currentStation.minPlanPriority;
-});
-
-async function loadData() {
-  await Promise.all([
-    mirrorStore.fetchStation(sourceId.value),
-    mirrorStore.fetchCategories(sourceId.value),
-  ]);
-
-  if (mirrorStore.isNotFound || !mirrorStore.currentStation) {
-    await mirrorStore.fetchStations();
-    const validStation =
-      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
-    if (validStation && validStation.id !== sourceId.value) {
-      router.replace(`/mirror/source/${validStation.id}`);
-      return;
-    }
-  }
-
-  if (!mirrorStore.currentStation) return;
-
-  const initialCategory = route.query.categoryId as string | undefined;
-  if (initialCategory !== undefined) {
-    mirrorStore.setActiveCategory(initialCategory || null);
-  }
-
-  mirrorStore.fetchResources(sourceId.value, {
-    page: mirrorStore.currentPage,
-    pageSize: pageSize.value,
-    categoryId: mirrorStore.activeCategoryId || undefined,
-    search: mirrorStore.searchQuery || undefined,
-    sort: mirrorStore.sortBy,
-  });
-}
-
-function goToPage(page: number) {
-  if (!mirrorStore.currentStation || !sourceId.value) return;
-  mirrorStore.currentPage = page;
-  mirrorStore.fetchResources(sourceId.value, {
-    page,
-    pageSize: pageSize.value,
-    categoryId: mirrorStore.activeCategoryId || undefined,
-    search: mirrorStore.searchQuery || undefined,
-    sort: mirrorStore.sortBy,
-  });
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function selectCategory(categoryId: string | null) {
-  if (!mirrorStore.currentStation || !sourceId.value) return;
-  mirrorStore.setActiveCategory(categoryId);
-
-  const query = { ...route.query };
-  if (categoryId) query.categoryId = categoryId;
-  else delete query.categoryId;
-  router.replace({ query });
-
-  mirrorStore.fetchResources(sourceId.value, {
-    page: 1,
-    pageSize: pageSize.value,
-    categoryId: categoryId || undefined,
-    search: mirrorStore.searchQuery || undefined,
-    sort: mirrorStore.sortBy,
-  });
-}
-
-function doSearch() {
-  if (!mirrorStore.currentStation || !sourceId.value) return;
-  mirrorStore.currentPage = 1;
-  mirrorStore.fetchResources(sourceId.value, {
-    page: 1,
-    pageSize: pageSize.value,
-    categoryId: mirrorStore.activeCategoryId || undefined,
-    search: mirrorStore.searchQuery || undefined,
-    sort: mirrorStore.sortBy,
-  });
-}
-
-function handlePageSizeChange(newSize: number) {
-  pageSize.value = newSize;
-  goToPage(1);
-}
-
-function handleResetAll() {
-  mirrorStore.setSearchQuery('');
-  selectCategory(null);
-}
-
-function handlePageJump() {
-  const page = parseInt(jumpPageInput.value, 10);
-  if (!isNaN(page) && page >= 1 && page <= mirrorStore.totalPages) {
-    goToPage(page);
-  } else {
-    jumpPageInput.value = mirrorStore.currentPage.toString();
-  }
-}
-
-onMounted(() => loadData());
-
-watch(
-  () => route.params.id,
-  () => {
-    if (route.name === 'MirrorSource' && route.params.id) {
-      mirrorStore.reset();
-      loadData();
-    }
-  },
-);
-
-watch(
-  () => route.query.categoryId,
-  (newId) => {
-    if (!sourceId.value) return;
-    const newCategoryId = (newId as string) || null;
-    if (mirrorStore.activeCategoryId !== newCategoryId) selectCategory(newCategoryId);
-  },
-);
-
-watch(
-  () => mirrorStore.currentPage,
-  (newPage) => {
-    jumpPageInput.value = newPage.toString();
-  },
-);
+const {
+  scrollContainerRef,
+  viewMode,
+  selectedPreviewResource,
+  isDrawerOpen,
+  jumpPageInput,
+  pageSize,
+  pageSizeOptions,
+  hasAccess,
+  mirrorStore,
+  goToPage,
+  selectCategory,
+  doSearch,
+  handleSortChange,
+  handlePageSizeChange,
+  handleResetAll,
+  handlePageJump,
+  setViewMode,
+  handleNavigateDetail,
+} = useMirrorSourceView();
 </script>
 
 <template>
   <div
+    ref="scrollContainerRef"
     class="mirror-source-view h-full overflow-y-auto p-3 md:p-5 w-full max-w-[1800px] mx-auto scrollbar-hide"
   >
     <MirrorFilterBar
@@ -172,8 +49,8 @@ watch(
       :view-mode="viewMode"
       :resources="mirrorStore.resources"
       @update:search-query="mirrorStore.setSearchQuery($event)"
-      @update:sort-by="mirrorStore.setSortBy($event)"
-      @update:view-mode="viewMode = $event"
+      @update:sort-by="handleSortChange"
+      @update:view-mode="setViewMode"
       @select-category="selectCategory"
       @search="doSearch"
       @reset-all="handleResetAll"
@@ -217,7 +94,7 @@ watch(
           :key="resource.id"
           :resource="resource"
           :view-mode="viewMode"
-          @click="router.push(`/mirror/resource/${resource.id}`)"
+          @click="handleNavigateDetail(resource.id)"
           @preview="
             selectedPreviewResource = $event;
             isDrawerOpen = true;
@@ -244,7 +121,7 @@ watch(
               v-for="size in pageSizeOptions"
               :key="size"
               type="button"
-              class="px-2 py-0.5 rounded-md font-medium transition-all"
+              class="px-2 py-0.5 rounded-md font-medium transition-all cursor-pointer"
               :class="
                 pageSize === size
                   ? 'bg-blue-600 text-white shadow-xs font-bold'
@@ -262,7 +139,7 @@ watch(
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all"
+            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all cursor-pointer"
             :disabled="mirrorStore.currentPage <= 1"
             @click="goToPage(mirrorStore.currentPage - 1)"
           >
@@ -282,7 +159,7 @@ watch(
 
           <button
             type="button"
-            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all"
+            class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-blue-600 hover:border-blue-500 disabled:opacity-30 transition-all cursor-pointer"
             :disabled="mirrorStore.currentPage >= mirrorStore.totalPages"
             @click="goToPage(mirrorStore.currentPage + 1)"
           >
@@ -298,17 +175,17 @@ watch(
             type="text"
             class="w-12 px-1.5 py-1 text-center text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             @keyup.enter="handlePageJump"
-            @blur="handlePageJump"
           />
           <span class="text-xs text-slate-400">页</span>
         </div>
       </div>
     </div>
 
+    <!-- Quick Preview Drawer -->
     <MirrorResourceDrawer
       v-model:open="isDrawerOpen"
       :resource="selectedPreviewResource"
-      @navigate="router.push(`/mirror/resource/${$event}`)"
+      @navigate="handleNavigateDetail"
     />
   </div>
 </template>

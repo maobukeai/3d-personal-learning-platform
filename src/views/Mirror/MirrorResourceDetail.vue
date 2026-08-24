@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 import {
   ArrowLeft,
   Clock,
@@ -13,204 +11,41 @@ import {
   Lock,
   FolderTree,
 } from 'lucide-vue-next';
-import { getApiErrorMessage, logError } from '@/utils/error';
 import { formatDateTime as formatDate } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
-import { useMirrorStore } from '@/stores/mirror';
-import { useAuthStore } from '@/stores/auth';
-import { useWorkspaceStore } from '@/stores/workspace';
 import SafeHtml from '@/components/SafeHtml.vue';
-import { ElMessage } from '@/utils/feedbackBridge';
-import api, { getAssetUrl } from '@/utils/api';
-import { decryptText } from '@/utils/crypto';
+import { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 
-import MirrorResourceComments, {
-  type MirrorComment,
-} from './components/detail/MirrorResourceComments.vue';
+import MirrorResourceComments from './components/detail/MirrorResourceComments.vue';
 import MirrorResourceExtractCard from './components/detail/MirrorResourceExtractCard.vue';
 import MirrorResourceExtractModal from './components/detail/MirrorResourceExtractModal.vue';
 import MirrorResourceSecurityVerifyModal from './components/detail/MirrorResourceSecurityVerifyModal.vue';
+import { useMirrorResourceDetail } from './composables/useMirrorResourceDetail';
 
-const route = useRoute();
-const router = useRouter();
-const mirrorStore = useMirrorStore();
-const authStore = useAuthStore();
-const workspaceStore = useWorkspaceStore();
-
-const resourceId = computed(() => route.params.id as string);
-const resource = ref<any | null>(null);
-const isLoading = ref(true);
-const error = ref<string | null>(null);
-const comments = ref<MirrorComment[]>([]);
-const likeStatus = ref({ liked: false, count: 0 });
-const isSubmittingComment = ref(false),
-  isTogglingLike = ref(false),
-  isExtracting = ref(false);
-const showSecurityVerifyModal = ref(false),
-  showLinkDialog = ref(false);
-const pendingExtractLink = ref<{ name: string; type: string } | null>(null);
-const activeLink = ref<{ name: string; url: string; code?: string; type: string } | null>(null);
-
-async function loadResource() {
-  const cached = mirrorStore.resources.find((r) => r.id === resourceId.value);
-  if (cached) {
-    resource.value = { ...cached };
-    isLoading.value = false;
-    if (cached.sourceId) {
-      workspaceStore.setWorkspaceById(`mirror-${cached.sourceId}`);
-      mirrorStore.fetchCategories(cached.sourceId);
-    }
-  } else {
-    isLoading.value = true;
-  }
-  error.value = null;
-
-  try {
-    const data = await mirrorStore.fetchResource(resourceId.value);
-    if (data) {
-      resource.value = data;
-      if (data.sourceId) {
-        workspaceStore.setWorkspaceById(`mirror-${data.sourceId}`);
-        mirrorStore.fetchCategories(data.sourceId);
-      }
-    } else if (!resource.value) {
-      error.value = '资源不存在';
-    }
-  } catch (e) {
-    if (!resource.value) error.value = getApiErrorMessage(e, '加载失败');
-    else logError(e, { operation: 'Failed to refresh resource details in background' });
-  } finally {
-    isLoading.value = false;
-  }
-}
-
-function goBack() {
-  if (resource.value?.sourceId) router.push(`/mirror/source/${resource.value.sourceId}`);
-  else router.push('/mirror');
-}
-
-async function fetchComments() {
-  try {
-    const res = await api.get(`/api/mirror/resources/${resourceId.value}/comments`);
-    comments.value = res.data;
-  } catch (e) {
-    logError(e, { operation: 'mirror.fetchComments', component: 'MirrorResourceDetail' });
-  }
-}
-
-async function fetchLikeStatus() {
-  try {
-    const res = await api.get(`/api/mirror/resources/${resourceId.value}/like-status`);
-    likeStatus.value = res.data;
-  } catch (e) {
-    logError(e, { operation: 'mirror.fetchLikeStatus', component: 'MirrorResourceDetail' });
-  }
-}
-
-async function toggleLike() {
-  if (isTogglingLike.value) return;
-  isTogglingLike.value = true;
-  try {
-    const res = await api.post(`/api/mirror/resources/${resourceId.value}/like`);
-    likeStatus.value = res.data;
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '操作失败'));
-  } finally {
-    isTogglingLike.value = false;
-  }
-}
-
-async function submitComment(content: string) {
-  isSubmittingComment.value = true;
-  try {
-    const res = await api.post(`/api/mirror/resources/${resourceId.value}/comments`, { content });
-    comments.value.unshift(res.data);
-    ElMessage.success('发表成功');
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '发表评论失败'));
-  } finally {
-    isSubmittingComment.value = false;
-  }
-}
-
-async function deleteComment(commentId: string) {
-  try {
-    await api.delete(`/api/mirror/resources/comments/${commentId}`);
-    comments.value = comments.value.filter((c) => c.id !== commentId);
-    ElMessage.success('删除成功');
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '删除评论失败'));
-  }
-}
-
-function handleStartExtract(link: { name: string; type: string }) {
-  if (!authStore.isAuthenticated) {
-    ElMessage.warning('请先登录后提取资源');
-    router.push(`/login?redirect=${route.fullPath}`);
-    return;
-  }
-  if (resource.value?.hasAccess === false) {
-    ElMessage.error('您的账号权限不足，请先升级会员');
-    return;
-  }
-  pendingExtractLink.value = link;
-  showSecurityVerifyModal.value = true;
-}
-
-async function handleSecurityVerified() {
-  if (!pendingExtractLink.value) return;
-  const link = pendingExtractLink.value;
-  isExtracting.value = true;
-  try {
-    const res = await api.post(`/api/mirror/resources/${resourceId.value}/extract`);
-    const envKey =
-      import.meta.env.VITE_EXTRACT_ENCRYPTION_KEY || '3d_learning_platform_secure_extract_key_2026';
-    const url = res.data.encryptedLink
-      ? decryptText(res.data.encryptedLink, envKey)
-      : res.data.downloadUrl || res.data.url || res.data.contentUrl || '';
-    const code = res.data.encryptedPassword
-      ? decryptText(res.data.encryptedPassword, envKey)
-      : res.data.code || '';
-    activeLink.value = {
-      name: link.name || res.data.driveName || '百度网盘',
-      url,
-      code,
-      type: link.type || 'baidu',
-    };
-    showLinkDialog.value = true;
-    ElMessage.success('身份核验通过，已解密网盘链接！');
-  } catch (e) {
-    ElMessage.error(getApiErrorMessage(e, '提取失败'));
-  } finally {
-    isExtracting.value = false;
-  }
-}
-
-const extractedLinks = computed(() => {
-  if (!resource.value) return [];
-  if (resource.value.links && resource.value.links.length > 0) return resource.value.links;
-  if (resource.value.hasLinks) return [{ name: '资源下载', type: 'generic' }];
-  return [];
-});
-
-onMounted(() => {
-  loadResource().then(() => {
-    if (resource.value) {
-      fetchComments();
-      fetchLikeStatus();
-    }
-  });
-});
-
-watch(resourceId, () => {
-  loadResource().then(() => {
-    if (resource.value) {
-      fetchComments();
-      fetchLikeStatus();
-    }
-  });
-});
+const {
+  resource,
+  isLoading,
+  error,
+  comments,
+  likeStatus,
+  isSubmittingComment,
+  isTogglingLike,
+  isExtracting,
+  showSecurityVerifyModal,
+  showLinkDialog,
+  activeLink,
+  extractedLinks,
+  authStore,
+  router,
+  route,
+  goBack,
+  toggleLike,
+  submitComment,
+  deleteComment,
+  handleStartExtract,
+  handleSecurityVerified,
+} = useMirrorResourceDetail();
 </script>
 
 <template>
@@ -243,7 +78,7 @@ watch(resourceId, () => {
       <p class="text-sm font-bold text-rose-500">{{ error }}</p>
       <button
         type="button"
-        class="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold"
+        class="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold cursor-pointer"
         @click="goBack"
       >
         返回列表
@@ -264,7 +99,7 @@ watch(resourceId, () => {
         </div>
         <button
           type="button"
-          class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shrink-0"
+          class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer"
           @click="router.push(`/login?redirect=${route.fullPath}`)"
         >
           立即登录
@@ -283,7 +118,7 @@ watch(resourceId, () => {
         </div>
         <button
           type="button"
-          class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0"
+          class="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer"
           @click="router.push('/billing')"
         >
           升级会员

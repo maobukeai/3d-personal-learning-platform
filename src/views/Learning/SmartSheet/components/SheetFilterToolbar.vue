@@ -56,7 +56,7 @@ const handleFileChange = (e: Event) => {
         @update:model-value="emit('update:viewMode', $event as 'table' | 'board' | 'calendar')"
       />
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center justify-end gap-2">
         <Button variant="outline" size="sm" title="导出当前表为 CSV" @click="emit('export-csv')">
           <Download class="w-3.5 h-3.5 mr-1" />
           CSV

@@ -82,7 +82,7 @@ function resetVerify() {
             class="text-xs font-black text-slate-900 dark:text-white flex items-center gap-1.5 truncate"
           >
             <span>会员安全通道</span>
-            <span class="px-1.5 py-0.2 text-[9px] font-black rounded-md bg-blue-600 text-white"
+            <span class="px-1.5 py-0.2 text-[10px] font-black rounded-md bg-blue-600 text-white"
               >PRO</span
             >
           </div>

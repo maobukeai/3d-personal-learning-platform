@@ -825,7 +825,7 @@ onBeforeUnmount(() => {
               @change="(val: any) => setStatusFilter(val)"
             />
           </div>
-          <div class="flex items-center gap-3 shrink-0 mobile-row">
+          <div class="flex flex-wrap items-center gap-3 shrink-0">
             <!-- View Mode Switcher -->
             <div
               class="flex items-center border border-slate-100 dark:border-white/5 bg-slate-100/50 dark:bg-white/5 rounded-lg p-0.5 shrink-0"

@@ -1423,7 +1423,7 @@ onUnmounted(stopAutoRefresh);
 }
 
 .panel-caption {
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 800;
   color: rgb(100 116 139);
 }
@@ -1486,7 +1486,7 @@ onUnmounted(stopAutoRefresh);
 }
 
 .metric-label {
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 800;
   color: rgb(100 116 139);
 }
@@ -1529,7 +1529,7 @@ onUnmounted(stopAutoRefresh);
   min-height: 1.875rem;
   border-radius: 6px;
   padding: 0 0.625rem;
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 900;
   color: rgb(100 116 139);
 }
@@ -1570,7 +1570,7 @@ onUnmounted(stopAutoRefresh);
   gap: 0.45rem;
   border-bottom: 2px solid transparent;
   padding: 0 0.75rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 900;
   color: rgb(100 116 139);
 }
@@ -1593,7 +1593,7 @@ onUnmounted(stopAutoRefresh);
   gap: 0.45rem;
   border-radius: 8px;
   padding: 0 0.875rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 900;
   transition:
     opacity 0.2s,
@@ -1663,7 +1663,7 @@ onUnmounted(stopAutoRefresh);
   border: 1px solid;
   border-radius: 999px;
   padding: 0 0.625rem;
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 900;
 }
 
@@ -1864,7 +1864,7 @@ onUnmounted(stopAutoRefresh);
 }
 
 .timeline-bar-wrap span {
-  font-size: 0.625rem;
+  font-size: 10px;
   font-weight: 800;
   color: rgb(100 116 139);
 }
@@ -1918,7 +1918,7 @@ onUnmounted(stopAutoRefresh);
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.6;
   color: rgb(71 85 105);
@@ -1966,7 +1966,7 @@ onUnmounted(stopAutoRefresh);
   min-width: 7rem;
   gap: 0.25rem;
   text-align: right;
-  font-size: 0.6875rem;
+  font-size: 11px;
   color: rgb(100 116 139);
 }
 
@@ -1985,7 +1985,7 @@ onUnmounted(stopAutoRefresh);
   border-radius: 8px;
   background: rgb(15 23 42);
   padding: 0.625rem;
-  font-size: 0.6875rem;
+  font-size: 11px;
   line-height: 1.6;
   color: rgb(226 232 240);
   white-space: pre-wrap;
@@ -2027,7 +2027,7 @@ onUnmounted(stopAutoRefresh);
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 0.625rem;
+  font-size: 10px;
   font-weight: 900;
 }
 
@@ -2127,7 +2127,7 @@ onUnmounted(stopAutoRefresh);
 
 .field-label {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 900;
   color: rgb(100 116 139);
 }
@@ -2140,7 +2140,7 @@ onUnmounted(stopAutoRefresh);
   border-radius: 8px;
   background: rgb(248 250 252);
   padding: 0.625rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   outline: none;
 }
 
@@ -2180,7 +2180,7 @@ onUnmounted(stopAutoRefresh);
   flex: 1;
   background: transparent;
   padding: 0.625rem 0.75rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   color: rgb(71 85 105);
   outline: none;
 }
@@ -2226,14 +2226,14 @@ onUnmounted(stopAutoRefresh);
 }
 
 .info-label {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: rgb(100 116 139);
 }
 
 .info-value {
   min-width: 0;
   max-width: 100%;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 900;
   color: rgb(15 23 42);
 }
@@ -2261,7 +2261,7 @@ onUnmounted(stopAutoRefresh);
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 900;
   color: rgb(2 132 199);
 }
@@ -2300,7 +2300,7 @@ onUnmounted(stopAutoRefresh);
   border-radius: 999px;
   background: rgb(226 232 240);
   padding: 0.05rem 0.3rem;
-  font-size: 0.6rem;
+  font-size: 10px;
   line-height: 1.2;
   color: rgb(71 85 105);
 }
@@ -2326,7 +2326,7 @@ onUnmounted(stopAutoRefresh);
   flex: 1;
   background: transparent;
   padding: 0 0.625rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 700;
   color: rgb(51 65 85);
   outline: none;
@@ -2369,7 +2369,7 @@ onUnmounted(stopAutoRefresh);
   border-radius: 999px;
   background: white;
   padding: 0 0.75rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 900;
   color: rgb(51 65 85);
 }
@@ -2392,7 +2392,7 @@ onUnmounted(stopAutoRefresh);
 
 .mini-metric span {
   display: block;
-  font-size: 0.6875rem;
+  font-size: 11px;
   font-weight: 800;
   color: rgb(100 116 139);
 }
@@ -2413,7 +2413,7 @@ onUnmounted(stopAutoRefresh);
 }
 
 .payload-result p {
-  font-size: 0.75rem;
+  font-size: 12px;
   line-height: 1.7;
   color: rgb(71 85 105);
 }
@@ -2495,7 +2495,7 @@ onUnmounted(stopAutoRefresh);
 .empty-state-sm {
   min-height: 7rem;
   padding: 0.75rem;
-  font-size: 0.75rem;
+  font-size: 12px;
   font-weight: 800;
   color: rgb(100 116 139);
 }
@@ -2550,14 +2550,14 @@ onUnmounted(stopAutoRefresh);
   .pulse-pill {
     min-height: 1.75rem;
     padding: 0 0.5rem;
-    font-size: 0.625rem;
+    font-size: 10px;
   }
 
   .range-switch button,
   .category-switch button {
     min-height: 1.625rem;
     padding: 0 0.45rem;
-    font-size: 0.625rem;
+    font-size: 10px;
   }
 
   .metric-block {
@@ -2573,18 +2573,18 @@ onUnmounted(stopAutoRefresh);
   }
 
   .metric-label {
-    font-size: 0.6rem;
+    font-size: 10px;
   }
 
   .metric-value {
     margin-top: 0;
-    font-size: 0.78rem;
+    font-size: 10px;
   }
 
   .tab-rail button {
     min-height: 2rem;
     padding: 0 0.55rem;
-    font-size: 0.6875rem;
+    font-size: 11px;
   }
 
   .ai-workbench main {

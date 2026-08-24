@@ -42,6 +42,16 @@
   mix-blend-mode: soft-light;
   opacity: 0.04;
 }
+
+/* A glass panel explicitly marked scrollable (e.g. Tabs with overflow-x-auto)
+   must win over the clip above — unlayered + higher specificity than
+   .glass-panel, so it also beats Tailwind's layered utilities. */
+.glass-panel.overflow-x-auto {
+  overflow-x: auto;
+}
+.glass-panel.overflow-y-auto {
+  overflow-y: auto;
+}
 .dark .glass-card::after,
 .dark .glass-dialog::after,
 .dark .glass-panel::after {

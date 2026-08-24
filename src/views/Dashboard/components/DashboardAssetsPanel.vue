@@ -177,7 +177,7 @@ const emit = defineEmits<{
 
 .asset-meta small {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .dashboard-panel-empty {

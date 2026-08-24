@@ -196,7 +196,7 @@ const handleSave = () => {
             <Input v-model="opt.label" placeholder="选项名称" size="sm" class="flex-1" />
             <select
               v-model="opt.color"
-              class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-neutral-200 outline-none"
+              class="bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-neutral-200 outline-none min-h-[32px]"
             >
               <option value="blue" class="bg-neutral-900 text-blue-400">蓝色</option>
               <option value="emerald" class="bg-neutral-900 text-emerald-400">绿色</option>

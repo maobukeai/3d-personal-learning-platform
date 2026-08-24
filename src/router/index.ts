@@ -84,10 +84,6 @@ const router = createRouter({
         ]
       : []),
     {
-      path: '/:pathMatch(.*)*',
-      redirect: '/404',
-    },
-    {
       path: '/',
       component: MainLayout,
       children: [
@@ -245,6 +241,10 @@ const router = createRouter({
               path: 'settings',
               name: 'Settings',
               component: () => import('@/views/Settings/SettingsView.vue'),
+            },
+            {
+              path: 'workspace/settings',
+              redirect: '/settings',
             },
             {
               path: 'billing',
@@ -426,6 +426,10 @@ const router = createRouter({
           ],
         },
       ],
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      redirect: '/404',
     },
   ],
 });

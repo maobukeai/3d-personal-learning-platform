@@ -102,9 +102,9 @@ const handleRowCommand = (command: string, user: AdminUser) => {
 </script>
 
 <template>
-  <Card padding="none" class="table-shell-card overflow-hidden">
+  <Card padding="none" class="table-shell-card overflow-x-auto scrollbar-hide max-w-full">
     <Table
-      v-loading="isLoading"
+      :loading="isLoading"
       :data="users"
       class="user-table mobile-table"
       row-key="id"

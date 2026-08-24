@@ -248,7 +248,7 @@ const label = useLabel();
 
 .tag-cloud button b {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   margin-left: 2px;
 }
 
@@ -301,7 +301,7 @@ const label = useLabel();
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1;
 }

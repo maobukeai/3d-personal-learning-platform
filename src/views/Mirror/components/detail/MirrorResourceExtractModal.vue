@@ -79,7 +79,7 @@ function getLinkTypeColor(type: string) {
             >
               <span>{{ activeLink.name }}</span>
               <span
-                class="px-1.5 py-0.2 text-[9px] font-black rounded bg-blue-600 text-white uppercase"
+                class="px-1.5 py-0.2 text-[10px] font-black rounded bg-blue-600 text-white uppercase"
                 >{{ activeLink.type }}</span
               >
             </div>

@@ -37,7 +37,7 @@ const colorMap = {
             class="text-sm text-[var(--text-primary)] flex-1"
           />
           <button
-            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0"
+            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 shrink-0 flex items-center justify-center w-7 h-7 -mr-1 rounded"
             @click="removeToast(toast.id)"
           >
             <X class="w-3.5 h-3.5" />

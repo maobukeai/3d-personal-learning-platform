@@ -317,7 +317,7 @@ const hasReviewPressure = computed(() => {
 
 .tag-cloud span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   margin-left: 2px;
 }
 

@@ -75,7 +75,7 @@ defineProps<{
 
 .settings-eyebrow {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -161,7 +161,7 @@ defineProps<{
   display: block;
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -215,11 +215,11 @@ defineProps<{
   }
 
   .settings-signal-label {
-    font-size: 8px;
+    font-size: 10px;
   }
 
   .settings-signal-detail {
-    font-size: 8px;
+    font-size: 10px;
   }
 }
 </style>

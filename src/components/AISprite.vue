@@ -294,7 +294,11 @@ onUnmounted(() => {
   <div
     v-if="systemStore.settings.AI_IMPORT_ENABLED"
     class="fixed z-[99]"
-    :class="[spriteX === null ? 'bottom-5 right-5' : '']"
+    :class="[
+      spriteX === null
+        ? 'bottom-5 right-5 max-lg:bottom-[calc(3.25rem+env(safe-area-inset-bottom)+0.75rem)]'
+        : '',
+    ]"
     :style="spriteX !== null ? { left: spriteX + 'px', top: spriteY + 'px' } : {}"
   >
     <Transition name="fade">

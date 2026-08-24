@@ -254,7 +254,7 @@ onMounted(() => {
     <!-- Top Header -->
     <PageHeader :title="t('academy.title')" :subtitle="t('academy.subtitle')" :icon="GraduationCap">
       <template #center>
-        <label class="search-box !min-h-0 !h-8 w-44 sm:w-64 shrink-0">
+        <label class="search-box !min-h-0 !h-9 w-44 sm:w-64 shrink-0">
           <Search />
           <input v-model="searchQuery" type="text" :placeholder="t('academy.searchPlaceholder')" />
         </label>

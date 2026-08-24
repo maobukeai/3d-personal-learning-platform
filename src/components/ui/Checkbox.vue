@@ -42,7 +42,7 @@ const toggleCheck = () => {
 
 const classes = computed(() => {
   return [
-    'w-5 h-5 rounded-md flex items-center justify-center border transition-all duration-300 select-none cursor-pointer',
+    'w-5 h-5 max-lg:w-6 max-lg:h-6 rounded-md flex items-center justify-center border transition-all duration-300 select-none cursor-pointer',
     isDisabled.value ? 'opacity-50 cursor-not-allowed' : '',
     checked.value
       ? 'bg-accent border-accent shadow-[0_0_12px_rgba(var(--accent-rgb),0.25)]'

@@ -914,7 +914,7 @@ void Gauge;
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
 }
 

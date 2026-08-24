@@ -94,4 +94,8 @@ server/scripts/list_functions.ts
 website/.nuxt/
 website/.output/
 website/.output-next/
-website/.output-previous/
+# Mobile audit reports & artifacts
+.mobile-audit*/
+.mobile-quality-audit/
+.mobile-render-check.json
+

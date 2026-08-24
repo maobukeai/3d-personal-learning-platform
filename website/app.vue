@@ -294,8 +294,52 @@ const nav = [
     <main><NuxtPage /></main>
 
     <footer class="site-footer">
-      <span>© {{ new Date().getFullYear() }} {{ siteName }}</span>
-      <span>为持续学习而设计</span>
+      <div class="footer-top">
+        <div class="footer-brand">
+          <NuxtLink class="brand" to="/" aria-label="返回首页">
+            <div
+              v-if="platformSettings?.PLATFORM_LOGO_URL && !logoLoadFailed"
+              class="brand-mark-logo-container"
+            >
+              <img
+                alt="Logo"
+                :src="getAssetUrl(platformSettings.PLATFORM_LOGO_URL)"
+                class="brand-mark-logo"
+                @error="logoLoadFailed = true"
+              />
+            </div>
+            <span v-else class="brand-mark">S</span>
+            <span>{{ siteName }}</span>
+          </NuxtLink>
+          <p class="footer-desc">聚合课程学习、3D 资产库、协同知识网络与创作工具的一体化平台。</p>
+        </div>
+        <div class="footer-links">
+          <div>
+            <strong>快速探索</strong>
+            <NuxtLink to="/">官网首页</NuxtLink>
+            <NuxtLink to="/resources">资源中心</NuxtLink>
+            <NuxtLink to="/mirrors">镜像网络</NuxtLink>
+            <NuxtLink to="/temporary-netdisk">临时网盘</NuxtLink>
+          </div>
+          <div>
+            <strong>核心生态</strong>
+            <a :href="`${config.public.appBase}/dashboard`">工作台概览</a>
+            <a :href="`${config.public.appBase}/academy`">学习学院</a>
+            <a :href="`${config.public.appBase}/notes`">协同知识库</a>
+            <a :href="`${config.public.appBase}/assets`">3D 模型库</a>
+          </div>
+          <div>
+            <strong>平台工具</strong>
+            <a :href="`${config.public.appBase}/tools/ai-robots`">AI 助手</a>
+            <a :href="`${config.public.appBase}/work`">任务看板</a>
+            <NuxtLink to="/search">全局检索</NuxtLink>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© {{ new Date().getFullYear() }} {{ siteName }} · 保留所有权利</span>
+        <span>为持续学习与 3D 创作而设计</span>
+      </div>
     </footer>
   </div>
 </template>
@@ -303,18 +347,23 @@ const nav = [
 <style scoped>
 .header-search-link {
   margin-right: 12px;
-  color: var(--muted);
+  color: #64748b;
   font-size: 13px;
+  font-weight: 500;
   text-decoration: none;
+  transition: color 0.2s ease;
+}
+.header-search-link:hover {
+  color: var(--blue);
 }
 .brand-mark-logo-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 9px;
   background: transparent;
 }
 .brand-mark-logo {

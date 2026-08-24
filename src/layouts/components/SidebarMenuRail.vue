@@ -159,7 +159,7 @@ const emit = defineEmits<{ (e: 'report-bug'): void }>();
 .rail-signature {
   padding-top: 4px;
   color: color-mix(in srgb, var(--text-muted) 45%, transparent);
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
   letter-spacing: 0;
@@ -216,7 +216,7 @@ const emit = defineEmits<{ (e: 'report-bug'): void }>();
   border-radius: 999px;
   color: #ffffff;
   background: #ef4444;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 900;
   line-height: 1;
   box-shadow: 0 0 0 2px var(--bg-sidebar);

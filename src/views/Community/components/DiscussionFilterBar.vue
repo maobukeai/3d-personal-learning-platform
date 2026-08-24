@@ -153,7 +153,7 @@ const localViewMode = computed({
 
 .filter-tabs button b {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   margin-left: 2px;
 }
 

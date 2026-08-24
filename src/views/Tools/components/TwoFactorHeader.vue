@@ -67,7 +67,7 @@ const statusDotClass = computed(() => {
 
 <template>
   <div
-    class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-row lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in"
+    class="two-fa-header bg-gradient-to-r from-violet-600/10 via-indigo-600/5 to-transparent border rounded-xl p-3 mb-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 animate-fade-in"
     style="border-color: var(--border-base)"
   >
     <div class="mobile-row flex items-center gap-2.5 w-full lg:flex-1 lg:w-auto min-w-0">
@@ -139,7 +139,7 @@ const statusDotClass = computed(() => {
 
     <!-- Actions Group -->
     <div
-      class="mobile-row flex items-center justify-between sm:justify-end gap-1.5 w-full lg:flex-1 lg:justify-end lg:w-auto shrink-0 flex-wrap"
+      class="flex items-center justify-between sm:justify-end gap-1.5 w-full lg:flex-1 lg:justify-end lg:w-auto shrink-0 flex-wrap"
     >
       <!-- Time Sync status check -->
       <button

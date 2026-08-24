@@ -401,7 +401,7 @@ function getSeverityClass(severity: string) {
 }
 
 .ops-bar em {
-  font-size: 8px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 600;
   color: var(--text-muted);
@@ -511,7 +511,7 @@ function getSeverityClass(severity: string) {
 
 .risk-row small,
 .smart-row small {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-muted);
   overflow: hidden;

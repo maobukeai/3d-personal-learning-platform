@@ -313,13 +313,13 @@ const handleRegister = async () => {
               {{ label('我已阅读并同意平台', 'I have read and agree to the') }}
               <a
                 href="#"
-                class="text-accent font-bold hover:text-accent-hover transition-colors underline"
+                class="text-accent font-bold hover:text-accent-hover transition-colors underline inline-flex items-center py-1 min-h-[28px]"
                 >{{ label('服务协议', 'Terms') }}</a
               >
               {{ label('与', 'and') }}
               <a
                 href="#"
-                class="text-accent font-bold hover:text-accent-hover transition-colors underline"
+                class="text-accent font-bold hover:text-accent-hover transition-colors underline inline-flex items-center py-1 min-h-[28px]"
                 >{{ label('隐私政策', 'Privacy Policy') }}</a
               >
             </span>
@@ -384,7 +384,7 @@ const handleRegister = async () => {
             {{ label('已有账号？', 'Already have an account?') }}
             <RouterLink
               to="/login"
-              class="font-bold text-accent hover:text-accent-hover transition-colors ml-1"
+              class="font-bold text-accent hover:text-accent-hover transition-colors ml-1 inline-flex items-center min-h-[28px]"
               >{{ label('点此登录', 'Sign in') }}</RouterLink
             >
           </p>

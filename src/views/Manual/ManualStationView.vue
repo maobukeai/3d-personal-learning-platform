@@ -5,8 +5,9 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useScrollRestoration } from '@/composables/useScrollRestoration';
 import {
   Search,
   Clock,
@@ -58,6 +59,28 @@ const pageTitle = computed(() => {
   return manualStore.currentStation.displayName;
 });
 
+const scrollContainerRef = ref<HTMLElement | null>(null);
+const { saveScroll, restoreScroll } = useScrollRestoration(scrollContainerRef, {
+  key: () => `manual_station_${stationId.value}`,
+});
+
+function syncRouteQuery() {
+  const query: Record<string, string> = {};
+  if (manualStore.activeCategoryId) {
+    query.categoryId = manualStore.activeCategoryId;
+  }
+  if (manualStore.searchQuery && manualStore.searchQuery.trim()) {
+    query.search = manualStore.searchQuery.trim();
+  }
+  if (manualStore.currentPage > 1) {
+    query.page = manualStore.currentPage.toString();
+  }
+  if (manualStore.sortBy && manualStore.sortBy !== 'newest') {
+    query.sort = manualStore.sortBy;
+  }
+  router.replace({ query }).catch(() => {});
+}
+
 async function loadData() {
   await Promise.all([
     manualStore.fetchStation(stationId.value),
@@ -72,48 +95,79 @@ async function loadData() {
   if (initialCategory !== undefined) {
     manualStore.setActiveCategory(initialCategory || null);
   }
-  manualStore.fetchResources(stationId.value, {
+
+  const qSearch = route.query.search as string | undefined;
+  if (qSearch !== undefined) {
+    manualStore.setSearchQuery(qSearch);
+  }
+
+  const qPage = route.query.page ? parseInt(route.query.page as string, 10) : 1;
+  manualStore.currentPage = !isNaN(qPage) && qPage >= 1 ? qPage : 1;
+
+  const qSort = route.query.sort as string | undefined;
+  if (qSort) {
+    manualStore.setSortBy(qSort);
+  }
+
+  await manualStore.fetchResources(stationId.value, {
     page: manualStore.currentPage,
     categoryId: manualStore.activeCategoryId || undefined,
     search: manualStore.searchQuery || undefined,
     sort: manualStore.sortBy,
   });
+
+  await nextTick();
+  restoreScroll();
 }
 
 function goToPage(page: number) {
   if (!manualStore.currentStation) return;
   manualStore.currentPage = page;
+  syncRouteQuery();
   manualStore.fetchResources(stationId.value, {
     page,
     categoryId: manualStore.activeCategoryId || undefined,
     search: manualStore.searchQuery || undefined,
     sort: manualStore.sortBy,
   });
+  if (scrollContainerRef.value) {
+    scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function selectCategory(categoryId: string | null) {
   if (!manualStore.currentStation) return;
   manualStore.setActiveCategory(categoryId);
+  manualStore.currentPage = 1;
+  syncRouteQuery();
   manualStore.fetchResources(stationId.value, {
     page: 1,
     categoryId: categoryId || undefined,
     search: manualStore.searchQuery || undefined,
     sort: manualStore.sortBy,
   });
+  if (scrollContainerRef.value) {
+    scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function doSearch() {
   if (!manualStore.currentStation) return;
   manualStore.currentPage = 1;
+  syncRouteQuery();
   manualStore.fetchResources(stationId.value, {
     page: 1,
     categoryId: manualStore.activeCategoryId || undefined,
     search: manualStore.searchQuery || undefined,
     sort: manualStore.sortBy,
   });
+  if (scrollContainerRef.value) {
+    scrollContainerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 function viewResource(resourceId: string) {
+  saveScroll();
   router.push(`/manual/resource/${resourceId}`);
 }
 
@@ -162,6 +216,7 @@ function handlePageJump() {
 
 <template>
   <div
+    ref="scrollContainerRef"
     class="manual-station-view mobile-adaptive h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1800px] mx-auto scrollbar-hide"
   >
     <!-- Header banner -->

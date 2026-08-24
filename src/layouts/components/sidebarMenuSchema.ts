@@ -27,7 +27,7 @@ export const getGroupKey = (group: SidebarMenuGroup, index: number): string =>
 
 // --- Sidebar dimension constants (px) -------------------------------------
 export const SIDEBAR_RAIL_WIDTH = 60;
-export const SIDEBAR_DEFAULT_WIDTH = 196;
+export const SIDEBAR_DEFAULT_WIDTH = 210;
 export const SIDEBAR_MIN_WIDTH = 130;
 export const SIDEBAR_MAX_WIDTH = 450;
 

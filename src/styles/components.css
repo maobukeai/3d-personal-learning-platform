@@ -130,6 +130,10 @@ html.theme-glass .search-box input[type='text']:focus {
   -webkit-backdrop-filter: none;
   color: var(--text-primary);
   font-size: 0.875rem;
+  /* 填满标签盒高度：裸 input 不随内容收缩成 14-15px 的细条 */
+  height: 100%;
+  min-height: 1.75rem;
+  padding: 0;
 }
 
 /* Icon button - consolidated to reduce duplication */

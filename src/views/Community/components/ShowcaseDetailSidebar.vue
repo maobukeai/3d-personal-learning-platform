@@ -344,14 +344,14 @@ const hasLinkedResources = (item: ShowcaseItem) =>
   margin-bottom: 8px;
 }
 .detail-type {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   padding: 2.5px 7px;
   border-radius: 5px;
   text-transform: uppercase;
 }
 .detail-status {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   padding: 2.5px 7px;
   border-radius: 5px;

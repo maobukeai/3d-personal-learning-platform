@@ -141,10 +141,12 @@ async function loadResource() {
 }
 
 function goBack() {
-  if (resource.value?.stationId) {
+  if (window.history.length > 1 && window.history.state?.back) {
+    router.back();
+  } else if (resource.value?.stationId) {
     router.push(`/manual/station/${resource.value.stationId}`);
   } else {
-    router.push('/');
+    router.push('/dashboard');
   }
 }
 

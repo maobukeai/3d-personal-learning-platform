@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { formatDate } from '@/utils/format';
 import { logError } from '@/utils/error';
 import { computed, defineAsyncComponent } from 'vue';
@@ -59,20 +59,22 @@ const handleDownload = () => {
     window.open(asset.value.url, '_blank', 'noopener,noreferrer');
   }
 };
+
+const isMobile = computed(() => typeof window !== 'undefined' && window.innerWidth < 640);
 </script>
 
 <template>
   <Drawer
     v-model="isOpen"
     direction="rtl"
-    size="400px"
+    :size="isMobile ? '100%' : '440px'"
     :with-header="false"
     class="asset-details-drawer"
   >
     <div v-if="asset" class="h-full flex flex-col text-[var(--text-primary)] overflow-hidden">
       <!-- Top: Preview -->
       <div
-        class="h-72 relative bg-slate-900 border-b border-white/10 shadow-2xl overflow-hidden shrink-0"
+        class="h-60 sm:h-72 relative bg-slate-900 border-b border-white/10 shadow-2xl overflow-hidden shrink-0"
       >
         <!-- Background Blur Effect -->
         <div class="absolute inset-0 z-0 opacity-40">
@@ -117,7 +119,7 @@ const handleDownload = () => {
 
         <button
           type="button"
-          class="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all duration-300 z-20 hover:scale-110 hover:rotate-90 border border-white/10 shadow-lg"
+          class="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all duration-300 z-20 hover:scale-110 hover:rotate-90 border border-white/10 shadow-lg cursor-pointer"
           @click="workspaceStore.closeDetails()"
         >
           <X class="w-5 h-5" />
@@ -125,7 +127,9 @@ const handleDownload = () => {
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-y-auto p-8 space-y-8 relative">
+      <div
+        class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 relative"
+      >
         <!-- Glow effect behind content -->
         <div
           class="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full glass-glow-md pointer-events-none"

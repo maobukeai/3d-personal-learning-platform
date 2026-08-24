@@ -672,19 +672,21 @@ onMounted(fetchAdminStats);
             variant="secondary"
             size="sm"
             :icon="Clock"
-            class="!h-7.5 !text-xs !px-2.5"
+            class="!h-7.5 !text-xs !px-2 sm:!px-2.5"
+            title="审计日志"
             @click="router.push('/admin/audit-logs')"
           >
-            审计日志
+            <span class="hidden sm:inline">审计日志</span>
           </Button>
           <Button
             variant="secondary"
             size="sm"
             :icon="Megaphone"
-            class="!h-7.5 !text-xs !px-2.5"
+            class="!h-7.5 !text-xs !px-2 sm:!px-2.5"
+            title="全站广播"
             @click="showBroadcastModal = true"
           >
-            全站广播
+            <span class="hidden sm:inline">全站广播</span>
           </Button>
           <Button
             variant="primary"
@@ -692,9 +694,10 @@ onMounted(fetchAdminStats);
             :icon="RefreshCw"
             :loading="isLoading"
             class="!h-7.5 !text-xs !px-2.5"
+            title="刷新数据"
             @click="fetchAdminStats"
           >
-            刷新
+            <span>刷新</span>
           </Button>
         </AdminHeader>
         <AdminDashboardStats :cards="consolidatedCards" @navigate="router.push($event)" />

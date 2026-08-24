@@ -119,7 +119,7 @@ const handlePaste = (e: ClipboardEvent) => {
     <template v-else-if="column.type === 'select'">
       <select
         :value="modelValue || ''"
-        class="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500"
+        class="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-neutral-200 outline-none focus:border-blue-500 min-h-[32px]"
         @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
       >
         <option value="" class="bg-neutral-900 text-neutral-400">未选择</option>

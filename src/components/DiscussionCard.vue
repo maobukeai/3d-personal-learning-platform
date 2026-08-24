@@ -652,7 +652,7 @@ function handleTagClick(tagName: string, event: Event) {
 
 .discussion-card--grid .discussion-card__time {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   margin-top: 1px;
 }
 
@@ -703,7 +703,7 @@ function handleTagClick(tagName: string, event: Event) {
   border-radius: 4px;
   background: rgba(15, 23, 42, 0.75);
   color: #fff;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -720,7 +720,7 @@ function handleTagClick(tagName: string, event: Event) {
 .discussion-card--grid .discussion-card__tag {
   height: 18px;
   padding: 0 6px;
-  font-size: 9px;
+  font-size: 10px;
   gap: 2px;
 }
 
@@ -730,7 +730,7 @@ function handleTagClick(tagName: string, event: Event) {
 }
 
 .discussion-card--grid .discussion-card__metric {
-  font-size: 9.5px;
+  font-size: 10px;
   height: 20px;
   padding: 0 4px;
   gap: 3px;

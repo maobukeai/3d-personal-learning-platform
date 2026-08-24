@@ -40,6 +40,9 @@ cd server && npm run dev
 
 ## 部署
 
+- 详细部署与一键热更新指南见 [docs/deployment-guide.md](docs/deployment-guide.md)
+- Nginx 生产配置模板见 [ops/nginx/](ops/nginx/)
+
 ```bash
 # 一键部署（需 root/sudo 权限）
 chmod +x deploy.sh

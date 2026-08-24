@@ -206,7 +206,7 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
         return;
       }
 
-      if (mode === 'rail' || mode === 'expanded') {
+      if (mode === 'classic' || mode === 'rail' || mode === 'top' || mode === 'expanded') {
         sidebarMode.value = mode;
         preferences.setSidebarMode(mode);
       }
@@ -239,11 +239,26 @@ export function useSidebarPreferences({ initialMode, isAuthenticated }: SidebarP
     },
   );
 
-  onMounted(loadCloudSidebarPreferences);
+  const handleSidebarModeChanged = (e: Event) => {
+    const customEvt = e as CustomEvent<{ mode: SidebarMode }>;
+    if (customEvt.detail?.mode) {
+      sidebarMode.value = customEvt.detail.mode;
+    } else if (preferences.hasSidebarMode()) {
+      sidebarMode.value = preferences.getSidebarMode();
+    }
+  };
+
+  onMounted(() => {
+    loadCloudSidebarPreferences();
+    window.addEventListener('sidebar-mode-changed', handleSidebarModeChanged);
+    window.addEventListener('storage', handleSidebarModeChanged);
+  });
 
   onUnmounted(() => {
     if (savePreferenceTimer) window.clearTimeout(savePreferenceTimer);
     if (minSavingTimer) window.clearTimeout(minSavingTimer);
+    window.removeEventListener('sidebar-mode-changed', handleSidebarModeChanged);
+    window.removeEventListener('storage', handleSidebarModeChanged);
   });
 
   return {

@@ -145,7 +145,7 @@ function handleSubmit() {
                 </span>
                 <span
                   v-if="comment.userId === authStore.user?.id"
-                  class="px-1.5 py-0.2 rounded-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[9px] font-black"
+                  class="px-1.5 py-0.2 rounded-sm bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black"
                 >
                   我
                 </span>

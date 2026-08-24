@@ -960,7 +960,7 @@ button:disabled {
 
 .action-raw-code,
 .agent-label-text {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted);
   line-height: 1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -1180,7 +1180,7 @@ button:disabled {
 
 .trend-bar small {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   writing-mode: vertical-rl;
 }
 
@@ -1322,13 +1322,13 @@ button:disabled {
 
   .primary-button,
   .ghost-button {
-    min-height: 30px;
+    min-height: 32px;
     padding: 0 9px;
     font-size: 11px;
   }
 
   .summary-chip {
-    min-height: 26px;
+    min-height: 32px;
     padding: 0 8px;
     font-size: 10px;
   }

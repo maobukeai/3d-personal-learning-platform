@@ -93,7 +93,7 @@ const course = ref<Course | null>(null);
 const lessons = ref<Lesson[]>([]);
 const currentLessonIndex = ref(0);
 const isLoading = ref(true);
-const isSidebarOpen = ref(true);
+const isSidebarOpen = ref(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
 const activeTab = ref<'content' | 'notes' | 'discussion'>('content');
 const progress = ref(0);
 const lessonProgressMap = ref<Record<string, boolean>>({});
@@ -691,7 +691,7 @@ onUnmounted(() => {
     <Transition name="slide-right">
       <div
         v-if="isSidebarOpen"
-        class="w-[33.33vw] min-w-[220px] lg:w-80 h-full flex flex-col border-l z-30 absolute lg:relative right-0 top-0 bottom-0 lg:inset-auto transition-colors duration-300"
+        class="w-[85vw] max-w-[360px] sm:w-[60vw] lg:w-80 h-full flex flex-col border-l z-30 absolute lg:relative right-0 top-0 bottom-0 lg:inset-auto shadow-2xl lg:shadow-none transition-colors duration-300"
         style="background-color: var(--bg-card); border-color: var(--border-base)"
       >
         <!-- Sidebar Header -->

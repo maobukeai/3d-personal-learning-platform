@@ -386,6 +386,7 @@ onMounted(load);
   align-items: center;
   gap: 6px;
   margin-right: 8px;
+  min-height: 28px;
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 13px;

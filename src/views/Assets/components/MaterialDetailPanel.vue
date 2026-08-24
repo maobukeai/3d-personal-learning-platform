@@ -1238,7 +1238,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   background: rgba(15, 23, 42, 0.75);
   color: #fff;
   padding: 2px 5px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -1297,7 +1297,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
 
 .detail-grid dt {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -1340,7 +1340,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   background: var(--bg-app);
   color: var(--text-secondary);
   padding: 1px 5px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -1368,7 +1368,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
 
 .author-row span {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -1427,7 +1427,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   flex: 0 0 auto;
   border-radius: 999px;
   padding: 1px 5px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
 }
 
@@ -1559,7 +1559,7 @@ const getBilibiliEmbedUrl = (url?: string | null): string | undefined => {
   gap: 3px;
   border-radius: 999px;
   padding: 1px 6px;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
 }
 

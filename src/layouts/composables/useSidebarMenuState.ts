@@ -37,7 +37,7 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
 
   const getInitialMode = (): SidebarMode => {
     if (preferences.hasSidebarMode()) return preferences.getSidebarMode();
-    return route.path.startsWith('/admin') ? 'rail' : 'expanded';
+    return 'classic';
   };
 
   const {
@@ -54,7 +54,18 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
     isAuthenticated: computed(() => authStore.isAuthenticated),
   });
 
-  const isExpanded = computed(() => sidebarMode.value === 'expanded');
+  const classicExpanded = ref(
+    typeof window !== 'undefined'
+      ? window.localStorage.getItem('sidebar_classic_expanded') !== 'false'
+      : true,
+  );
+
+  const isExpanded = computed(() => {
+    if (sidebarMode.value === 'classic') {
+      return classicExpanded.value;
+    }
+    return sidebarMode.value === 'expanded';
+  });
   const isAdmin = computed(() => workspaceStore.isAdminWorkspace);
   const isResourceWorkspace = computed(
     () =>
@@ -87,19 +98,19 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
 
   const settingsPath = computed(() => {
     if (isAdmin.value) return '/admin/settings';
-    return '/workspace/settings';
+    return '/settings';
   });
 
   const settingStateLabel = computed(() => {
-    if (isSavingPreference.value) return label('正在同步...', 'Syncing...');
-    if (cloudPreferenceLoaded.value) return label('云同步已开启', 'Synced');
-    return label('本地运行', 'Local Mode');
+    if (isSavingPreference.value) return label('正在同步', 'Syncing');
+    if (cloudPreferenceLoaded.value) return label('已同步', 'Synced');
+    return label('本地模式', 'Local');
   });
 
   const settingStateCaption = computed(() => {
-    if (isSavingPreference.value) return label('首选项正保存至云端', 'Saving to cloud');
-    if (cloudPreferenceLoaded.value) return label('配置已与云端保持实时同步', 'Config in sync');
-    return label('正在使用本地偏好设置运行', 'Local storage active');
+    if (isSavingPreference.value) return label('保存中', 'Saving');
+    if (cloudPreferenceLoaded.value) return label('偏好状态', 'Preferences');
+    return label('本地偏好', 'Local');
   });
 
   const collapseNavigationLabel = computed(() => label('折叠导航栏', 'Collapse menu'));
@@ -171,28 +182,35 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
   const isActiveResource = ref(false);
   const isMounted = ref(false);
 
-  const updateActiveIndicator = () => {
+  const updateActiveIndicator = (targetElOverride?: Element | null) => {
     nextTick(() => {
-      const activeEl = document.querySelector('.panel-groups .panel-link--active');
-      if (!activeEl) {
-        activeIndicatorStyle.value = { opacity: 0 };
-        isActiveResource.value = false;
-        return;
-      }
-      const containerEl = document.querySelector('.panel-groups');
-      if (!containerEl) return;
-      isActiveResource.value = activeEl.classList.contains('panel-link--resource');
-      const activeRect = activeEl.getBoundingClientRect();
-      const containerRect = containerEl.getBoundingClientRect();
-      activeIndicatorStyle.value = {
-        position: 'absolute',
-        top: `${activeRect.top - containerRect.top + containerEl.scrollTop}px`,
-        left: `${activeRect.left - containerRect.left}px`,
-        width: `${activeRect.width}px`,
-        height: `${activeRect.height}px`,
-        opacity: 1,
-        pointerEvents: 'none',
-      };
+      requestAnimationFrame(() => {
+        const activeEl =
+          targetElOverride ||
+          document.querySelector(
+            '.panel-groups .bento-tile--active, .panel-groups .panel-tree-link--active, .panel-groups .panel-link--active',
+          );
+        if (!activeEl) {
+          activeIndicatorStyle.value = { opacity: 0 };
+          isActiveResource.value = false;
+          return;
+        }
+        const containerEl = document.querySelector('.panel-groups');
+        if (!containerEl) return;
+        isActiveResource.value = activeEl.classList.contains('panel-link--resource');
+        const activeRect = activeEl.getBoundingClientRect();
+        const containerRect = containerEl.getBoundingClientRect();
+        const x = activeRect.left - containerRect.left;
+        const y = activeRect.top - containerRect.top + containerEl.scrollTop;
+        activeIndicatorStyle.value = {
+          position: 'absolute',
+          transform: `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`,
+          width: `${Math.round(activeRect.width)}px`,
+          height: `${Math.round(activeRect.height)}px`,
+          opacity: 1,
+          pointerEvents: 'none',
+        };
+      });
     });
   };
 
@@ -235,15 +253,23 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
       let newWidth = startWidth + deltaX;
       if (newWidth < SIDEBAR_MIN_WIDTH) {
         if (newWidth < SIDEBAR_RAIL_THRESHOLD) {
-          if (sidebarMode.value !== 'rail') {
+          if (sidebarMode.value === 'classic') {
+            classicExpanded.value = false;
+            localStorage.setItem('sidebar_classic_expanded', 'false');
+          } else if (sidebarMode.value !== 'rail') {
             setSidebarMode('rail');
           }
           return;
         }
         newWidth = SIDEBAR_MIN_WIDTH;
       }
-      if (newWidth >= SIDEBAR_EXPAND_THRESHOLD && sidebarMode.value !== 'expanded') {
-        setSidebarMode('expanded');
+      if (newWidth >= SIDEBAR_EXPAND_THRESHOLD) {
+        if (sidebarMode.value === 'classic') {
+          classicExpanded.value = true;
+          localStorage.setItem('sidebar_classic_expanded', 'true');
+        } else if (sidebarMode.value !== 'expanded') {
+          setSidebarMode('expanded');
+        }
       }
       customWidth.value = newWidth;
       localStorage.setItem('sidebarCustomWidth', String(newWidth));
@@ -261,7 +287,12 @@ export function useSidebarMenuState(menuGroups: Ref<SidebarMenuGroup[]>) {
   };
 
   const toggleSidebar = () => {
-    setSidebarMode(isExpanded.value ? 'rail' : 'expanded');
+    if (sidebarMode.value === 'classic') {
+      classicExpanded.value = !classicExpanded.value;
+      localStorage.setItem('sidebar_classic_expanded', String(classicExpanded.value));
+    } else {
+      setSidebarMode(isExpanded.value ? 'rail' : 'expanded');
+    }
   };
 
   const toggleGroup = (group: PreparedSidebarGroup) => {

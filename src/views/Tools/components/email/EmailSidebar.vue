@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Mail, Plus, RefreshCw, Trash2, Shield, Search } from 'lucide-vue-next';
+import { Mail, RefreshCw, Shield, Users, Plus } from 'lucide-vue-next';
 import type { EmailAccount } from './email-types';
-import EmailAccountCard from './EmailAccountCard.vue';
+import EmailAccountSwitcher from './EmailAccountSwitcher.vue';
 import EmailFolderList from './EmailFolderList.vue';
-import Input from '@/components/ui/Input.vue';
+import EmailAccountDetailCard from './EmailAccountDetailCard.vue';
+import EmailAccountManagerDrawer from './EmailAccountManagerDrawer.vue';
 import Tooltip from '@/components/ui/Tooltip.vue';
 
 interface Props {
@@ -37,47 +38,22 @@ const emit = defineEmits<{
   (e: 'copyEmail', email: string): void;
 }>();
 
-const { locale } = useI18n();
+const { t } = useI18n();
+const isManagerOpen = ref(false);
 
-// Search Query for Email Accounts
-const searchQuery = ref('');
-
-const filteredAccounts = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase();
-  if (!query) return props.accounts;
-  return props.accounts.filter((acc) => acc.email.toLowerCase().includes(query));
-});
-
-// Check if all filtered accounts are selected
-const isAllSelected = computed(() => {
-  if (filteredAccounts.value.length === 0) return false;
-  return filteredAccounts.value.every((acc) => props.selectedAccountIds.includes(acc.id));
-});
-
-// Toggle select all only for filtered accounts
-const toggleSelectAllFiltered = () => {
-  const allSelected = isAllSelected.value;
-  filteredAccounts.value.forEach((acc) => {
-    const isSelected = props.selectedAccountIds.includes(acc.id);
-    if (allSelected && isSelected) {
-      emit('toggleSelectAccount', acc.id);
-    } else if (!allSelected && !isSelected) {
-      emit('toggleSelectAccount', acc.id);
-    }
-  });
-};
-
-const copyTooltip = computed(() => {
-  return locale.value === 'en-US' ? 'Copy Email' : '复制邮箱';
+const selectedAccount = computed(() => {
+  return props.accounts.find((acc) => acc.id === props.selectedAccountId);
 });
 </script>
 
 <template>
   <aside
-    class="w-72 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col z-10 select-none"
+    class="w-72 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col z-10 select-none h-full"
   >
     <!-- Top Action Hub -->
-    <div class="p-4 border-b border-slate-100 dark:border-slate-900 flex flex-col gap-2.5">
+    <div
+      class="p-3.5 border-b border-slate-100 dark:border-slate-900 flex flex-col gap-2.5 shrink-0"
+    >
       <div class="mobile-row flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div
@@ -92,7 +68,7 @@ const copyTooltip = computed(() => {
         <Tooltip :content="$t('tools.email.refresh_tooltip')" placement="top">
           <button
             type="button"
-            class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors duration-200"
+            class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-indigo-500 rounded-lg transition-colors duration-200 cursor-pointer"
             @click="$emit('refresh')"
           >
             <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': isAccountsLoading }" />
@@ -100,143 +76,118 @@ const copyTooltip = computed(() => {
         </Tooltip>
       </div>
 
-      <div class="grid grid-cols-2 gap-2 mt-1">
-        <button
-          type="button"
-          class="flex items-center justify-center gap-1.5 py-1.5 px-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-lg text-xs font-medium transition-all duration-200 shadow-sm shadow-indigo-200 dark:shadow-none"
-          @click="$emit('openImport')"
-        >
-          <Plus class="w-3.5 h-3.5" /> {{ $t('tools.email.batch_import') }}
-        </button>
-        <button
-          type="button"
-          class="flex items-center justify-center gap-1.5 py-1.5 px-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-medium transition-all duration-200"
-          @click="$emit('openAdd')"
-        >
-          <Plus class="w-3.5 h-3.5" /> {{ $t('tools.email.add_account') }}
-        </button>
-      </div>
-
-      <!-- Search Input -->
-      <div v-if="accounts.length > 0" class="mt-1">
-        <Input
-          v-model="searchQuery"
-          :placeholder="locale === 'en-US' ? 'Search email...' : '搜索邮箱...'"
-          :icon="Search"
-          icon-position="left"
-          clearable
-          :glass="false"
-          input-class="!py-1.5 !pl-8.5 !pr-9 text-xs font-semibold"
-        />
-      </div>
+      <!-- Account Switcher Trigger Card & Dropdown -->
+      <EmailAccountSwitcher
+        :accounts="accounts"
+        :selected-account-id="selectedAccountId"
+        :is-accounts-loading="isAccountsLoading"
+        @select-account="emit('selectAccount', $event)"
+        @open-add="emit('openAdd')"
+        @open-import="emit('openImport')"
+        @open-manager="isManagerOpen = true"
+        @copy-email="emit('copyEmail', $event)"
+      />
     </div>
 
-    <!-- Scrollable Accounts List -->
-    <div class="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-4">
-      <div>
-        <div
-          class="flex items-center justify-between px-2 mb-2 text-xs font-semibold tracking-wider text-slate-400 uppercase"
-        >
-          <div v-if="isMultiSelectMode" class="flex items-center gap-1.5">
-            <input
-              type="checkbox"
-              :checked="isAllSelected"
-              class="rounded border-slate-300 dark:border-slate-800 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-              @change="toggleSelectAllFiltered"
-            />
-            <span
-              >{{ $t('tools.email.all_selected') }} ({{ selectedAccountIds.length }}/{{
-                filteredAccounts.length
-              }})</span
-            >
-          </div>
-          <span v-else>{{ $t('tools.email.bound_accounts', { n: filteredAccounts.length }) }}</span>
-
-          <button
-            v-if="filteredAccounts.length > 0"
-            type="button"
-            class="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 cursor-pointer transition-colors"
-            @click="$emit('toggleMultiSelect')"
-          >
-            {{
-              isMultiSelectMode ? $t('tools.email.cancel_btn') : $t('tools.email.batch_management')
-            }}
-          </button>
-        </div>
-
-        <!-- Batch Action Buttons -->
-        <div v-if="isMultiSelectMode && filteredAccounts.length > 0" class="flex gap-2 mb-3 px-1">
-          <button
-            type="button"
-            :disabled="selectedAccountIds.length === 0 || isBatchTesting"
-            class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100/80 text-indigo-600 dark:text-indigo-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-indigo-200/50 dark:border-indigo-900/40 transition-all cursor-pointer"
-            @click="$emit('batchTest')"
-          >
-            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isBatchTesting }" />
-            {{ $t('tools.email.verify_batch') }}
-          </button>
-          <button
-            type="button"
-            :disabled="selectedAccountIds.length === 0 || isBatchDeleting"
-            class="flex-1 flex items-center justify-center gap-1 py-1 px-1.5 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100/80 text-rose-600 dark:text-rose-400 disabled:opacity-50 disabled:pointer-events-none rounded-lg text-[10px] font-bold border border-rose-200/50 dark:border-rose-900/40 transition-all cursor-pointer"
-            @click="$emit('batchDelete')"
-          >
-            <Trash2 class="w-3.5 h-3.5" />
-            {{ $t('tools.email.unbind_batch') }}
-          </button>
-        </div>
-
-        <div
-          v-if="accounts.length === 0"
-          class="py-8 px-4 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400"
-        >
-          <Mail class="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
-          <p class="text-xs">{{ $t('tools.email.no_accounts') }}</p>
-          <p class="text-[10px] mt-1">{{ $t('tools.email.add_first_tip') }}</p>
-        </div>
-
-        <div
-          v-else-if="filteredAccounts.length === 0"
-          class="py-8 px-4 text-center text-xs text-slate-400"
-        >
-          {{ locale === 'en-US' ? 'No emails matched your search' : '没有找到匹配的邮箱' }}
-        </div>
-
-        <ul v-else class="flex flex-col gap-1.5">
-          <li v-for="acc in filteredAccounts" :key="acc.id">
-            <EmailAccountCard
-              :acc="acc"
-              :selected-account-id="selectedAccountId"
-              :is-multi-select-mode="isMultiSelectMode"
-              :selected-account-ids="selectedAccountIds"
-              :copy-tooltip="copyTooltip"
-              @toggle-select-account="emit('toggleSelectAccount', $event)"
-              @select-account="emit('selectAccount', $event)"
-              @copy-email="emit('copyEmail', $event)"
-              @test-connection="emit('testConnection', $event)"
-              @edit-account="emit('editAccount', $event)"
-              @delete-account="emit('deleteAccount', $event)"
-            />
-          </li>
-        </ul>
-      </div>
-
-      <!-- Folder Lists -->
+    <!-- Main Sidebar Content (Folders & Quick Monitoring) -->
+    <div class="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-4">
+      <!-- Pinned Mail Folders -->
       <EmailFolderList
         :selected-account-id="selectedAccountId"
         :current-folder="currentFolder"
         @change-folder="emit('changeFolder', $event)"
       />
-    </div>
 
-    <!-- Quick Banner Support -->
-    <div
-      class="p-3 bg-indigo-50/30 dark:bg-indigo-950/10 border-t border-slate-100 dark:border-slate-900 flex items-center gap-2"
-    >
-      <Shield class="w-4 h-4 text-indigo-500" />
-      <div class="text-[10px] text-slate-400">
-        {{ $t('tools.email.outlook_support_tip') }}
+      <!-- Active Account Quick Monitor Card -->
+      <div
+        v-if="selectedAccount"
+        class="flex flex-col gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-900"
+      >
+        <div class="px-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
+          当前账号监控
+        </div>
+        <EmailAccountDetailCard
+          :account="selectedAccount"
+          :is-testing="isBatchTesting"
+          @test-connection="emit('testConnection', $event)"
+          @edit-account="emit('editAccount', $event)"
+          @delete-account="emit('deleteAccount', $event)"
+        />
+      </div>
+
+      <!-- No accounts empty tip -->
+      <div
+        v-if="accounts.length === 0"
+        class="py-8 px-4 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 my-auto"
+      >
+        <Mail class="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-700" />
+        <p class="text-xs">{{ $t('tools.email.no_accounts') }}</p>
+        <button
+          type="button"
+          class="mt-3 flex items-center justify-center gap-1 mx-auto py-1 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors cursor-pointer"
+          @click="$emit('openAdd')"
+        >
+          <Plus class="w-3.5 h-3.5" /> {{ $t('tools.email.add_account') }}
+        </button>
       </div>
     </div>
+
+    <!-- Bottom Accounts Hub Entry -->
+    <div
+      class="p-3 border-t border-slate-100 dark:border-slate-900 flex flex-col gap-2 shrink-0 bg-slate-50/40 dark:bg-slate-900/20"
+    >
+      <button
+        type="button"
+        class="w-full flex items-center justify-between p-2 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30 hover:border-indigo-200 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all duration-200 cursor-pointer group shadow-2xs"
+        @click="isManagerOpen = true"
+      >
+        <div class="flex items-center gap-2">
+          <div
+            class="p-1 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform"
+          >
+            <Users class="w-3.5 h-3.5" />
+          </div>
+          <span>管理全部账号</span>
+        </div>
+        <span
+          class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600 dark:group-hover:bg-indigo-900 dark:group-hover:text-indigo-300 transition-colors"
+        >
+          {{ accounts.length }} 个
+        </span>
+      </button>
+
+      <!-- Quick Banner Support -->
+      <div class="flex items-center gap-1.5 px-1 text-[10px] text-slate-400">
+        <Shield class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+        <span class="truncate">{{ $t('tools.email.outlook_support_tip') }}</span>
+      </div>
+    </div>
+
+    <!-- All Accounts Management Drawer -->
+    <EmailAccountManagerDrawer
+      v-model="isManagerOpen"
+      :accounts="accounts"
+      :selected-account-id="selectedAccountId"
+      :selected-account-ids="selectedAccountIds"
+      :is-multi-select-mode="isMultiSelectMode"
+      :is-batch-testing="isBatchTesting"
+      :is-batch-deleting="isBatchDeleting"
+      :is-accounts-loading="isAccountsLoading"
+      @select-account="
+        emit('selectAccount', $event);
+        isManagerOpen = false;
+      "
+      @toggle-multi-select="emit('toggleMultiSelect')"
+      @toggle-select-account="emit('toggleSelectAccount', $event)"
+      @batch-test="emit('batchTest')"
+      @batch-delete="emit('batchDelete')"
+      @open-add="emit('openAdd')"
+      @open-import="emit('openImport')"
+      @refresh="emit('refresh')"
+      @test-connection="emit('testConnection', $event)"
+      @edit-account="emit('editAccount', $event)"
+      @delete-account="emit('deleteAccount', $event)"
+      @copy-email="emit('copyEmail', $event)"
+    />
   </aside>
 </template>

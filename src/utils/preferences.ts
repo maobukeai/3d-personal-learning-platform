@@ -1,7 +1,7 @@
 export type ThemePreference = 'glass-light' | 'glass-dark' | 'glass-auto';
 export type ThemeBackgroundPreference = 'grid' | 'aurora' | 'blobs' | 'dots' | 'prism' | 'solid';
 export type LocalePreference = 'zh-CN' | 'en-US';
-export type SidebarMode = 'rail' | 'expanded';
+export type SidebarMode = 'classic' | 'rail' | 'top' | 'expanded';
 export type AccentColorModePreference = 'static' | 'refresh' | 'interval';
 export type AccentColorIntervalPreference = '10s' | '1m' | '5m' | '30m';
 
@@ -88,7 +88,7 @@ const isLocalePreference = (value: string | null): value is LocalePreference =>
   value === 'zh-CN' || value === 'en-US';
 
 const isSidebarMode = (value: string | null): value is SidebarMode =>
-  value === 'rail' || value === 'expanded';
+  value === 'classic' || value === 'rail' || value === 'top' || value === 'expanded';
 
 export const preferences = {
   keys: storageKeys,

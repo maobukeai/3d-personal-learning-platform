@@ -1071,7 +1071,10 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="container" class="w-full h-full cursor-move relative overflow-hidden group">
+  <div
+    ref="container"
+    class="w-full h-full cursor-move relative overflow-hidden group touch-action-none model-viewer-canvas-wrap"
+  >
     <!-- Error State -->
     <div
       v-if="error"
@@ -1172,39 +1175,40 @@ defineExpose({
 
     <!-- Toolbar -->
     <div
-      class="absolute right-4 top-4 flex flex-col gap-2.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+      class="absolute right-2.5 sm:right-4 top-2.5 sm:top-4 flex flex-col gap-2 sm:gap-2.5 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300"
     >
       <button
         v-if="props.editable"
         type="button"
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        class="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-950/75 hover:bg-accent border border-white/15 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
         title="保存当前视角为默认"
         @click="saveCurrentViewport"
       >
-        <Camera class="w-4.5 h-4.5" />
+        <Camera class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>
       <button
         type="button"
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        class="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-950/75 hover:bg-accent border border-white/15 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
         title="模型信息"
         @click="showStats = !showStats"
       >
-        <Info class="w-4.5 h-4.5" />
+        <Info class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>
       <button
         type="button"
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        class="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-950/75 hover:bg-accent border border-white/15 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
         title="重置视角"
         @click="resetCamera"
       >
-        <RefreshCw class="w-4.5 h-4.5" />
+        <RefreshCw class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>
       <button
         type="button"
-        class="w-9 h-9 flex items-center justify-center bg-slate-950/70 hover:bg-accent border border-white/10 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        class="w-8.5 h-8.5 sm:w-9 sm:h-9 flex items-center justify-center bg-slate-950/75 hover:bg-accent border border-white/15 rounded-xl text-white shadow-lg transition-all active:scale-95 cursor-pointer backdrop-blur-md"
+        title="全屏切换"
         @click="toggleFullscreen"
       >
-        <Layers class="w-4.5 h-4.5" />
+        <Layers class="w-4 h-4 sm:w-4.5 sm:h-4.5" />
       </button>
     </div>
   </div>

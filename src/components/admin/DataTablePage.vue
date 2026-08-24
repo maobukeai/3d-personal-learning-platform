@@ -613,7 +613,10 @@ const getRowClassName = (row: Record<string, unknown>): string => {
         <Button variant="outline" size="sm" @click="retry">Retry</Button>
       </div>
       <!-- Table -->
-      <div v-else class="table-shell rounded-xl border border-border bg-card overflow-hidden">
+      <div
+        v-else
+        class="table-shell rounded-xl border border-border bg-card overflow-x-auto scrollbar-hide max-w-full"
+      >
         <Table
           :data="items as any[]"
           :loading="loading"

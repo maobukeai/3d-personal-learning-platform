@@ -206,7 +206,7 @@ function openQuickAction(action: QuickAction) {
 }
 
 .focus-score small {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: 700;
   margin-top: 1px;
 }

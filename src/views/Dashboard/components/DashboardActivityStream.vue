@@ -165,7 +165,7 @@ const emit = defineEmits<{
   color: var(--text-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
 }
 

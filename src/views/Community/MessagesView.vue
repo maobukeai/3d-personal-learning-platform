@@ -581,10 +581,10 @@ onUnmounted(() => {
       @back="activeConversation = null"
     />
 
-    <!-- Empty State -->
+    <!-- Empty State (desktop only: on mobile the full-width sidebar is the landing view) -->
     <div
       v-else
-      class="flex-1 flex flex-col items-center justify-center p-6 text-center"
+      class="flex-1 hidden lg:flex flex-col items-center justify-center p-6 text-center"
       style="background-color: var(--bg-app)"
     >
       <div

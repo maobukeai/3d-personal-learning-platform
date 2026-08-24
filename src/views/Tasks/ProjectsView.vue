@@ -731,43 +731,47 @@ watch(viewMode, (newMode) => {
         </label>
       </template>
 
-      <div class="mobile-row flex items-center gap-2 shrink-0">
+      <div class="mobile-row flex items-center gap-1.5 sm:gap-2 shrink-0">
         <Button
           variant="secondary"
           size="sm"
-          class="!h-8 shrink-0"
+          class="!h-8 shrink-0 px-2 sm:px-3"
           :icon="isRefreshing ? undefined : RefreshCw"
           :loading="isRefreshing"
+          title="同步项目数据"
           @click="handleManualRefresh"
         >
-          同步
+          <span class="hidden sm:inline">同步</span>
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          class="!h-8 shrink-0"
+          class="!h-8 shrink-0 px-2 sm:px-3"
           :icon="isStatsExpanded ? EyeOff : Eye"
+          :title="isStatsExpanded ? '收起指标' : '数据指标'"
           @click="isStatsExpanded = !isStatsExpanded"
         >
-          {{ isStatsExpanded ? '收起指标' : '数据指标' }}
+          <span class="hidden sm:inline">{{ isStatsExpanded ? '收起指标' : '数据指标' }}</span>
         </Button>
         <Button
           variant="secondary"
           size="sm"
-          class="!h-8 shrink-0"
+          class="!h-8 shrink-0 px-2 sm:px-3"
           :icon="KanbanSquare"
+          title="任务看板"
           @click="navigateToTaskBoard()"
         >
-          看板
+          <span class="hidden sm:inline">看板</span>
         </Button>
         <Button
           variant="primary"
           size="sm"
-          class="!h-8 shrink-0"
+          class="!h-8 shrink-0 px-2.5 sm:px-3.5"
           :icon="FolderPlus"
+          title="新建项目"
           @click="openAddDrawer"
         >
-          新项目
+          <span>新项目</span>
         </Button>
       </div>
     </PageHeader>

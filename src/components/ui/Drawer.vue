@@ -169,9 +169,10 @@ const sizeStyle = computed<Record<string, string | undefined>>(() => {
   const val = sizeValue.value;
   if (!val) return {};
   if (props.direction === 'rtl' || props.direction === 'ltr') {
-    return { width: val };
+    // Cap at viewport so large drawers never overflow small screens
+    return { width: val, maxWidth: '100vw' };
   }
-  return { height: val };
+  return { height: val, maxHeight: '100dvh' };
 });
 
 const positionClass = computed(() => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
 import {
   ArrowLeft,
   Clock,
@@ -10,18 +11,31 @@ import {
   AlertCircle,
   Lock,
   FolderTree,
+  Sparkles,
+  HardDriveDownload,
+  Crown,
 } from 'lucide-vue-next';
 import { formatDateTime as formatDate } from '@/utils/format';
 import { parseTags } from '@/utils/tags';
 import SafeHtml from '@/components/SafeHtml.vue';
-import { getAssetUrl } from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
+import { useMirrorStore } from '@/stores/mirror';
 
 import MirrorResourceComments from '@/views/Mirror/components/detail/MirrorResourceComments.vue';
 import MirrorResourceExtractCard from '@/views/Mirror/components/detail/MirrorResourceExtractCard.vue';
 import MirrorResourceExtractModal from '@/views/Mirror/components/detail/MirrorResourceExtractModal.vue';
 import MirrorResourceSecurityVerifyModal from '@/views/Mirror/components/detail/MirrorResourceSecurityVerifyModal.vue';
 import { useMirrorResourceDetail } from '@/views/Mirror/composables/useMirrorResourceDetail';
+
+const mirrorStore = useMirrorStore();
+const extractQuota = ref<{
+  total: number | 'UNLIMITED';
+  used: number;
+  remaining: number | 'UNLIMITED';
+  planName: string;
+  isAdmin: boolean;
+} | null>(null);
 
 const {
   resource,
@@ -46,6 +60,25 @@ const {
   handleSecurityVerified,
 } = useMirrorResourceDetail();
 
+const recommendedResources = computed(() => {
+  return mirrorStore.resources.filter((r) => r.id !== resource.value?.id).slice(0, 4);
+});
+
+async function fetchExtractQuota() {
+  if (!authStore.isAuthenticated) return;
+  try {
+    const res = await api.get('/api/subscriptions/extract-quota');
+    extractQuota.value = res.data;
+  } catch {}
+}
+
+onMounted(() => {
+  fetchExtractQuota();
+  if (mirrorStore.resources.length === 0 && resource.value?.sourceId) {
+    mirrorStore.fetchResources(resource.value.sourceId, { page: 1, pageSize: 8 });
+  }
+});
+
 function goBackPortal() {
   if (window.history.length > 1 && window.history.state?.back) {
     router.back();
@@ -54,6 +87,10 @@ function goBackPortal() {
   } else {
     router.push('/portal');
   }
+}
+
+function handleNavigateDetail(id: string) {
+  router.push(`/portal/resource/${id}`);
 }
 </script>
 
@@ -236,7 +273,34 @@ function goBackPortal() {
         </div>
 
         <!-- Right Side: Extract & Comments -->
-        <div class="hidden lg:flex flex-col gap-5 lg:sticky lg:top-4">
+        <div class="hidden lg:flex flex-col gap-4 lg:sticky lg:top-4">
+          <!-- Daily Quota Floating Badge -->
+          <div
+            v-if="extractQuota"
+            class="p-3 rounded-2xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-200/80 dark:border-blue-500/20 backdrop-blur-md flex items-center justify-between text-xs"
+          >
+            <div class="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+              <HardDriveDownload class="w-3.5 h-3.5 text-blue-500" />
+              <span>今日获取额度</span>
+            </div>
+            <span
+              v-if="extractQuota.isAdmin"
+              class="text-blue-600 dark:text-blue-400 font-extrabold text-[11px]"
+            >
+              无限次获取
+            </span>
+            <span
+              v-else-if="typeof extractQuota.remaining === 'number'"
+              class="text-slate-600 dark:text-slate-300 font-semibold text-[11px]"
+            >
+              剩余
+              <strong class="text-blue-600 dark:text-blue-400 font-black">{{
+                extractQuota.remaining
+              }}</strong>
+              / {{ extractQuota.total }} 次
+            </span>
+          </div>
+
           <MirrorResourceExtractCard
             :resource="resource"
             :extracted-links="extractedLinks"
@@ -252,6 +316,54 @@ function goBackPortal() {
             @submit="submitComment"
             @delete="deleteComment"
           />
+        </div>
+      </div>
+
+      <!-- Recommended Resources Stream -->
+      <div
+        v-if="recommendedResources.length > 0"
+        class="mt-12 pt-8 border-t border-slate-200/80 dark:border-slate-800/80 space-y-4"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <Sparkles class="w-4 h-4 text-blue-500" />
+            <h3 class="text-sm font-extrabold text-slate-900 dark:text-white">更多精选相关资源</h3>
+          </div>
+          <button
+            type="button"
+            class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+            @click="goBackPortal"
+          >
+            查看全部资源 ➔
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div
+            v-for="item in recommendedResources"
+            :key="item.id"
+            class="group cursor-pointer rounded-2xl bg-white/70 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 p-2.5 transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-blue-500/40"
+            @click="handleNavigateDetail(item.id)"
+          >
+            <div
+              class="w-full aspect-[16/10] bg-slate-100 dark:bg-slate-700 rounded-xl overflow-hidden mb-2"
+            >
+              <img
+                v-if="item.thumbnailUrl"
+                :src="getAssetUrl(item.thumbnailUrl)"
+                :alt="item.title"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center text-slate-400">
+                <Sparkles class="w-6 h-6" />
+              </div>
+            </div>
+            <h4
+              class="text-xs font-bold text-slate-800 dark:text-slate-200 line-clamp-2 leading-snug group-hover:text-blue-600 transition-colors"
+            >
+              {{ item.title }}
+            </h4>
+          </div>
         </div>
       </div>
     </template>

@@ -79,14 +79,27 @@ async function ensureStationLoaded() {
     });
   }
 
-  if (!matchedStation) {
-    matchedStation =
-      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
-  }
+  if (matchedStation) {
+    mirrorStore.setCurrentStation(matchedStation);
 
-  if (matchedStation && route.params.id !== matchedStation.id) {
-    router.replace(`/portal/mirror/${matchedStation.id}`);
-    return;
+    // 智能路由规范化：优先保持专属短别名 /portal/:slug 路径
+    let customSlug = '';
+    try {
+      const cfg = matchedStation.syncConfig ? JSON.parse(matchedStation.syncConfig) : {};
+      customSlug = cfg.proxyConfig?.customSlug?.trim() || '';
+    } catch {}
+
+    if (customSlug) {
+      if (route.name !== 'MirrorPortalSlug' || route.params.slug !== customSlug) {
+        router.replace(`/portal/${customSlug}`);
+        return;
+      }
+    } else {
+      if (route.name !== 'MirrorPortalStation' || route.params.id !== matchedStation.id) {
+        router.replace(`/portal/mirror/${matchedStation.id}`);
+        return;
+      }
+    }
   }
 
   loadData();

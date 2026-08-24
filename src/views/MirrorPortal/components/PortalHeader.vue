@@ -79,13 +79,26 @@ const currentStationSubtitle = computed(() => {
   return '资源资产索引与分发中心';
 });
 
+function getStationRoutePath(station: any) {
+  if (!station) return '/portal';
+  try {
+    const cfg = station.syncConfig ? JSON.parse(station.syncConfig) : {};
+    if (cfg.proxyConfig?.customSlug?.trim()) {
+      return `/portal/${cfg.proxyConfig.customSlug.trim()}`;
+    }
+  } catch {}
+  return `/portal/mirror/${station.id}`;
+}
+
 function handleSelectStation(id: string) {
   isStationDropdownOpen.value = false;
-  router.push(`/portal/mirror/${id}`);
+  const target = mirrorStore.stations.find((s) => s.id === id);
+  router.push(getStationRoutePath(target || { id }));
 }
 
 function handleTopSearch() {
-  const targetId = mirrorStore.currentStation?.id;
+  const targetStation = mirrorStore.currentStation;
+  const targetId = targetStation?.id;
   if (!targetId) return;
 
   const currentRoute = router.currentRoute.value;
@@ -98,7 +111,7 @@ function handleTopSearch() {
   if (currentRoute.name === 'MirrorPortalStation' || currentRoute.name === 'MirrorPortalSlug') {
     router.replace({ query });
   } else {
-    router.push({ path: `/portal/mirror/${targetId}`, query });
+    router.push({ path: getStationRoutePath(targetStation), query });
   }
 
   mirrorStore.fetchResources(targetId, {

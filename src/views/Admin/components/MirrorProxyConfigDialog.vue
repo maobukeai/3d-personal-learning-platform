@@ -12,10 +12,11 @@ import {
   RefreshCw,
   Server,
   Zap,
+  Upload,
 } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
-import api from '@/utils/api';
+import api, { getAssetUrl } from '@/utils/api';
 import { ElMessage } from '@/utils/feedbackBridge';
 import { getApiErrorMessage, logError } from '@/utils/error';
 import type { MirrorSource } from '../AdminMirrorView.vue';
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 const isLoading = ref(false);
 const isSaving = ref(false);
 const isSyncingDns = ref(false);
+const isUploadingLogo = ref(false);
 const hasCloudflareToken = ref(false);
 
 const form = ref({
@@ -41,6 +43,7 @@ const form = ref({
   customDomain: '',
   brandName: '',
   brandSubtitle: '',
+  brandLogoUrl: '',
   serverIp: '',
   cloudflareProxied: true,
   cloudflareZoneId: '',
@@ -62,6 +65,28 @@ const previewPortalUrl = computed(() => {
   return `${currentOrigin.value}/portal`;
 });
 
+async function handleLogoUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    return ElMessage.warning('图标图片不能超过 5MB');
+  }
+  isUploadingLogo.value = true;
+  try {
+    const fd = new FormData();
+    fd.append('mirror_image', file);
+    const { data } = await api.post('/api/admin/mirror/upload', fd);
+    form.value.brandLogoUrl = data.url;
+    ElMessage.success('Logo 图标上传成功！');
+  } catch (err) {
+    ElMessage.error(getApiErrorMessage(err, '图标上传失败'));
+  } finally {
+    isUploadingLogo.value = false;
+    target.value = '';
+  }
+}
+
 async function loadProxyConfig() {
   if (!props.source?.id) return;
   isLoading.value = true;
@@ -75,6 +100,7 @@ async function loadProxyConfig() {
       customDomain: cfg.customDomain || '',
       brandName: cfg.brandName || props.source.displayName || '',
       brandSubtitle: cfg.brandSubtitle || '',
+      brandLogoUrl: cfg.brandLogoUrl || props.source.iconUrl || '',
       serverIp: cfg.serverIp || '',
       cloudflareProxied: cfg.cloudflareProxied !== false,
       cloudflareZoneId: cfg.cloudflareZoneId || '',
@@ -247,8 +273,38 @@ watch(
           class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-700/60 space-y-3"
         >
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">
-            ② 代理站品牌个性化展示
+            ② 代理站品牌个性化展示与专属 Logo
           </label>
+          <div class="flex items-center gap-3">
+            <div
+              class="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-700 overflow-hidden flex items-center justify-center border border-slate-200 dark:border-slate-600 shrink-0"
+            >
+              <img
+                v-if="form.brandLogoUrl"
+                :src="getAssetUrl(form.brandLogoUrl)"
+                alt="Logo"
+                class="w-full h-full object-cover"
+              />
+              <Globe v-else class="w-6 h-6 text-slate-400" />
+            </div>
+            <div class="flex-1 min-w-0 space-y-1">
+              <label
+                class="inline-flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors"
+              >
+                <Loader2 v-if="isUploadingLogo" class="w-3.5 h-3.5 animate-spin text-blue-500" />
+                <Upload v-else class="w-3.5 h-3.5 text-blue-500" />
+                <span>{{ isUploadingLogo ? '上传中...' : '更换 Logo 图标' }}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  class="hidden"
+                  :disabled="isUploadingLogo"
+                  @change="handleLogoUpload"
+                />
+              </label>
+              <p class="text-[10px] text-slate-400">支持 PNG/JPG/SVG/WEBP (≤5MB)</p>
+            </div>
+          </div>
           <input
             v-model="form.brandName"
             type="text"

@@ -29,6 +29,7 @@ const props = defineProps<{
   sortBy: string;
   viewMode: ViewModeType;
   resources?: MirrorResource[];
+  hideSearch?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -164,87 +165,76 @@ const currentCategoryTags = computed(() => {
     );
   }
 
-  const extracted = Array.from(tagCountMap.entries())
+  const existingTags = Array.from(tagCountMap.entries())
     .sort((a, b) => b[1] - a[1])
     .map(([t]) => t);
-  return Array.from(new Set([...extracted, ...presetPool])).slice(0, 16);
+  const combined = Array.from(new Set([...existingTags, ...presetPool]));
+  return combined.slice(0, 10);
 });
 
 const hasActiveFilters = computed(() =>
   Boolean(props.activeCategoryId || props.searchQuery.trim()),
 );
 
-function handleTagClick(tag: string) {
-  emit('update:searchQuery', props.searchQuery.trim() === tag.trim() ? '' : tag);
+function handleTagFilter(tag: string) {
+  const current = (props.searchQuery || '').trim();
+  if (current.includes(tag)) return;
+  const next = current ? `${current} ${tag}` : tag;
+  emit('update:searchQuery', next);
   emit('search');
 }
 </script>
 
 <template>
-  <div class="mirror-filter-bar flex flex-col gap-3 mb-5">
-    <!-- Row 1: Compact Title + Integrated Search + Controls -->
-    <div
-      class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 p-2.5 md:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
-    >
-      <div class="flex items-center gap-2.5 shrink-0 px-1">
-        <span class="p-1.5 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400"
-          ><Sparkles class="w-4 h-4"
-        /></span>
-        <div class="flex items-baseline gap-2">
-          <h1 class="text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight">
-            {{ station?.displayName || '镜像资源站' }}
-          </h1>
-          <span
-            class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-500/20"
-            >{{ totalResources }} 个资源</span
-          >
-        </div>
-        <div
-          v-if="hasAccess === false"
-          class="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-bold shrink-0 ml-1"
-        >
-          <Shield class="w-3 h-3" /><span
-            >需 {{ getPlanName(station?.minPlanPriority ?? 0) }} 会员</span
-          >
-        </div>
-      </div>
-
+  <div class="mirror-filter-bar flex flex-col gap-2.5 mb-4">
+    <!-- Mode A: Standalone Portal 2-Row Optimized Layout -->
+    <template v-if="hideSearch">
+      <!-- Row 1: Top Categories (Left) + Sort & View Controls (Right) -->
       <div
-        class="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5"
+        class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 p-1.5 md:p-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
       >
-        <div class="relative flex-1 max-w-xl group">
-          <Search
-            class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"
-          />
-          <input
-            :value="searchQuery"
-            type="text"
-            placeholder="搜索资源、课件、材质或模型 (按 Enter 搜索)..."
-            class="w-full h-9 pl-9 pr-8 text-xs md:text-sm rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-            @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
-            @keyup.enter="emit('search')"
-          />
+        <!-- Categories Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0 px-1">
           <button
-            v-if="searchQuery"
             type="button"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-            @click="
-              emit('update:searchQuery', '');
-              emit('search');
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
+            :class="
+              !activeCategoryId
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
             "
+            @click="emit('select-category', null)"
           >
-            <X class="w-3.5 h-3.5" />
+            <Layers class="w-3.5 h-3.5" /><span>全部资源</span>
+          </button>
+          <button
+            v-for="cat in topCategories"
+            :key="cat.id"
+            type="button"
+            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
+            :class="
+              activeParentId === cat.id
+                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+            "
+            @click="emit('select-category', cat.id)"
+          >
+            <span>{{ cat.name }}</span>
+            <span
+              v-if="cat.resourceCount"
+              class="text-[10px] px-1.5 py-0.2 rounded-full opacity-80"
+              :class="
+                activeParentId === cat.id
+                  ? 'bg-white/20 text-white'
+                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+              "
+              >{{ cat.resourceCount }}</span
+            >
           </button>
         </div>
 
-        <div class="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            class="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0"
-            @click="emit('search')"
-          >
-            <Search class="w-3.5 h-3.5" /><span>搜索</span>
-          </button>
+        <!-- Controls: Sort & View -->
+        <div class="flex items-center gap-2 shrink-0 justify-end px-1">
           <div
             class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700"
           >
@@ -253,7 +243,7 @@ function handleTagClick(tag: string) {
               v-for="opt in sortByOptions"
               :key="opt.value"
               type="button"
-              class="px-2 py-1 text-xs font-medium rounded-lg transition-all"
+              class="px-2 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer"
               :class="
                 sortBy === opt.value
                   ? 'bg-blue-500 text-white font-bold shadow-xs'
@@ -274,7 +264,7 @@ function handleTagClick(tag: string) {
               v-for="v in viewModeOptions"
               :key="v.mode"
               type="button"
-              class="p-1.5 rounded-lg transition-all"
+              class="p-1.5 rounded-lg transition-all cursor-pointer"
               :class="
                 viewMode === v.mode
                   ? 'bg-blue-500 text-white shadow-xs'
@@ -288,51 +278,164 @@ function handleTagClick(tag: string) {
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
-    <!-- Row 2: Top Categories Tabs -->
-    <div
-      class="flex items-center gap-1.5 p-1 bg-white/70 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 overflow-x-auto scrollbar-hide shadow-xs"
-    >
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0"
-        :class="
-          !activeCategoryId
-            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-        "
-        @click="emit('select-category', null)"
+    <!-- Mode B: Standard Main Layout 3-Row Layout -->
+    <template v-else>
+      <!-- Row 1: Compact Title + Integrated Search + Controls -->
+      <div
+        class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 p-2.5 md:p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
       >
-        <Layers class="w-3.5 h-3.5" /><span>全部资源</span>
-      </button>
-      <button
-        v-for="cat in topCategories"
-        :key="cat.id"
-        type="button"
-        class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0"
-        :class="
-          activeParentId === cat.id
-            ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-        "
-        @click="emit('select-category', cat.id)"
+        <div class="flex items-center gap-2.5 shrink-0 px-1">
+          <span class="p-1.5 rounded-xl bg-blue-500/15 text-blue-600 dark:text-blue-400"
+            ><Sparkles class="w-4 h-4"
+          /></span>
+          <div class="flex items-baseline gap-2">
+            <h1
+              class="text-base md:text-lg font-black text-slate-900 dark:text-white tracking-tight"
+            >
+              {{ station?.displayName || '镜像资源站' }}
+            </h1>
+            <span
+              class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-500/20"
+              >{{ totalResources }} 个资源</span
+            >
+          </div>
+          <div
+            v-if="hasAccess === false"
+            class="hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[11px] font-bold shrink-0 ml-1"
+          >
+            <Shield class="w-3 h-3" /><span
+              >需 {{ getPlanName(station?.minPlanPriority ?? 0) }} 会员</span
+            >
+          </div>
+        </div>
+
+        <div
+          class="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2.5"
+        >
+          <div class="relative flex-1 max-w-xl group">
+            <Search
+              class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"
+            />
+            <input
+              :value="searchQuery"
+              type="text"
+              placeholder="搜索资源、课件、材质或模型 (按 Enter 搜索)..."
+              class="w-full h-9 pl-9 pr-8 text-xs md:text-sm rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              @input="emit('update:searchQuery', ($event.target as HTMLInputElement).value)"
+              @keyup.enter="emit('search')"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              @click="
+                emit('update:searchQuery', '');
+                emit('search');
+              "
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              class="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 cursor-pointer"
+              @click="emit('search')"
+            >
+              <Search class="w-3.5 h-3.5" /><span>搜索</span>
+            </button>
+            <div
+              class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700"
+            >
+              <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400 ml-2 mr-0.5" />
+              <button
+                v-for="opt in sortByOptions"
+                :key="opt.value"
+                type="button"
+                class="px-2 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer"
+                :class="
+                  sortBy === opt.value
+                    ? 'bg-blue-500 text-white font-bold shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                "
+                @click="
+                  emit('update:sortBy', opt.value);
+                  emit('search');
+                "
+              >
+                {{ opt.label }}
+              </button>
+            </div>
+            <div
+              class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700"
+            >
+              <button
+                v-for="v in viewModeOptions"
+                :key="v.mode"
+                type="button"
+                class="p-1.5 rounded-lg transition-all cursor-pointer"
+                :class="
+                  viewMode === v.mode
+                    ? 'bg-blue-500 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                "
+                :title="v.label"
+                @click="emit('update:viewMode', v.mode)"
+              >
+                <component :is="v.icon" class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2: Top Categories Tabs -->
+      <div
+        class="flex items-center gap-1.5 p-1 bg-white/70 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 overflow-x-auto scrollbar-hide shadow-xs"
       >
-        <span>{{ cat.name }}</span>
-        <span
-          v-if="cat.resourceCount"
-          class="text-[10px] px-1.5 py-0.2 rounded-full opacity-80"
+        <button
+          type="button"
+          class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
+          :class="
+            !activeCategoryId
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+          "
+          @click="emit('select-category', null)"
+        >
+          <Layers class="w-3.5 h-3.5" /><span>全部资源</span>
+        </button>
+        <button
+          v-for="cat in topCategories"
+          :key="cat.id"
+          type="button"
+          class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
           :class="
             activeParentId === cat.id
-              ? 'bg-white/20 text-white'
-              : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
           "
-          >{{ cat.resourceCount }}</span
+          @click="emit('select-category', cat.id)"
         >
-      </button>
-    </div>
+          <span>{{ cat.name }}</span>
+          <span
+            v-if="cat.resourceCount"
+            class="text-[10px] px-1.5 py-0.2 rounded-full opacity-80"
+            :class="
+              activeParentId === cat.id
+                ? 'bg-white/20 text-white'
+                : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+            "
+            >{{ cat.resourceCount }}</span
+          >
+        </button>
+      </div>
+    </template>
 
-    <!-- Row 3: Subcategory Chips -->
+    <!-- Shared Second Row (Subcategories & Tags) -->
     <div
       v-if="currentSubCategories.length > 0"
       class="flex items-center gap-2 p-2 bg-blue-50/60 dark:bg-slate-800/40 rounded-xl border border-blue-100/80 dark:border-slate-700/50 overflow-x-auto scrollbar-hide"
@@ -386,7 +489,7 @@ function handleTagClick(tag: string) {
               ? 'bg-blue-600 text-white shadow-xs font-bold'
               : 'text-slate-600 dark:text-slate-400 bg-slate-100/90 dark:bg-slate-800/80 hover:bg-blue-50 dark:hover:bg-blue-500/15 hover:text-blue-600 dark:hover:text-blue-400'
           "
-          @click="handleTagClick(tag)"
+          @click="handleTagFilter(tag)"
         >
           {{ tag }}
         </button>

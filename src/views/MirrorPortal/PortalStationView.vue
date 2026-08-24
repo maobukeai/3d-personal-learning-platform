@@ -117,6 +117,7 @@ watch(
       :sort-by="mirrorStore.sortBy"
       :view-mode="viewMode"
       :resources="mirrorStore.resources"
+      :hide-search="true"
       @update:search-query="mirrorStore.setSearchQuery($event)"
       @update:sort-by="handleSortChange"
       @update:view-mode="setViewMode"

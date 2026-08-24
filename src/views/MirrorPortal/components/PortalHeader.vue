@@ -12,11 +12,14 @@ import {
   Sun,
   ShieldCheck,
   Zap,
+  Globe,
+  X,
 } from 'lucide-vue-next';
 import { useAuthStore } from '@/stores/auth';
 import { useMirrorStore } from '@/stores/mirror';
 import { preferences } from '@/utils/preferences';
 import { getPlanName } from '@/utils/plans';
+import { getAssetUrl } from '@/utils/api';
 
 const emit = defineEmits<{
   (e: 'open-login'): void;
@@ -48,6 +51,16 @@ function toggleTheme() {
   }
 }
 
+const currentStationLogo = computed(() => {
+  try {
+    const cfg = (mirrorStore.currentStation as any)?.syncConfig
+      ? JSON.parse((mirrorStore.currentStation as any).syncConfig)
+      : {};
+    if (cfg.proxyConfig?.brandLogoUrl) return cfg.proxyConfig.brandLogoUrl;
+  } catch {}
+  return mirrorStore.currentStation?.iconUrl || '';
+});
+
 const currentStationName = computed(() => {
   try {
     const cfg = (mirrorStore.currentStation as any)?.syncConfig
@@ -75,6 +88,31 @@ function handleSelectStation(id: string) {
   router.push(`/portal/mirror/${id}`);
 }
 
+function handleTopSearch() {
+  const targetId = mirrorStore.currentStation?.id;
+  if (!targetId) return;
+
+  const currentRoute = router.currentRoute.value;
+  const query = {
+    ...currentRoute.query,
+    search: mirrorStore.searchQuery ? mirrorStore.searchQuery.trim() : undefined,
+    page: '1',
+  };
+
+  if (currentRoute.name === 'MirrorPortalStation' || currentRoute.name === 'MirrorPortalSlug') {
+    router.replace({ query });
+  } else {
+    router.push({ path: `/portal/mirror/${targetId}`, query });
+  }
+
+  mirrorStore.fetchResources(targetId, {
+    search: mirrorStore.searchQuery ? mirrorStore.searchQuery.trim() : undefined,
+    categoryId: mirrorStore.activeCategoryId || undefined,
+    sort: mirrorStore.sortBy,
+    page: 1,
+  });
+}
+
 onMounted(() => {
   if (mirrorStore.stations.length === 0) {
     mirrorStore.fetchStations();
@@ -84,15 +122,21 @@ onMounted(() => {
 
 <template>
   <header
-    class="portal-header shrink-0 h-16 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between gap-4"
+    class="portal-header shrink-0 h-16 border-b border-slate-200/80 dark:border-slate-800/80 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 px-4 md:px-6 flex items-center justify-between gap-3"
   >
     <!-- Brand / Title & Station Selector -->
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 shrink-0">
       <router-link to="/portal" class="flex items-center gap-3">
         <div
-          class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20"
+          class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 overflow-hidden border border-blue-500/30"
         >
-          <Zap class="w-5 h-5" />
+          <img
+            v-if="currentStationLogo"
+            :src="getAssetUrl(currentStationLogo)"
+            alt="Logo"
+            class="w-full h-full object-cover"
+          />
+          <Zap v-else class="w-5 h-5" />
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -102,19 +146,19 @@ onMounted(() => {
               {{ currentStationName }}
             </h1>
             <span
-              class="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
+              class="hidden lg:inline-flex px-1.5 py-0.5 text-[10px] font-bold rounded-md bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
             >
               专享代理站
             </span>
           </div>
-          <p class="text-[11px] text-slate-400 font-medium mt-0.5 leading-none">
+          <p class="text-[11px] text-slate-400 font-medium mt-0.5 leading-none hidden sm:block">
             {{ currentStationSubtitle }}
           </p>
         </div>
       </router-link>
 
       <!-- Multi-Station Dropdown if more than 1 station -->
-      <div v-if="mirrorStore.stations.length > 1" class="relative ml-2">
+      <div v-if="mirrorStore.stations.length > 1" class="relative ml-1 hidden md:block">
         <button
           type="button"
           class="flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-colors"
@@ -142,6 +186,34 @@ onMounted(() => {
             />
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- Center: Top Placed Full-Featured Search Bar -->
+    <div class="flex-1 max-w-xl mx-2 md:mx-4 min-w-0">
+      <div class="relative flex items-center group w-full">
+        <Search
+          class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors pointer-events-none"
+        />
+        <input
+          :value="mirrorStore.searchQuery"
+          type="text"
+          placeholder="搜索资源、课件、材质或模型 (按 Enter 搜索)..."
+          class="w-full h-9.5 pl-10 pr-9 text-xs md:text-sm rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-slate-900 transition-all shadow-xs"
+          @input="mirrorStore.setSearchQuery(($event.target as HTMLInputElement).value)"
+          @keyup.enter="handleTopSearch"
+        />
+        <button
+          v-if="mirrorStore.searchQuery"
+          type="button"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+          @click="
+            mirrorStore.setSearchQuery('');
+            handleTopSearch();
+          "
+        >
+          <X class="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
 

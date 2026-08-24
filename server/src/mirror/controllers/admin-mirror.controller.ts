@@ -24,6 +24,7 @@ import { clampLimit, clampPage } from '../../utils/pagination';
 import unzipper from 'unzipper';
 import { storageService } from '../../services/storage.service';
 import { buildDecryptedStorageConfig } from '../../utils/crypto';
+import { cloudflareAdminService } from '../../services/cloudflare-admin.service';
 
 type MirrorRequest = FastifyRequest & {
   body: any;
@@ -2329,4 +2330,184 @@ export const connectCloudSource = async (req: MirrorRequest, reply: FastifyReply
     logger.error('[ConnectCloudSource] Failed to connect Cloudflare R2 mirror source:', error);
     throw error;
   }
+};
+
+export const getSourceProxyConfig = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) => {
+  const { id } = request.params;
+  const source = await prisma.mirrorSource.findUnique({ where: { id } });
+  if (!source) {
+    return reply.status(404).send({ error: '镜像源不存在' });
+  }
+
+  let syncConfigObj: Record<string, any> = {};
+  if (source.syncConfig) {
+    try {
+      syncConfigObj = JSON.parse(source.syncConfig);
+    } catch {
+      syncConfigObj = {};
+    }
+  }
+
+  const proxyConfig = syncConfigObj.proxyConfig || {
+    proxyEnabled: false,
+    customSlug: '',
+    customDomain: '',
+    brandName: source.displayName || '',
+    brandSubtitle: '',
+    cloudflareZoneId: '',
+    cloudflareDnsRecordId: '',
+    cloudflareProxied: true,
+  };
+
+  const cfConfig = await cloudflareAdminService.getConfig();
+
+  reply.send({
+    sourceId: source.id,
+    displayName: source.displayName,
+    proxyConfig,
+    hasCloudflareToken: cfConfig.hasToken,
+  });
+};
+
+export const saveSourceProxyConfig = async (
+  request: FastifyRequest<{ Params: { id: string }; Body: any }>,
+  reply: FastifyReply,
+) => {
+  const { id } = request.params;
+  const source = await prisma.mirrorSource.findUnique({ where: { id } });
+  if (!source) {
+    return reply.status(404).send({ error: '镜像源不存在' });
+  }
+
+  let syncConfigObj: Record<string, any> = {};
+  if (source.syncConfig) {
+    try {
+      syncConfigObj = JSON.parse(source.syncConfig);
+    } catch {
+      syncConfigObj = {};
+    }
+  }
+
+  syncConfigObj.proxyConfig = {
+    ...(syncConfigObj.proxyConfig || {}),
+    ...((request.body as Record<string, any>) || {}),
+  };
+
+  await prisma.mirrorSource.update({
+    where: { id },
+    data: {
+      syncConfig: JSON.stringify(syncConfigObj),
+    },
+  });
+
+  reply.send({ message: '代理站配置保存成功！', proxyConfig: syncConfigObj.proxyConfig });
+};
+
+export const syncSourceCloudflareDns = async (
+  request: FastifyRequest<{ Params: { id: string } }>,
+  reply: FastifyReply,
+) => {
+  const { id } = request.params;
+  const { customDomain, serverIp, proxied = true } = (request.body as any) || {};
+
+  if (!customDomain || !customDomain.trim()) {
+    return reply.status(400).send({ error: '请先填写需要绑定的二级域名' });
+  }
+
+  const cfConfig = await cloudflareAdminService.getConfig();
+  if (!cfConfig.hasToken) {
+    return reply.status(400).send({
+      error: '系统尚未配置 Cloudflare API Token，请先在【域名管理】中配置 Token',
+    });
+  }
+
+  const source = await prisma.mirrorSource.findUnique({ where: { id } });
+  if (!source) {
+    return reply.status(404).send({ error: '镜像源不存在' });
+  }
+
+  const trimmedDomain = customDomain.trim().toLowerCase();
+  const zones = await cloudflareAdminService.listZones();
+  if (!zones || zones.length === 0) {
+    return reply.status(400).send({ error: '未在您的 Cloudflare 账号中找到任何有效域名 Zone' });
+  }
+
+  // Find matching zone
+  const matchedZone = zones.find(
+    (z) => trimmedDomain === z.name || trimmedDomain.endsWith('.' + z.name),
+  );
+  if (!matchedZone) {
+    return reply.status(400).send({
+      error: `无法在 Cloudflare 中匹配到域名 [${trimmedDomain}] 的主域名 Zone，现有托管 Zone: ${zones.map((z) => z.name).join(', ')}`,
+    });
+  }
+
+  // Target IP default resolution
+  const targetIp =
+    serverIp?.trim() ||
+    (request.headers['x-real-ip'] as string) ||
+    (request.headers['x-forwarded-for'] as string) ||
+    '127.0.0.1';
+
+  // Check existing records in zone
+  const existingRecords = await cloudflareAdminService.listDnsRecords(matchedZone.id);
+  const existing = existingRecords.find(
+    (r) => r.name.toLowerCase() === trimmedDomain && (r.type === 'A' || r.type === 'CNAME'),
+  );
+
+  let recordResult: any = null;
+  if (existing) {
+    recordResult = await cloudflareAdminService.updateDnsRecord(matchedZone.id, existing.id, {
+      type: 'A',
+      name: trimmedDomain,
+      content: targetIp,
+      proxied: Boolean(proxied),
+      ttl: 1,
+    });
+  } else {
+    recordResult = await cloudflareAdminService.createDnsRecord(matchedZone.id, {
+      type: 'A',
+      name: trimmedDomain,
+      content: targetIp,
+      proxied: Boolean(proxied),
+      ttl: 1,
+    });
+  }
+
+  // Save back to syncConfig
+  let syncConfigObj: Record<string, any> = {};
+  if (source.syncConfig) {
+    try {
+      syncConfigObj = JSON.parse(source.syncConfig);
+    } catch {
+      syncConfigObj = {};
+    }
+  }
+
+  syncConfigObj.proxyConfig = {
+    ...syncConfigObj.proxyConfig,
+    proxyEnabled: true,
+    customDomain: trimmedDomain,
+    cloudflareZoneId: matchedZone.id,
+    cloudflareDnsRecordId: recordResult.id,
+    cloudflareProxied: Boolean(proxied),
+    lastDnsSyncAt: new Date().toISOString(),
+  };
+
+  await prisma.mirrorSource.update({
+    where: { id },
+    data: {
+      syncConfig: JSON.stringify(syncConfigObj),
+    },
+  });
+
+  reply.send({
+    message: `🎉 域名 [${trimmedDomain}] 已成功同步到 Cloudflare DNS 并解析到 IP: ${targetIp}`,
+    record: recordResult,
+    zone: matchedZone,
+    proxyConfig: syncConfigObj.proxyConfig,
+  });
 };

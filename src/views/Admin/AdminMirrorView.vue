@@ -19,6 +19,7 @@ import MirrorMatchDialog from './components/MirrorMatchDialog.vue';
 import MirrorResourceDialog from './components/MirrorResourceDialog.vue';
 import MirrorCloudScanDialog from './components/MirrorCloudScanDialog.vue';
 import MirrorImportProgressDialog from './components/MirrorImportProgressDialog.vue';
+import MirrorProxyConfigDialog from './components/MirrorProxyConfigDialog.vue';
 
 export interface MirrorSource {
   id: string;
@@ -128,11 +129,17 @@ const cloudSources = ref<
   }>
 >([]);
 const editingSource = ref<MirrorSource | null>(null);
+const showProxyDialog = ref(false);
 const selectedSource = ref<MirrorSource | null>(null);
 const excelFiles = ref<File[]>([]);
 const isUploading = ref(false);
 const matchResult = ref<{ totalLinks: number; matchedCount: number } | null>(null);
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+function handleConfigureProxy(source: MirrorSource) {
+  editingSource.value = source;
+  showProxyDialog.value = true;
+}
 
 // Resource management state
 const expandedSourceId = ref<string | null>(null);
@@ -1046,6 +1053,7 @@ onUnmounted(() => {
         @create-category="openCreateCategory"
         @edit-category="openEditCategory"
         @delete-category="deleteCategory"
+        @configure-proxy="handleConfigureProxy"
       />
     </main>
 
@@ -1063,6 +1071,12 @@ onUnmounted(() => {
         v-model="showSourceDialog"
         :source="editingSource"
         @saved="onSourceSaved"
+      />
+
+      <MirrorProxyConfigDialog
+        v-model:show="showProxyDialog"
+        :source="editingSource"
+        @saved="fetchSources"
       />
 
       <MirrorSyncLogsDialog v-model="showSyncLogsDialog" :source="editingSource" />

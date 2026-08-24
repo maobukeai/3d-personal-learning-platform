@@ -102,6 +102,11 @@ const router = createRouter({
           name: 'MirrorPortalResourceDetail',
           component: () => import('@/views/MirrorPortal/PortalResourceDetailView.vue'),
         },
+        {
+          path: ':slug',
+          name: 'MirrorPortalSlug',
+          component: () => import('@/views/MirrorPortal/PortalStationView.vue'),
+        },
       ],
     },
     {

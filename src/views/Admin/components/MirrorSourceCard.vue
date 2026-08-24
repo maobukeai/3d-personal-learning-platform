@@ -17,6 +17,7 @@ import {
   Edit3,
   Trash2,
   Clock,
+  Radio,
 } from 'lucide-vue-next';
 import type { MirrorSource, SyncProgress } from '../AdminMirrorView.vue';
 
@@ -37,6 +38,7 @@ const emit = defineEmits<{
   export: [];
   edit: [];
   delete: [];
+  configureProxy: [];
 }>();
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -198,6 +200,14 @@ function formatElapsed(startedAt: string) {
             @click="emit('export')"
           >
             <Download class="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            class="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors"
+            title="配置独立代理站与 Cloudflare 域名"
+            @click="emit('configureProxy')"
+          >
+            <Radio class="w-4 h-4" />
           </button>
           <button
             type="button"

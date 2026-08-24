@@ -296,4 +296,29 @@ export const registerAdminMirrorRoutes = (app: FastifyInstance): void => {
       return adminMirrorController.deleteResource(request, reply);
     },
   );
+
+  // Proxy Standalone Portal & Cloudflare DNS
+  app.get(
+    '/admin/mirror/sources/:id/proxy-config',
+    { ...auth, schema: { params: idParamsSchema } },
+    async (request, reply) => {
+      return adminMirrorController.getSourceProxyConfig(request as any, reply);
+    },
+  );
+
+  app.post(
+    '/admin/mirror/sources/:id/proxy-config',
+    { ...auth, schema: { params: idParamsSchema } },
+    async (request, reply) => {
+      return adminMirrorController.saveSourceProxyConfig(request as any, reply);
+    },
+  );
+
+  app.post(
+    '/admin/mirror/sources/:id/cloudflare-dns',
+    { ...auth, schema: { params: idParamsSchema } },
+    async (request, reply) => {
+      return adminMirrorController.syncSourceCloudflareDns(request as any, reply);
+    },
+  );
 };

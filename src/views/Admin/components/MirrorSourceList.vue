@@ -40,6 +40,7 @@ const emit = defineEmits<{
   export: [source: MirrorSource];
   edit: [source: MirrorSource];
   delete: [source: MirrorSource];
+  configureProxy: [source: MirrorSource];
   resourceSearch: [];
   changeResourcePage: [page: number];
   createResource: [];
@@ -152,6 +153,7 @@ const emit = defineEmits<{
           @export="emit('export', source)"
           @edit="emit('edit', source)"
           @delete="emit('delete', source)"
+          @configure-proxy="emit('configureProxy', source)"
         />
 
         <MirrorResourcePanel

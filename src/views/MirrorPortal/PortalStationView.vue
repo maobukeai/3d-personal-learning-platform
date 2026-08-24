@@ -43,29 +43,61 @@ function handleNavigateDetail(resourceId: string) {
 }
 
 async function ensureStationLoaded() {
-  if (!route.params.id) {
-    if (mirrorStore.stations.length === 0) {
-      await mirrorStore.fetchStations();
-    }
-    const valid =
-      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
-    if (valid) {
-      router.replace(`/portal/mirror/${valid.id}`);
-      return;
-    }
+  if (mirrorStore.stations.length === 0) {
+    await mirrorStore.fetchStations();
   }
+
+  const targetIdentifier = ((route.params.slug || route.params.id) as string)?.trim().toLowerCase();
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+
+  let matchedStation = null;
+
+  if (targetIdentifier) {
+    matchedStation = mirrorStore.stations.find((s) => {
+      if (s.id.toLowerCase() === targetIdentifier || s.name.toLowerCase() === targetIdentifier) {
+        return true;
+      }
+      try {
+        const cfg = s.syncConfig ? JSON.parse(s.syncConfig) : {};
+        if (cfg.proxyConfig?.customSlug?.toLowerCase() === targetIdentifier) {
+          return true;
+        }
+      } catch {}
+      return false;
+    });
+  }
+
+  if (!matchedStation && currentHost) {
+    matchedStation = mirrorStore.stations.find((s) => {
+      try {
+        const cfg = s.syncConfig ? JSON.parse(s.syncConfig) : {};
+        if (cfg.proxyConfig?.customDomain?.toLowerCase() === currentHost) {
+          return true;
+        }
+      } catch {}
+      return false;
+    });
+  }
+
+  if (!matchedStation) {
+    matchedStation =
+      mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+  }
+
+  if (matchedStation && route.params.id !== matchedStation.id) {
+    router.replace(`/portal/mirror/${matchedStation.id}`);
+    return;
+  }
+
   loadData();
 }
 
 onMounted(ensureStationLoaded);
 
 watch(
-  () => route.params.id,
+  () => [route.params.id, route.params.slug],
   () => {
-    if (route.params.id) {
-      mirrorStore.reset();
-      loadData();
-    }
+    ensureStationLoaded();
   },
 );
 </script>

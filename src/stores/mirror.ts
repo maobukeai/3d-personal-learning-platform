@@ -13,6 +13,7 @@ export interface MirrorSource {
   totalResources: number;
   iconUrl: string | null;
   description: string | null;
+  syncConfig?: string | null;
   hasAccess: boolean;
   minPlanPriority: number;
   createdAt: string;

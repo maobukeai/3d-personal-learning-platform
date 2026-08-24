@@ -207,6 +207,13 @@ main() {
   cd "$APP_DIR"
   echo "🚀 开始部署流程..."
   echo "================================================"
+
+  # 自动拉取 Git 最新代码
+  if [ -d "$APP_DIR/.git" ]; then
+    log "📥 正在从 GitHub 仓库自动拉取最新代码 (git pull)..."
+    git pull origin main || true
+  fi
+
   echo "📦 检查 Node 环境..."
   node -v
   npm -v

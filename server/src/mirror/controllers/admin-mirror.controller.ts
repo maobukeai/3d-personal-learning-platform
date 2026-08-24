@@ -2363,12 +2363,20 @@ export const getSourceProxyConfig = async (
   };
 
   const cfConfig = await cloudflareAdminService.getConfig();
+  let availableZones: Array<{ id: string; name: string }> = [];
+  if (cfConfig.hasToken) {
+    try {
+      const rawZones = await cloudflareAdminService.listZones();
+      availableZones = rawZones.map((z) => ({ id: z.id, name: z.name }));
+    } catch {}
+  }
 
   reply.send({
     sourceId: source.id,
     displayName: source.displayName,
     proxyConfig,
     hasCloudflareToken: cfConfig.hasToken,
+    availableZones,
   });
 };
 
@@ -2414,7 +2422,7 @@ export const syncSourceCloudflareDns = async (
   const { customDomain, serverIp, proxied = true } = (request.body as any) || {};
 
   if (!customDomain || !customDomain.trim()) {
-    return reply.status(400).send({ error: '请先填写需要绑定的二级域名' });
+    return reply.status(400).send({ error: '请先填写需要绑定的二级域名或子域名前缀' });
   }
 
   const cfConfig = await cloudflareAdminService.getConfig();
@@ -2429,51 +2437,80 @@ export const syncSourceCloudflareDns = async (
     return reply.status(404).send({ error: '镜像源不存在' });
   }
 
-  const trimmedDomain = customDomain.trim().toLowerCase();
+  const rawDomainStr = customDomain.trim().toLowerCase();
+  // Support comma-separated multiple domains
+  const domainList = rawDomainStr
+    .split(/[,，\s]+/)
+    .map((d: string) => d.trim())
+    .filter(Boolean);
+
+  if (domainList.length === 0) {
+    return reply.status(400).send({ error: '没有有效的域名需要同步' });
+  }
+
   const zones = await cloudflareAdminService.listZones();
   if (!zones || zones.length === 0) {
     return reply.status(400).send({ error: '未在您的 Cloudflare 账号中找到任何有效域名 Zone' });
   }
 
-  // Find matching zone
-  const matchedZone = zones.find(
-    (z) => trimmedDomain === z.name || trimmedDomain.endsWith('.' + z.name),
-  );
-  if (!matchedZone) {
-    return reply.status(400).send({
-      error: `无法在 Cloudflare 中匹配到域名 [${trimmedDomain}] 的主域名 Zone，现有托管 Zone: ${zones.map((z) => z.name).join(', ')}`,
-    });
-  }
-
-  // Target IP default resolution
   const targetIp =
     serverIp?.trim() ||
     (request.headers['x-real-ip'] as string) ||
     (request.headers['x-forwarded-for'] as string) ||
     '127.0.0.1';
 
-  // Check existing records in zone
-  const existingRecords = await cloudflareAdminService.listDnsRecords(matchedZone.id);
-  const existing = existingRecords.find(
-    (r) => r.name.toLowerCase() === trimmedDomain && (r.type === 'A' || r.type === 'CNAME'),
-  );
+  const results: any[] = [];
+  let primaryRecordResult: any = null;
+  let primaryZone: any = null;
 
-  let recordResult: any = null;
-  if (existing) {
-    recordResult = await cloudflareAdminService.updateDnsRecord(matchedZone.id, existing.id, {
-      type: 'A',
-      name: trimmedDomain,
-      content: targetIp,
-      proxied: Boolean(proxied),
-      ttl: 1,
-    });
-  } else {
-    recordResult = await cloudflareAdminService.createDnsRecord(matchedZone.id, {
-      type: 'A',
-      name: trimmedDomain,
-      content: targetIp,
-      proxied: Boolean(proxied),
-      ttl: 1,
+  for (const domain of domainList) {
+    // If user passed a pure prefix without dot, pick the first zone
+    let fullDomain = domain;
+    if (!fullDomain.includes('.') && zones[0]?.name) {
+      fullDomain = `${fullDomain}.${zones[0].name}`;
+    }
+
+    const matchedZone = zones.find(
+      (z) => fullDomain === z.name || fullDomain.endsWith('.' + z.name),
+    );
+
+    if (!matchedZone) {
+      continue;
+    }
+
+    if (!primaryZone) primaryZone = matchedZone;
+
+    const existingRecords = await cloudflareAdminService.listDnsRecords(matchedZone.id);
+    const existing = existingRecords.find(
+      (r) => r.name.toLowerCase() === fullDomain && (r.type === 'A' || r.type === 'CNAME'),
+    );
+
+    let rec: any = null;
+    if (existing) {
+      rec = await cloudflareAdminService.updateDnsRecord(matchedZone.id, existing.id, {
+        type: 'A',
+        name: fullDomain,
+        content: targetIp,
+        proxied: Boolean(proxied),
+        ttl: 1,
+      });
+    } else {
+      rec = await cloudflareAdminService.createDnsRecord(matchedZone.id, {
+        type: 'A',
+        name: fullDomain,
+        content: targetIp,
+        proxied: Boolean(proxied),
+        ttl: 1,
+      });
+    }
+
+    if (!primaryRecordResult) primaryRecordResult = rec;
+    results.push({ domain: fullDomain, recordId: rec.id, zoneId: matchedZone.id });
+  }
+
+  if (results.length === 0) {
+    return reply.status(400).send({
+      error: `未能匹配到任何 Cloudflare 托管域名，现有托管 Zone: ${zones.map((z) => z.name).join(', ')}`,
     });
   }
 
@@ -2487,12 +2524,13 @@ export const syncSourceCloudflareDns = async (
     }
   }
 
+  const syncedDomains = results.map((r) => r.domain).join(', ');
   syncConfigObj.proxyConfig = {
     ...syncConfigObj.proxyConfig,
     proxyEnabled: true,
-    customDomain: trimmedDomain,
-    cloudflareZoneId: matchedZone.id,
-    cloudflareDnsRecordId: recordResult.id,
+    customDomain: syncedDomains,
+    cloudflareZoneId: primaryZone?.id || '',
+    cloudflareDnsRecordId: primaryRecordResult?.id || '',
     cloudflareProxied: Boolean(proxied),
     lastDnsSyncAt: new Date().toISOString(),
   };
@@ -2505,9 +2543,10 @@ export const syncSourceCloudflareDns = async (
   });
 
   reply.send({
-    message: `🎉 域名 [${trimmedDomain}] 已成功同步到 Cloudflare DNS 并解析到 IP: ${targetIp}`,
-    record: recordResult,
-    zone: matchedZone,
+    message: `🎉 域名 [${syncedDomains}] 已成功同步到 Cloudflare DNS 并解析到 IP: ${targetIp}`,
+    results,
+    record: primaryRecordResult,
+    zone: primaryZone,
     proxyConfig: syncConfigObj.proxyConfig,
   });
 };

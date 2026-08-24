@@ -13,6 +13,9 @@ import {
   Server,
   Zap,
   Upload,
+  Plus,
+  Layers,
+  ChevronDown,
 } from 'lucide-vue-next';
 import Modal from '@/components/ui/Modal.vue';
 import Button from '@/components/ui/Button.vue';
@@ -24,10 +27,12 @@ import type { MirrorSource } from '../AdminMirrorView.vue';
 const props = defineProps<{
   show: boolean;
   source: MirrorSource | null;
+  sources?: MirrorSource[];
 }>();
 
 const emit = defineEmits<{
   (e: 'update:show', val: boolean): void;
+  (e: 'update:source', source: MirrorSource): void;
   (e: 'saved'): void;
 }>();
 
@@ -36,6 +41,9 @@ const isSaving = ref(false);
 const isSyncingDns = ref(false);
 const isUploadingLogo = ref(false);
 const hasCloudflareToken = ref(false);
+const availableZones = ref<Array<{ id: string; name: string }>>([]);
+
+const currentSourceId = ref<string>('');
 
 const form = ref({
   proxyEnabled: false,
@@ -51,6 +59,20 @@ const form = ref({
   lastDnsSyncAt: '',
 });
 
+// Subdomain prefix input logic
+const subdomainPrefix = ref('');
+const selectedZone = ref('');
+const isCustomZone = ref(false);
+const customZoneInput = ref('');
+
+const currentSource = computed(() => {
+  if (props.sources && currentSourceId.value) {
+    const found = props.sources.find((s) => s.id === currentSourceId.value);
+    if (found) return found;
+  }
+  return props.source;
+});
+
 const currentOrigin = computed(() => {
   return typeof window !== 'undefined' ? window.location.origin : 'https://yourdomain.com';
 });
@@ -59,11 +81,47 @@ const previewPortalUrl = computed(() => {
   if (form.value.customSlug.trim()) {
     return `${currentOrigin.value}/portal/${form.value.customSlug.trim()}`;
   }
-  if (props.source?.id) {
-    return `${currentOrigin.value}/portal/mirror/${props.source.id}`;
+  if (currentSource.value?.id) {
+    return `${currentOrigin.value}/portal/mirror/${currentSource.value.id}`;
   }
   return `${currentOrigin.value}/portal`;
 });
+
+// Active full domain computation
+const activeFullDomain = computed(() => {
+  const prefix = subdomainPrefix.value.trim().toLowerCase();
+  if (!prefix) return form.value.customDomain.trim();
+
+  // If user typed a full domain with dot in prefix input
+  if (prefix.includes('.')) {
+    return prefix;
+  }
+
+  const zone = isCustomZone.value
+    ? customZoneInput.value.trim()
+    : selectedZone.value.trim() || availableZones.value[0]?.name || '';
+
+  if (zone) {
+    return `${prefix}.${zone.replace(/^\./, '')}`;
+  }
+  return prefix;
+});
+
+// Watch subdomain inputs and sync to form.customDomain
+watch([subdomainPrefix, selectedZone, customZoneInput, isCustomZone], () => {
+  if (subdomainPrefix.value.trim()) {
+    form.value.customDomain = activeFullDomain.value;
+  }
+});
+
+function handleSourceSwitch(sourceId: string) {
+  currentSourceId.value = sourceId;
+  const newSrc = props.sources?.find((s) => s.id === sourceId);
+  if (newSrc) {
+    emit('update:source', newSrc);
+  }
+  loadProxyConfig(sourceId);
+}
 
 async function handleLogoUpload(event: Event) {
   const target = event.target as HTMLInputElement;
@@ -87,26 +145,50 @@ async function handleLogoUpload(event: Event) {
   }
 }
 
-async function loadProxyConfig() {
-  if (!props.source?.id) return;
+async function loadProxyConfig(sourceIdToLoad?: string) {
+  const targetId = sourceIdToLoad || currentSource.value?.id;
+  if (!targetId) return;
   isLoading.value = true;
   try {
-    const res = await api.get(`/api/admin/mirror/sources/${props.source.id}/proxy-config`);
+    const res = await api.get(`/api/admin/mirror/sources/${targetId}/proxy-config`);
     const cfg = res.data?.proxyConfig || {};
     hasCloudflareToken.value = Boolean(res.data?.hasCloudflareToken);
+    availableZones.value = res.data?.availableZones || [];
+
+    if (availableZones.value.length > 0 && !selectedZone.value) {
+      selectedZone.value = availableZones.value[0].name;
+    }
+
     form.value = {
       proxyEnabled: Boolean(cfg.proxyEnabled),
       customSlug: cfg.customSlug || '',
       customDomain: cfg.customDomain || '',
-      brandName: cfg.brandName || props.source.displayName || '',
+      brandName: cfg.brandName || currentSource.value?.displayName || '',
       brandSubtitle: cfg.brandSubtitle || '',
-      brandLogoUrl: cfg.brandLogoUrl || props.source.iconUrl || '',
+      brandLogoUrl: cfg.brandLogoUrl || currentSource.value?.iconUrl || '',
       serverIp: cfg.serverIp || '',
       cloudflareProxied: cfg.cloudflareProxied !== false,
       cloudflareZoneId: cfg.cloudflareZoneId || '',
       cloudflareDnsRecordId: cfg.cloudflareDnsRecordId || '',
       lastDnsSyncAt: cfg.lastDnsSyncAt || '',
     };
+
+    // Extract prefix if domain exists
+    if (cfg.customDomain) {
+      const primaryDomain = cfg.customDomain.split(/[,，\s]+/)[0] || '';
+      const matchedZone = availableZones.value.find(
+        (z) => primaryDomain === z.name || primaryDomain.endsWith('.' + z.name),
+      );
+      if (matchedZone) {
+        selectedZone.value = matchedZone.name;
+        isCustomZone.value = false;
+        subdomainPrefix.value = primaryDomain.replace('.' + matchedZone.name, '');
+      } else {
+        subdomainPrefix.value = primaryDomain;
+      }
+    } else {
+      subdomainPrefix.value = '';
+    }
   } catch (error) {
     logError(error, { operation: 'admin.loadProxyConfig', component: 'MirrorProxyConfigDialog' });
   } finally {
@@ -115,11 +197,18 @@ async function loadProxyConfig() {
 }
 
 async function handleSave() {
-  if (!props.source?.id) return;
+  const targetId = currentSource.value?.id;
+  if (!targetId) return;
   isSaving.value = true;
+
+  // Make sure full domain is written
+  if (subdomainPrefix.value.trim() && !form.value.customDomain.trim()) {
+    form.value.customDomain = activeFullDomain.value;
+  }
+
   try {
-    await api.post(`/api/admin/mirror/sources/${props.source.id}/proxy-config`, form.value);
-    ElMessage.success('🎉 独立代理站配置已成功保存！');
+    await api.post(`/api/admin/mirror/sources/${targetId}/proxy-config`, form.value);
+    ElMessage.success(`🎉「${currentSource.value?.displayName}」代理站配置保存成功！`);
     emit('saved');
     emit('update:show', false);
   } catch (error) {
@@ -130,15 +219,19 @@ async function handleSave() {
 }
 
 async function handleSyncCloudflareDns() {
-  if (!props.source?.id) return;
-  if (!form.value.customDomain.trim()) {
-    ElMessage.warning('请先填写需要绑定的二级域名（如 zy.lilan8.cn）');
+  const targetId = currentSource.value?.id;
+  if (!targetId) return;
+
+  const domainToSync = activeFullDomain.value.trim() || form.value.customDomain.trim();
+  if (!domainToSync) {
+    ElMessage.warning('请先输入子域名前缀（如: zy）或完整二级域名');
     return;
   }
+
   isSyncingDns.value = true;
   try {
-    const res = await api.post(`/api/admin/mirror/sources/${props.source.id}/cloudflare-dns`, {
-      customDomain: form.value.customDomain.trim(),
+    const res = await api.post(`/api/admin/mirror/sources/${targetId}/cloudflare-dns`, {
+      customDomain: domainToSync,
       serverIp: form.value.serverIp.trim() || undefined,
       proxied: form.value.cloudflareProxied,
     });
@@ -146,6 +239,7 @@ async function handleSyncCloudflareDns() {
     if (res.data?.proxyConfig) {
       form.value.cloudflareDnsRecordId = res.data.proxyConfig.cloudflareDnsRecordId;
       form.value.lastDnsSyncAt = res.data.proxyConfig.lastDnsSyncAt;
+      form.value.customDomain = res.data.proxyConfig.customDomain;
     }
   } catch (error) {
     ElMessage.error(getApiErrorMessage(error, 'Cloudflare DNS 解析失败'));
@@ -160,7 +254,7 @@ function copyToClipboard(text: string, msg: string = '已复制到剪贴板') {
 }
 
 const nginxSnippet = computed(() => {
-  const domain = form.value.customDomain.trim() || 'zy.yourdomain.com';
+  const domain = activeFullDomain.value || form.value.customDomain.trim() || 'zy.yourdomain.com';
   return `server {
     listen 80;
     server_name ${domain};
@@ -183,17 +277,21 @@ const nginxSnippet = computed(() => {
 });
 
 watch(
-  () => props.show,
-  (show) => {
-    if (show) loadProxyConfig();
+  () => [props.show, props.source?.id],
+  ([show, sourceId]) => {
+    if (show && sourceId) {
+      currentSourceId.value = sourceId as string;
+      loadProxyConfig(sourceId as string);
+    }
   },
+  { immediate: true },
 );
 </script>
 
 <template>
   <Modal
     :show="show"
-    :title="`独立代理门户站与域名配置 — ${source?.displayName || '镜像站'}`"
+    title="独立代理门户站与域名配置"
     size="lg"
     @close="emit('update:show', false)"
   >
@@ -202,7 +300,32 @@ watch(
       <span class="text-xs text-slate-400">正在加载代理站配置...</span>
     </div>
 
-    <div v-else class="space-y-5">
+    <div v-else class="space-y-4">
+      <!-- 🌟 多镜像源站点即时切换栏 -->
+      <div
+        v-if="sources && sources.length > 1"
+        class="flex items-center justify-between p-3 rounded-2xl bg-slate-100/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
+      >
+        <div class="flex items-center gap-2">
+          <Layers class="w-4 h-4 text-blue-500" />
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-200">配置目标镜像源：</span>
+        </div>
+        <div class="relative min-w-[220px]">
+          <select
+            :value="currentSourceId"
+            class="w-full pl-3 pr-8 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40 cursor-pointer appearance-none"
+            @change="handleSourceSwitch(($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="src in sources" :key="src.id" :value="src.id">
+              {{ src.displayName }} ({{ src.status === 'ACTIVE' ? '已启用' : '暂停' }})
+            </option>
+          </select>
+          <ChevronDown
+            class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+          />
+        </div>
+      </div>
+
       <!-- 代理模式总开关 -->
       <div
         class="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-transparent border border-blue-200/60 dark:border-blue-500/20"
@@ -320,7 +443,7 @@ watch(
         </div>
       </div>
 
-      <!-- Cloudflare 域名与一键 DNS 解析 -->
+      <!-- 🌟 Cloudflare 二级域名智能前缀与一键 DNS 解析 -->
       <div
         class="p-4 rounded-2xl bg-gradient-to-br from-amber-500/5 via-orange-500/5 to-transparent border border-amber-200/60 dark:border-amber-500/20 space-y-3.5"
       >
@@ -345,22 +468,80 @@ watch(
           </span>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1"
-              >要绑定的二级子域名：</label
+        <!-- 🚀 智能子域名前缀输入与根域名联动 -->
+        <div class="space-y-2">
+          <label class="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+            绑定二级域名（直接输入子域名前缀即可，支持多域名逗号隔开）：
+          </label>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <!-- 前缀输入框 -->
+            <div class="flex-1 relative">
+              <input
+                v-model="subdomainPrefix"
+                type="text"
+                placeholder="直接写子域名前缀，如: zy 或 cku"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/30 focus:outline-none font-mono"
+              />
+            </div>
+
+            <span class="hidden sm:inline text-xs font-bold text-slate-400">.</span>
+
+            <!-- 根域名选择器 -->
+            <div class="sm:w-56 shrink-0">
+              <select
+                v-if="!isCustomZone && availableZones.length > 0"
+                v-model="selectedZone"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/30 focus:outline-none font-mono cursor-pointer"
+              >
+                <option v-for="z in availableZones" :key="z.id" :value="z.name">
+                  .{{ z.name }}
+                </option>
+              </select>
+              <input
+                v-else
+                v-model="customZoneInput"
+                type="text"
+                placeholder="根域名，如: yourdomain.com"
+                class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/30 focus:outline-none font-mono"
+              />
+            </div>
+
+            <!-- 切换自定义根域名 -->
+            <button
+              v-if="availableZones.length > 0"
+              type="button"
+              class="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 whitespace-nowrap cursor-pointer py-1"
+              @click="isCustomZone = !isCustomZone"
             >
-            <input
-              v-model="form.customDomain"
-              type="text"
-              placeholder="例如: zy.lilan8.cn 或 mirror.yourdomain.com"
-              class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/30 focus:outline-none font-mono"
-            />
+              {{ isCustomZone ? '从 Cloudflare 选择' : '自定义根域名' }}
+            </button>
           </div>
 
+          <!-- 域名实时预览 -->
+          <div
+            v-if="activeFullDomain"
+            class="flex items-center justify-between p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[11px] text-orange-700 dark:text-orange-300 font-mono"
+          >
+            <span class="truncate"
+              >解析后生效域名: <strong>https://{{ activeFullDomain }}</strong></span
+            >
+            <div class="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                class="p-1 hover:text-orange-900 dark:hover:text-white cursor-pointer"
+                title="复制域名"
+                @click="copyToClipboard(`https://${activeFullDomain}`)"
+              >
+                <Copy class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
             <label class="block text-[11px] text-slate-500 dark:text-slate-400 mb-1"
-              >服务器 IP（留空自动使用当前服务器 IP）：</label
+              >服务器 IP（留空自动使用当前服务器公网 IP）：</label
             >
             <input
               v-model="form.serverIp"
@@ -369,17 +550,25 @@ watch(
               class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-orange-500/30 focus:outline-none font-mono"
             />
           </div>
+
+          <div class="flex flex-col justify-end">
+            <label
+              class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 py-1.5"
+            >
+              <input
+                v-model="form.cloudflareProxied"
+                type="checkbox"
+                class="rounded text-orange-500 focus:ring-orange-500/30"
+              />
+              <span>开启 Cloudflare CDN 代理加速 (小云朵)</span>
+            </label>
+          </div>
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <label class="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
-            <input
-              v-model="form.cloudflareProxied"
-              type="checkbox"
-              class="rounded text-orange-500 focus:ring-orange-500/30"
-            />
-            <span>开启 Cloudflare CDN 代理加速 (橙色小云朵)</span>
-          </label>
+          <span class="text-[10px] text-slate-400">
+            支持多个代理站绑定不同二级子域名（如 zy.lilan8.cn, cku.lilan8.cn）
+          </span>
 
           <Button
             size="sm"
@@ -418,34 +607,38 @@ watch(
           >
         </summary>
         <div class="mt-2 space-y-2">
+          <p class="text-[11px] text-slate-400">
+            在服务器 <code>/etc/nginx/sites-available/</code> 中创建配置文件即可实现子域名直接访问：
+          </p>
           <pre
-            class="p-3 rounded-xl bg-slate-900 text-slate-200 text-[10px] font-mono overflow-x-auto leading-relaxed"
+            class="p-2.5 rounded-xl bg-slate-900 text-slate-200 text-[10px] font-mono overflow-x-auto leading-relaxed"
             >{{ nginxSnippet }}</pre
           >
-          <Button
-            size="sm"
-            variant="outline"
-            class="text-xs text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20"
-            @click="copyToClipboard(nginxSnippet, 'Nginx 配置代码已复制')"
-          >
-            <Copy class="w-3 h-3 mr-1" /> 复制 Nginx 配置
-          </Button>
+          <div class="flex justify-end">
+            <button
+              type="button"
+              class="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 cursor-pointer"
+              @click="copyToClipboard(nginxSnippet, 'Nginx 配置已复制！')"
+            >
+              复制 Nginx 配置代码
+            </button>
+          </div>
         </div>
       </details>
     </div>
 
     <template #footer>
-      <div class="flex items-center justify-end gap-2">
+      <div class="flex items-center justify-end gap-3">
         <Button variant="outline" size="sm" @click="emit('update:show', false)"> 取消 </Button>
         <Button
           variant="primary"
           size="sm"
-          class="bg-blue-600 text-white"
           :disabled="isSaving"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-bold"
           @click="handleSave"
         >
-          <Loader2 v-if="isSaving" class="w-4 h-4 animate-spin mr-1" />
-          保存配置
+          <Loader2 v-if="isSaving" class="w-4 h-4 animate-spin mr-1.5" />
+          <span>{{ isSaving ? '保存中...' : '保存配置' }}</span>
         </Button>
       </div>
     </template>

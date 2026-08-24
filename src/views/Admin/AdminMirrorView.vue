@@ -1076,6 +1076,8 @@ onUnmounted(() => {
       <MirrorProxyConfigDialog
         v-model:show="showProxyDialog"
         :source="editingSource"
+        :sources="sources"
+        @update:source="editingSource = $event"
         @saved="fetchSources"
       />
 

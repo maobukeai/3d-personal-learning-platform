@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { formatDateTime as formatTime } from '@/utils/format';
 import { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
@@ -18,10 +19,11 @@ import {
   Trash2,
   Clock,
   Radio,
+  ExternalLink,
 } from 'lucide-vue-next';
 import type { MirrorSource, SyncProgress } from '../AdminMirrorView.vue';
 
-defineProps<{
+const props = defineProps<{
   source: MirrorSource;
   progress?: SyncProgress | undefined;
   expanded: boolean;
@@ -46,6 +48,21 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   PAUSED: { label: '暂停', color: 'text-amber-500 bg-amber-50 dark:bg-amber-500/10' },
   ERROR: { label: '异常', color: 'text-red-500 bg-red-50 dark:bg-red-500/10' },
 };
+
+const proxyConfig = computed(() => {
+  try {
+    const cfg = props.source.syncConfig ? JSON.parse(props.source.syncConfig) : {};
+    return cfg.proxyConfig || null;
+  } catch {
+    return null;
+  }
+});
+
+const portalDirectUrl = computed(() => {
+  if (!proxyConfig.value?.proxyEnabled) return null;
+  const slug = proxyConfig.value.customSlug || props.source.id;
+  return `/portal/${slug}`;
+});
 
 function formatDuration(seconds: number | null) {
   if (!seconds) return '-';
@@ -83,13 +100,26 @@ function formatElapsed(startedAt: string) {
               <h3 class="font-semibold text-slate-900 dark:text-white text-base truncate">
                 {{ source.displayName }}
               </h3>
-              <div class="flex flex-wrap gap-1.5">
+              <div class="flex flex-wrap items-center gap-1.5">
                 <span
-                  class="px-2 py-0.5 text-xs rounded-full"
+                  class="px-2 py-0.5 text-xs rounded-full font-medium"
                   :class="statusLabels[source.status]?.color || 'text-slate-400 bg-slate-100'"
                 >
                   {{ statusLabels[source.status]?.label || source.status }}
                 </span>
+
+                <a
+                  v-if="proxyConfig?.proxyEnabled"
+                  :href="portalDirectUrl || '#'"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full font-bold bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/25 hover:bg-purple-500/25 transition-colors"
+                  title="点击新窗口预览该独立代理门户"
+                >
+                  <Globe class="w-3 h-3" />
+                  <span>代理站: {{ proxyConfig.customDomain || portalDirectUrl }}</span>
+                  <ExternalLink class="w-2.5 h-2.5 opacity-70" />
+                </a>
+
                 <span
                   v-if="source.syncStatus === 'SYNCING'"
                   class="flex items-center gap-1 px-2 py-0.5 text-xs rounded-full text-blue-500 bg-blue-50 dark:bg-blue-500/10"

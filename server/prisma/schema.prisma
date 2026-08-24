@@ -1204,10 +1204,10 @@ model MirrorSource {
   lastSyncDuration          Int?
   totalResources            Int                       @default(0)
   syncInterval              Int                       @default(3600)
-  syncConfig                String?
+  syncConfig                String?                   @db.Text
   minPlanPriority           Int                       @default(1)
-  iconUrl                   String?
-  description               String?
+  iconUrl                   String?                   @db.Text
+  description               String?                   @db.Text
   categories                MirrorCategory[]
   resources                 MirrorResource[]
   syncLogs                  SyncLog[]

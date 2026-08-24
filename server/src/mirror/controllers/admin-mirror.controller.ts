@@ -2404,12 +2404,39 @@ export const saveSourceProxyConfig = async (
     ...((request.body as Record<string, any>) || {}),
   };
 
-  await prisma.mirrorSource.update({
-    where: { id },
-    data: {
-      syncConfig: JSON.stringify(syncConfigObj),
-    },
-  });
+  const jsonStr = JSON.stringify(syncConfigObj);
+
+  try {
+    await prisma.mirrorSource.update({
+      where: { id },
+      data: {
+        syncConfig: jsonStr,
+      },
+    });
+  } catch (err: any) {
+    if (
+      err?.code === 'P2000' ||
+      String(err).includes('P2000') ||
+      String(err?.message).includes('too long')
+    ) {
+      try {
+        await prisma.$executeRawUnsafe(
+          'ALTER TABLE `MirrorSource` MODIFY `syncConfig` LONGTEXT, MODIFY `iconUrl` TEXT, MODIFY `description` TEXT;',
+        );
+        await prisma.mirrorSource.update({
+          where: { id },
+          data: {
+            syncConfig: jsonStr,
+          },
+        });
+      } catch (innerErr) {
+        logger.error('Failed to auto-alter column size in MirrorSource', { error: innerErr });
+        throw err;
+      }
+    } else {
+      throw err;
+    }
+  }
 
   reply.send({ message: '代理站配置保存成功！', proxyConfig: syncConfigObj.proxyConfig });
 };

@@ -73,9 +73,12 @@ async function ensureStationLoaded() {
     matchedStation = mirrorStore.stations.find((s) => {
       try {
         const cfg = s.syncConfig ? JSON.parse(s.syncConfig) : {};
-        if (cfg.proxyConfig?.customDomain?.toLowerCase() === currentHost) {
-          return true;
-        }
+        const domainStr = cfg.proxyConfig?.customDomain?.toLowerCase() || '';
+        const domains = domainStr.split(/[,，\s]+/).filter(Boolean);
+        return domains.some(
+          (d: string) =>
+            d === currentHost || currentHost.endsWith('.' + d) || d.endsWith('.' + currentHost),
+        );
       } catch {}
       return false;
     });

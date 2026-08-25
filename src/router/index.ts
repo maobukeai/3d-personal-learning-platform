@@ -460,17 +460,49 @@ const router = createRouter({
   ],
 });
 
+// 智能判断当前访问域名是否为独立代理门户域名
+export function isStandalonePortalHost(hostname?: string): boolean {
+  if (typeof window === 'undefined' && !hostname) return false;
+  const host = (hostname || window.location.hostname).toLowerCase();
+
+  // 本地开发环境主域名
+  if (
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '0.0.0.0' ||
+    host.endsWith('.local')
+  ) {
+    return false;
+  }
+
+  // 生产主站主域名与官方宣传页
+  if (
+    host === 'mao.591595.xyz' ||
+    host === '591595.xyz' ||
+    host === 'www.591595.xyz' ||
+    host === 'app.591595.xyz' ||
+    host.startsWith('main.') ||
+    host.startsWith('admin.')
+  ) {
+    return false;
+  }
+
+  // 所有其他绑定的二级域名（如 xuexi.591595.xyz, zy.591595.xyz）或独立域名均为代理站
+  return true;
+}
+
 router.beforeEach(async (to) => {
-  // Subdomain / Standalone portal auto-sensing (e.g. zy.domain.com or mirror.domain.com)
+  // Subdomain / Standalone portal auto-sensing
   if (typeof window !== 'undefined') {
-    const host = window.location.hostname.toLowerCase();
-    const isPortalDomain =
-      host.startsWith('zy.') ||
-      host.startsWith('mirror.') ||
-      host.startsWith('zycku.') ||
-      host.startsWith('proxy.');
-    if (isPortalDomain && (to.path === '/' || to.path === '/dashboard')) {
-      return { name: 'MirrorPortalHome' };
+    const isPortalDomain = isStandalonePortalHost();
+    if (isPortalDomain) {
+      if (
+        to.path === '/' ||
+        to.path === '/dashboard' ||
+        (to.path === '/login' && !to.query.redirect)
+      ) {
+        return { name: 'MirrorPortalHome' };
+      }
     }
   }
 

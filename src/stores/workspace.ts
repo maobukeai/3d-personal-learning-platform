@@ -63,9 +63,18 @@ export const useWorkspaceStore = defineStore('workspace', {
         return ws;
       });
     },
-    currentWorkspace(): Workspace | null {
+    currentWorkspace(): Workspace {
       const all = this.workspaces;
-      return all.find((w) => w.id === this.activeWorkspaceId) || all[0] || null;
+      const found = all.find((w) => w.id === this.activeWorkspaceId) || all[0];
+      if (found) return found;
+      return {
+        id: this.activeWorkspaceId || 'default-workspace',
+        name: '数字资产库',
+        type: 'personal',
+        color: 'bg-accent',
+        description: '平台三维资产与学习资源',
+        avatarUrl: null,
+      };
     },
     isAdminWorkspace(): boolean {
       return this.activeWorkspaceId === 'admin-workspace';

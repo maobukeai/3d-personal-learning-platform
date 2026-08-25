@@ -28,7 +28,7 @@ const emit = defineEmits<{ (e: 'report-bug'): void }>();
         >
           <img
             v-if="workspaceStore.currentWorkspace?.avatarUrl"
-            :src="getAssetUrl(workspaceStore.currentWorkspace.avatarUrl)"
+            :src="getAssetUrl(workspaceStore.currentWorkspace?.avatarUrl)"
             class="w-full h-full object-cover"
             alt="Workspace Avatar"
           />

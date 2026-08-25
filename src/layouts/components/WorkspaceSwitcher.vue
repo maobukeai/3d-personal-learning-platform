@@ -124,13 +124,13 @@ const handleQuickSettings = (ws: Workspace) => {
           v-else
           class="w-6 h-6 rounded-full text-white flex items-center justify-center font-bold text-[10px] shrink-0"
           :class="
-            workspaceStore.currentWorkspace.type === 'personal'
+            workspaceStore.currentWorkspace?.type === 'personal'
               ? 'bg-slate-900 border border-white/5'
-              : workspaceStore.currentWorkspace.color
+              : workspaceStore.currentWorkspace?.color || 'bg-blue-500'
           "
         >
           <svg
-            v-if="workspaceStore.currentWorkspace.type === 'personal'"
+            v-if="workspaceStore.currentWorkspace?.type === 'personal'"
             class="w-4 h-4"
             viewBox="0 0 128 128"
             fill="none"
@@ -144,13 +144,13 @@ const handleQuickSettings = (ws: Workspace) => {
               fill="#F5792A"
             />
           </svg>
-          <span v-else>{{ workspaceStore.currentWorkspace.name.charAt(0) }}</span>
+          <span v-else>{{ workspaceStore.currentWorkspace?.name?.charAt(0) || '主' }}</span>
         </div>
       </div>
       <span
         class="text-xs font-bold text-slate-600 dark:text-slate-200 truncate max-w-[180px] hidden md:block"
       >
-        {{ workspaceStore.currentWorkspace.name }}
+        {{ workspaceStore.currentWorkspace?.name || '工作区' }}
       </span>
       <ChevronDown class="w-3.5 h-3.5 text-slate-400 shrink-0" />
     </DropdownMenuTrigger>

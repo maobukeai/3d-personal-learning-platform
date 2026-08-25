@@ -26,11 +26,15 @@ export const buildCorsOriginChecker = () => {
     if (allowedOrigins.indexOf(origin) !== -1) {
       return true;
     }
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const parsed = new URL(origin);
+    try {
+      const parsed = new URL(origin);
+      const host = parsed.hostname.toLowerCase();
+      // 放行同根域名子域名 (如 xuexi.591595.xyz, mao.591595.xyz)
+      if (host.endsWith('.591595.xyz') || host === '591595.xyz') {
+        return true;
+      }
+      if (process.env.NODE_ENV === 'development') {
         // URL#hostname keeps the brackets for IPv6 literals, e.g. "[::1]".
-        const host = parsed.hostname.toLowerCase();
         if (
           host === 'localhost' ||
           host === '127.0.0.1' ||
@@ -40,9 +44,9 @@ export const buildCorsOriginChecker = () => {
         ) {
           return true;
         }
-      } catch {
-        return false;
       }
+    } catch {
+      return false;
     }
     return false;
   };

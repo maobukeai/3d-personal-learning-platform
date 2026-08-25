@@ -6,14 +6,15 @@ import { useSystemStore } from '@/stores/system';
 import { getApiErrorStatus } from '@/utils/error';
 
 const getApiBaseUrl = (): string => {
+  // 浏览器端始终使用当前域名的相对路径（Nginx 统一反代 /api -> 后端 3001）
+  // 保证主站与所有二级独立域名、代理站天然同源，杜绝任何跨域 CORS 异常与凭据丢失
+  if (typeof window !== 'undefined') {
+    return '';
+  }
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
-    // Explicitly configured remote API — always honor it.
     return envUrl;
   }
-  // Otherwise fall back to same-origin: the Vite dev server proxies /api in
-  // development, and Nginx proxies /api in production, so localhost,
-  // 127.0.0.1, LAN (192.168.x.x) and mobile devices all work without config.
   return '';
 };
 

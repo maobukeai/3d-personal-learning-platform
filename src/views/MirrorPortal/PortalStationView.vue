@@ -92,26 +92,34 @@ async function ensureStationLoaded() {
   if (matchedStation) {
     mirrorStore.currentStation = matchedStation;
 
-    // 智能路由规范化：优先保持专属短别名 /portal/:slug 路径
-    let customSlug = '';
-    try {
-      const cfg = matchedStation.syncConfig ? JSON.parse(matchedStation.syncConfig) : {};
-      customSlug = cfg.proxyConfig?.customSlug?.trim() || '';
-    } catch {}
+    // 在非独立自定义域名（如主站 /portal）下进行路由规范化
+    const isCustomDomain =
+      currentHost &&
+      currentHost !== 'localhost' &&
+      currentHost !== '127.0.0.1' &&
+      currentHost !== 'mao.591595.xyz';
 
-    if (customSlug) {
-      if (route.name !== 'MirrorPortalSlug' || route.params.slug !== customSlug) {
-        router.replace(`/portal/${customSlug}`);
-        return;
-      }
-    } else {
-      if (route.name !== 'MirrorPortalStation' || route.params.id !== matchedStation.id) {
-        router.replace(`/portal/mirror/${matchedStation.id}`);
-        return;
+    if (!isCustomDomain) {
+      let customSlug = '';
+      try {
+        const cfg = matchedStation.syncConfig ? JSON.parse(matchedStation.syncConfig) : {};
+        customSlug = cfg.proxyConfig?.customSlug?.trim() || '';
+      } catch {}
+
+      if (customSlug) {
+        if (route.name !== 'MirrorPortalSlug' || route.params.slug !== customSlug) {
+          router.replace(`/portal/${customSlug}`);
+          return;
+        }
+      } else {
+        if (route.name !== 'MirrorPortalStation' || route.params.id !== matchedStation.id) {
+          router.replace(`/portal/mirror/${matchedStation.id}`);
+          return;
+        }
       }
     }
 
-    loadData(matchedStation.id);
+    await loadData(matchedStation.id);
   }
 }
 

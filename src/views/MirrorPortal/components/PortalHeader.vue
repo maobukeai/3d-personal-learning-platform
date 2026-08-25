@@ -81,6 +81,12 @@ const currentStationSubtitle = computed(() => {
 
 function getStationRoutePath(station: any) {
   if (!station) return '/portal';
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== 'mao.591595.xyz') {
+      return '/portal';
+    }
+  }
   try {
     const cfg = station.syncConfig ? JSON.parse(station.syncConfig) : {};
     if (cfg.proxyConfig?.customSlug?.trim()) {

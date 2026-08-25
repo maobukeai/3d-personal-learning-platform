@@ -29,6 +29,37 @@ export function useMirrorSourceView() {
       if (found) return found.id;
       return slug;
     }
+
+    // 智能感知：如果通过自定义独立域名访问（如 xuexi.591595.xyz），通过 hostname 匹配站点 ID
+    if (typeof window !== 'undefined') {
+      const currentHost = window.location.hostname.toLowerCase();
+      if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1') {
+        const foundByDomain = mirrorStore.stations.find((s) => {
+          try {
+            const cfg = s.syncConfig ? JSON.parse(s.syncConfig) : {};
+            const domainStr = cfg.proxyConfig?.customDomain?.toLowerCase() || '';
+            const domains = domainStr.split(/[,，\s]+/).filter(Boolean);
+            return domains.some(
+              (d: string) =>
+                d === currentHost || currentHost.endsWith('.' + d) || d.endsWith('.' + currentHost),
+            );
+          } catch {}
+          return false;
+        });
+        if (foundByDomain) return foundByDomain.id;
+      }
+    }
+
+    // 兜底：如果已有 currentStation 或列表有激活站点，取第一个有效站点
+    if (mirrorStore.currentStation?.id) {
+      return mirrorStore.currentStation.id;
+    }
+    if (mirrorStore.stations.length > 0) {
+      const active =
+        mirrorStore.stations.find((s) => s.status === 'ACTIVE') || mirrorStore.stations[0];
+      if (active) return active.id;
+    }
+
     return '';
   });
 
@@ -74,6 +105,10 @@ export function useMirrorSourceView() {
   }
 
   async function loadData(explicitSourceId?: string) {
+    if (mirrorStore.stations.length === 0) {
+      await mirrorStore.fetchStations();
+    }
+
     const targetSourceId = explicitSourceId || sourceId.value;
     if (!targetSourceId) return;
     if (isFetchingData) return;

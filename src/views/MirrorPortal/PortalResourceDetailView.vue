@@ -45,13 +45,36 @@ function openImagePreview(url: string, alt = '') {
 
 function handleTagClick(tag: string) {
   if (!tag) return;
+  const cleanTag = tag.trim();
+  mirrorStore.setSearchQuery(cleanTag);
+  mirrorStore.setActiveCategory(null);
+
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname.toLowerCase();
+    if (host && host !== 'localhost' && host !== '127.0.0.1' && host !== 'mao.591595.xyz') {
+      router.push({ path: '/portal', query: { search: cleanTag, page: '1' } });
+      return;
+    }
+  }
+
   const targetStation = mirrorStore.currentStation;
-  const basePath = resource.value?.sourceId
-    ? `/portal/mirror/${resource.value.sourceId}`
-    : '/portal';
+  let basePath = '/portal';
+  try {
+    const cfg = targetStation?.syncConfig ? JSON.parse(targetStation.syncConfig) : {};
+    if (cfg.proxyConfig?.customSlug?.trim()) {
+      basePath = `/portal/${cfg.proxyConfig.customSlug.trim()}`;
+    } else if (resource.value?.sourceId) {
+      basePath = `/portal/mirror/${resource.value.sourceId}`;
+    }
+  } catch {
+    if (resource.value?.sourceId) {
+      basePath = `/portal/mirror/${resource.value.sourceId}`;
+    }
+  }
+
   router.push({
     path: basePath,
-    query: { search: tag.trim(), page: '1' },
+    query: { search: cleanTag, page: '1' },
   });
 }
 
@@ -330,9 +353,12 @@ function handleNavigateDetail(id: string) {
               </div>
 
               <div class="pt-2">
-                <div @click="handleContentClick">
+                <div
+                  v-if="resource.contentHtml"
+                  class="mirror-content-container"
+                  @click="handleContentClick"
+                >
                   <SafeHtml
-                    v-if="resource.contentHtml"
                     class="mirror-content prose prose-sm dark:prose-invert max-w-none"
                     :html="resource.contentHtml"
                   />

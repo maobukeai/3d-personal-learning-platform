@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import {
   Search,
   X,
@@ -192,6 +192,113 @@ function handleTagFilter(tag: string) {
 }
 
 const isSubCategoriesExpanded = ref(false);
+
+// Sliding Indicator References & Position Styles
+const topCategoryNavRef = ref<HTMLElement | null>(null);
+const topCatIndicatorStyle = ref({ transform: 'translateX(0px)', width: '0px', opacity: '0' });
+
+const sortGroupRef = ref<HTMLElement | null>(null);
+const sortIndicatorStyle = ref({ transform: 'translateX(0px)', width: '0px', opacity: '0' });
+
+const viewGroupRef = ref<HTMLElement | null>(null);
+const viewIndicatorStyle = ref({ transform: 'translateX(0px)', width: '0px', opacity: '0' });
+
+const subCategoryNavRef = ref<HTMLElement | null>(null);
+const subCatIndicatorStyle = ref({
+  transform: 'translateX(0px)',
+  width: '0px',
+  opacity: '0',
+});
+
+function updateTopCatIndicator() {
+  nextTick(() => {
+    if (!topCategoryNavRef.value) return;
+    const activeEl = topCategoryNavRef.value.querySelector('.is-active-top-cat') as HTMLElement;
+    if (activeEl) {
+      topCatIndicatorStyle.value = {
+        transform: `translateX(${activeEl.offsetLeft}px)`,
+        width: `${activeEl.offsetWidth}px`,
+        opacity: '1',
+      };
+    } else {
+      topCatIndicatorStyle.value.opacity = '0';
+    }
+  });
+}
+
+function updateSortIndicator() {
+  nextTick(() => {
+    if (!sortGroupRef.value) return;
+    const activeEl = sortGroupRef.value.querySelector('.is-active-sort') as HTMLElement;
+    if (activeEl) {
+      sortIndicatorStyle.value = {
+        transform: `translateX(${activeEl.offsetLeft}px)`,
+        width: `${activeEl.offsetWidth}px`,
+        opacity: '1',
+      };
+    } else {
+      sortIndicatorStyle.value.opacity = '0';
+    }
+  });
+}
+
+function updateViewIndicator() {
+  nextTick(() => {
+    if (!viewGroupRef.value) return;
+    const activeEl = viewGroupRef.value.querySelector('.is-active-view') as HTMLElement;
+    if (activeEl) {
+      viewIndicatorStyle.value = {
+        transform: `translateX(${activeEl.offsetLeft}px)`,
+        width: `${activeEl.offsetWidth}px`,
+        opacity: '1',
+      };
+    } else {
+      viewIndicatorStyle.value.opacity = '0';
+    }
+  });
+}
+
+function updateSubCatIndicator() {
+  nextTick(() => {
+    if (!subCategoryNavRef.value) return;
+    const activeEl = subCategoryNavRef.value.querySelector('.is-active-sub-cat') as HTMLElement;
+    if (activeEl) {
+      subCatIndicatorStyle.value = {
+        transform: `translateX(${activeEl.offsetLeft}px)`,
+        width: `${activeEl.offsetWidth}px`,
+        opacity: '1',
+      };
+    } else {
+      subCatIndicatorStyle.value.opacity = '0';
+    }
+  });
+}
+
+watch([() => props.activeCategoryId, topCategories, currentSubCategories], () => {
+  updateTopCatIndicator();
+  updateSubCatIndicator();
+});
+
+watch(() => props.sortBy, updateSortIndicator);
+watch(() => props.viewMode, updateViewIndicator);
+watch(isSubCategoriesExpanded, () => {
+  updateSubCatIndicator();
+});
+
+onMounted(() => {
+  updateTopCatIndicator();
+  updateSortIndicator();
+  updateViewIndicator();
+  updateSubCatIndicator();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', () => {
+      updateTopCatIndicator();
+      updateSortIndicator();
+      updateViewIndicator();
+      updateSubCatIndicator();
+    });
+  }
+});
 </script>
 
 <template>
@@ -202,64 +309,78 @@ const isSubCategoriesExpanded = ref(false);
       <div
         class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white/70 dark:bg-slate-800/60 p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
       >
-        <!-- Categories Tabs (Horizontal Scrollable with Smooth Feel) -->
+        <!-- Categories Tabs (Horizontal Scrollable with Smooth Sliding Pill Indicator) -->
         <div
-          class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0 px-0.5 py-0.5"
+          ref="topCategoryNavRef"
+          class="relative flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0 px-0.5 py-0.5"
         >
+          <!-- Sliding Blue Pill Indicator -->
+          <div
+            class="absolute top-0.5 bottom-0.5 bg-blue-600 rounded-xl transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-md shadow-blue-500/25 pointer-events-none z-0"
+            :style="topCatIndicatorStyle"
+          />
+
           <button
             type="button"
-            class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
-            :class="
+            class="relative z-10 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-colors duration-200 shrink-0 cursor-pointer"
+            :class="[
               !activeCategoryId
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-            "
+                ? 'is-active-top-cat text-white'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
+            ]"
             @click="emit('select-category', null)"
           >
             <Layers class="w-3.5 h-3.5" /><span>全部资源</span>
           </button>
+
           <button
             v-for="cat in topCategories"
             :key="cat.id"
             type="button"
-            class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
-            :class="
+            class="relative z-10 flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-colors duration-200 shrink-0 cursor-pointer"
+            :class="[
               activeParentId === cat.id
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-            "
+                ? 'is-active-top-cat text-white'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white',
+            ]"
             @click="emit('select-category', cat.id)"
           >
             <span>{{ cat.name }}</span>
             <span
               v-if="cat.resourceCount"
-              class="text-[10px] px-1.5 py-0.2 rounded-full opacity-80"
+              class="text-[10px] px-1.5 py-0.2 rounded-full transition-colors duration-200"
               :class="
                 activeParentId === cat.id
                   ? 'bg-white/20 text-white'
-                  : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                  : 'bg-slate-200/80 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
               "
               >{{ cat.resourceCount }}</span
             >
           </button>
         </div>
 
-        <!-- Controls: Sort & View -->
+        <!-- Controls: Sort & View with Sliding Indicators -->
         <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0 px-0.5">
+          <!-- Sort Options with Sliding Pill -->
           <div
-            class="flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
+            ref="sortGroupRef"
+            class="relative flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
           >
-            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-0.5" />
+            <div
+              class="absolute top-0.5 bottom-0.5 bg-blue-600 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-xs pointer-events-none z-0"
+              :style="sortIndicatorStyle"
+            />
+            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-0.5 z-10" />
             <button
               v-for="opt in sortByOptions"
               :key="opt.value"
               type="button"
-              class="px-2 py-1 text-xs font-medium rounded-lg transition-all cursor-pointer"
-              :class="
+              class="relative z-10 px-2 py-1 text-xs font-medium rounded-lg transition-colors duration-200 cursor-pointer"
+              :class="[
                 sortBy === opt.value
-                  ? 'bg-blue-500 text-white font-bold shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              "
+                  ? 'is-active-sort text-white font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white',
+              ]"
               @click="
                 emit('update:sortBy', opt.value);
                 emit('search');
@@ -268,19 +389,26 @@ const isSubCategoriesExpanded = ref(false);
               {{ opt.label }}
             </button>
           </div>
+
+          <!-- View Mode with Sliding Pill -->
           <div
-            class="flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
+            ref="viewGroupRef"
+            class="relative flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
           >
+            <div
+              class="absolute top-0.5 bottom-0.5 bg-blue-600 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-xs pointer-events-none z-0"
+              :style="viewIndicatorStyle"
+            />
             <button
               v-for="v in viewModeOptions"
               :key="v.mode"
               type="button"
-              class="p-1.5 rounded-lg transition-all cursor-pointer"
-              :class="
+              class="relative z-10 p-1.5 rounded-lg transition-colors duration-200 cursor-pointer"
+              :class="[
                 viewMode === v.mode
-                  ? 'bg-blue-500 text-white shadow-xs'
-                  : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-              "
+                  ? 'is-active-view text-white'
+                  : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200',
+              ]"
               :title="v.label"
               @click="emit('update:viewMode', v.mode)"
             >
@@ -470,21 +598,33 @@ const isSubCategoriesExpanded = ref(false);
 
       <!-- Subcategory Pills: Horizontal Scroll by default, Wrap when expanded -->
       <div
-        class="flex-1 min-w-0"
+        ref="subCategoryNavRef"
+        class="relative flex-1 min-w-0"
         :class="
           isSubCategoriesExpanded
             ? 'flex flex-wrap items-center gap-1.5 pt-1'
             : 'flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5'
         "
       >
+        <!-- Sliding Indicator for Subcategories when in single-row mode -->
+        <div
+          v-if="!isSubCategoriesExpanded"
+          class="absolute top-0.5 bottom-0.5 bg-blue-600 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] shadow-xs pointer-events-none z-0"
+          :style="subCatIndicatorStyle"
+        />
+
         <button
           type="button"
-          class="px-2.5 py-0.8 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer"
-          :class="
+          class="relative z-10 px-2.5 py-0.8 rounded-lg text-xs font-semibold transition-colors duration-200 shrink-0 cursor-pointer"
+          :class="[
             activeCategoryId === activeParentId
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white/90 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
-          "
+              ? 'is-active-sub-cat text-white' +
+                (isSubCategoriesExpanded ? ' bg-blue-600 shadow-xs' : '')
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white' +
+                (isSubCategoriesExpanded
+                  ? ' bg-white/90 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60'
+                  : ''),
+          ]"
           @click="emit('select-category', activeParentId)"
         >
           全部
@@ -493,16 +633,23 @@ const isSubCategoriesExpanded = ref(false);
           v-for="sub in currentSubCategories"
           :key="sub.id"
           type="button"
-          class="flex items-center gap-1 px-2.5 py-0.8 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer"
-          :class="
+          class="relative z-10 flex items-center gap-1 px-2.5 py-0.8 rounded-lg text-xs font-semibold transition-colors duration-200 shrink-0 cursor-pointer"
+          :class="[
             activeCategoryId === sub.id
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white/90 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
-          "
+              ? 'is-active-sub-cat text-white' +
+                (isSubCategoriesExpanded ? ' bg-blue-600 shadow-xs' : '')
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white' +
+                (isSubCategoriesExpanded
+                  ? ' bg-white/90 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60'
+                  : ''),
+          ]"
           @click="emit('select-category', sub.id)"
         >
           <span>{{ sub.name }}</span>
-          <span v-if="sub.resourceCount" class="text-[10px] opacity-75"
+          <span
+            v-if="sub.resourceCount"
+            class="text-[10px] opacity-80"
+            :class="activeCategoryId === sub.id ? 'text-white' : ''"
             >({{ sub.resourceCount }})</span
           >
         </button>

@@ -313,6 +313,39 @@ export function useMirrorSourceView() {
   );
 
   watch(
+    () => [route.query.search, route.query.categoryId, route.query.sort, route.query.page],
+    ([newSearch, newCat, newSort, newPage], [oldSearch, oldCat, oldSort, oldPage]) => {
+      if (isFetchingData) return;
+      if (
+        newSearch !== oldSearch ||
+        newCat !== oldCat ||
+        newSort !== oldSort ||
+        newPage !== oldPage
+      ) {
+        if (newSearch !== undefined) {
+          mirrorStore.setSearchQuery((newSearch as string) || '');
+        }
+        if (newCat !== undefined) {
+          mirrorStore.setActiveCategory((newCat as string) || null);
+        }
+        const sid =
+          sourceId.value ||
+          mirrorStore.currentStation?.id ||
+          mirrorStore.stations.find((s) => s.status === 'ACTIVE')?.id;
+        if (sid) {
+          mirrorStore.fetchResources(sid, {
+            page: mirrorStore.currentPage,
+            pageSize: pageSize.value,
+            categoryId: mirrorStore.activeCategoryId || undefined,
+            search: mirrorStore.searchQuery || undefined,
+            sort: mirrorStore.sortBy,
+          });
+        }
+      }
+    },
+  );
+
+  watch(
     () => mirrorStore.currentPage,
     (newPage) => {
       jumpPageInput.value = newPage.toString();

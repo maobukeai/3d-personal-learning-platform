@@ -195,7 +195,7 @@ onMounted(() => {
         <button
           type="button"
           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-          @click="resetFilters"
+          @click="handleResetAll"
         >
           重置检索条件
         </button>

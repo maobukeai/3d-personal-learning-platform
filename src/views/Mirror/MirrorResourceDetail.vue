@@ -277,9 +277,12 @@ watch(
               </div>
 
               <div class="pt-2">
-                <div @click="handleContentClick">
+                <div
+                  v-if="resource.contentHtml"
+                  class="mirror-content-container"
+                  @click="handleContentClick"
+                >
                   <SafeHtml
-                    v-if="resource.contentHtml"
                     class="mirror-content prose prose-sm dark:prose-invert max-w-none"
                     :html="resource.contentHtml"
                   />

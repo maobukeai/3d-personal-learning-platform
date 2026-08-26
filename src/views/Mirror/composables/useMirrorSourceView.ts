@@ -109,7 +109,11 @@ export function useMirrorSourceView() {
       await mirrorStore.fetchStations();
     }
 
-    const targetSourceId = explicitSourceId || sourceId.value;
+    const targetSourceId =
+      explicitSourceId ||
+      sourceId.value ||
+      mirrorStore.stations.find((s) => s.status === 'ACTIVE')?.id ||
+      mirrorStore.stations[0]?.id;
     if (!targetSourceId) return;
     if (isFetchingData) return;
     isFetchingData = true;

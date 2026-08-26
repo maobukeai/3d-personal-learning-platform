@@ -403,10 +403,26 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
 
       const finalThumbnail = normalizeUploadUrl(resource.thumbnailUrl, hostUrl);
 
+      // 最高安全脱敏：若非会员或无权限，无论数据库存了什么，所有下载与网盘字段强置为 null
       return reply.send({
-        ...resource,
-        contentHtml: access.hasAccess ? strippedHtml : null,
+        id: resource.id,
+        sourceId: resource.sourceId,
+        externalId: resource.externalId,
+        title: resource.title,
+        description: resource.description,
+        resourceType: resource.resourceType,
         thumbnailUrl: finalThumbnail,
+        tags: resource.tags,
+        viewCount: resource.viewCount,
+        publishedAt: resource.publishedAt,
+        syncedAt: resource.syncedAt,
+        source: resource.source,
+        category: resource.category,
+        contentHtml: access.hasAccess ? strippedHtml : null,
+        downloadUrl: access.hasAccess ? (resource as any).downloadUrl || null : null,
+        extractCode: access.hasAccess ? (resource as any).extractCode || null : null,
+        unzipPassword: access.hasAccess ? (resource as any).unzipPassword || null : null,
+        panLink: access.hasAccess ? (resource as any).panLink || null : null,
         hasAccess: access.hasAccess,
         hasLinks: hasManualLink,
         links: access.hasAccess ? linksMeta : [],
@@ -415,6 +431,44 @@ export const registerMirrorRoutes = (app: FastifyInstance): void => {
       });
     },
   );
+
+  // GET /mirror/image-proxy —— 高可用图片反向代理（保障移动端各种网络环境下 100% 穿透加载）
+  app.get('/mirror/image-proxy', async (request, reply) => {
+    const query = request.query as { url?: string };
+    const rawUrl = query.url;
+    if (!rawUrl) {
+      return reply.status(400).send({ error: 'Missing image url' });
+    }
+
+    // 安全校验：只允许代理 assets1.591595.xyz 等受信 CDN 或合规 HTTP/HTTPS 图片
+    try {
+      const parsed = new URL(rawUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return reply.status(400).send({ error: 'Invalid protocol' });
+      }
+
+      const fetchResponse = await fetch(rawUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+
+      if (!fetchResponse.ok) {
+        return reply.status(fetchResponse.status).send({ error: 'Failed to fetch upstream image' });
+      }
+
+      const contentType = fetchResponse.headers.get('content-type') || 'image/jpeg';
+      const buffer = await fetchResponse.arrayBuffer();
+
+      reply.header('Content-Type', contentType);
+      reply.header('Cache-Control', 'public, max-age=604800, immutable');
+      reply.header('Access-Control-Allow-Origin', '*');
+      return reply.send(Buffer.from(buffer));
+    } catch (err: any) {
+      return reply.status(500).send({ error: 'Proxy failed', message: err?.message });
+    }
+  });
 
   // GET /mirror/resources/:id/comments —— 资源评论
   app.get(

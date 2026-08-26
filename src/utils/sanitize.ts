@@ -9,8 +9,14 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName.toLowerCase() === 'img') {
       // 强制添加 no-referrer，绕过跨域图床对手机端防盗链拦截
       node.setAttribute('referrerpolicy', 'no-referrer');
-      node.setAttribute('loading', 'lazy');
+      // 移动端手机 WebView 移除 lazy loading，确保立即发起图片渲染
+      node.removeAttribute('loading');
       node.setAttribute('decoding', 'async');
+      node.setAttribute('crossorigin', 'anonymous');
+
+      // 移除原 HTML 中可能存在的硬编码死宽高，避免移动端折叠或溢出
+      node.removeAttribute('width');
+      node.removeAttribute('height');
 
       let src = node.getAttribute('src') || '';
       const dataSrc =
@@ -27,6 +33,16 @@ DOMPurify.addHook('afterSanitizeAttributes', (node) => {
       if (src.startsWith('http://') && !src.includes('localhost') && !src.includes('127.0.0.1')) {
         const upgraded = src.replace(/^http:\/\//i, 'https://');
         node.setAttribute('src', upgraded);
+        src = upgraded;
+      }
+
+      // 高可用图片降级：如果手机端网络直连 CDN 失败，自动尝试同源代理
+      if (src.startsWith('http')) {
+        const proxyUrl = `/api/mirror/image-proxy?url=${encodeURIComponent(src)}`;
+        node.setAttribute(
+          'onerror',
+          `if(!this.dataset.fallback){this.dataset.fallback='1';this.src='${proxyUrl}';}`,
+        );
       }
     }
   }

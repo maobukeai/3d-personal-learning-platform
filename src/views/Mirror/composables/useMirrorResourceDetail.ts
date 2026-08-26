@@ -31,17 +31,13 @@ export function useMirrorResourceDetail() {
   const activeLink = ref<{ name: string; url: string; code?: string; type: string } | null>(null);
 
   async function loadResource() {
-    const cached = mirrorStore.resources.find((r) => r.id === resourceId.value);
-    if (cached) {
-      resource.value = { ...cached };
-      isLoading.value = false;
-      if (cached.sourceId) {
-        workspaceStore.setWorkspaceById(`mirror-${cached.sourceId}`);
-        mirrorStore.fetchCategories(cached.sourceId);
-      }
-    } else {
-      isLoading.value = true;
-    }
+    // 切换课程时强行重置所有提取与数据状态，绝对杜绝信息残留
+    activeLink.value = null;
+    showLinkDialog.value = false;
+    showSecurityVerifyModal.value = false;
+    pendingExtractLink.value = null;
+    resource.value = null;
+    isLoading.value = true;
     error.value = null;
 
     try {
@@ -52,12 +48,11 @@ export function useMirrorResourceDetail() {
           workspaceStore.setWorkspaceById(`mirror-${data.sourceId}`);
           mirrorStore.fetchCategories(data.sourceId);
         }
-      } else if (!resource.value) {
+      } else {
         error.value = '资源不存在';
       }
     } catch (e) {
-      if (!resource.value) error.value = getApiErrorMessage(e, '加载失败');
-      else logError(e, { operation: 'Failed to refresh resource details in background' });
+      error.value = getApiErrorMessage(e, '加载失败');
     } finally {
       isLoading.value = false;
     }

@@ -196,13 +196,15 @@ function handleTagFilter(tag: string) {
     <template v-if="hideSearch">
       <!-- Row 1: Top Categories (Left) + Sort & View Controls (Right) -->
       <div
-        class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white/70 dark:bg-slate-800/60 p-1.5 md:p-2 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
+        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 bg-white/70 dark:bg-slate-800/60 p-2 sm:p-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 backdrop-blur-md shadow-xs"
       >
-        <!-- Categories Tabs -->
-        <div class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0 px-1">
+        <!-- Categories Tabs (Horizontal Scrollable with Smooth Feel) -->
+        <div
+          class="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0 px-0.5 py-0.5"
+        >
           <button
             type="button"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
             :class="
               !activeCategoryId
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
@@ -216,7 +218,7 @@ function handleTagFilter(tag: string) {
             v-for="cat in topCategories"
             :key="cat.id"
             type="button"
-            class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs md:text-sm font-bold transition-all shrink-0 cursor-pointer"
             :class="
               activeParentId === cat.id
                 ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
@@ -239,11 +241,11 @@ function handleTagFilter(tag: string) {
         </div>
 
         <!-- Controls: Sort & View -->
-        <div class="flex items-center gap-2 shrink-0 justify-end px-1">
+        <div class="flex items-center justify-between sm:justify-end gap-2 shrink-0 px-0.5">
           <div
-            class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700"
+            class="flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
           >
-            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400 ml-2 mr-0.5" />
+            <SlidersHorizontal class="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-0.5" />
             <button
               v-for="opt in sortByOptions"
               :key="opt.value"
@@ -263,7 +265,7 @@ function handleTagFilter(tag: string) {
             </button>
           </div>
           <div
-            class="flex items-center gap-0.5 bg-slate-100 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200 dark:border-slate-700"
+            class="flex items-center gap-0.5 bg-slate-100/90 dark:bg-slate-900/60 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700/60"
           >
             <button
               v-for="v in viewModeOptions"
@@ -278,7 +280,7 @@ function handleTagFilter(tag: string) {
               :title="v.label"
               @click="emit('update:viewMode', v.mode)"
             >
-              <component :is="v.icon" class="w-4 h-4" />
+              <component :is="v.icon" class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
         </div>
@@ -440,41 +442,53 @@ function handleTagFilter(tag: string) {
       </div>
     </template>
 
-    <!-- Shared Second Row (Subcategories & Tags) -->
+    <!-- Subcategories Block: Fully Expanded / Wrapped so all items are 100% visible on mobile -->
     <div
       v-if="currentSubCategories.length > 0"
-      class="flex items-center gap-2 p-2 bg-blue-50/60 dark:bg-slate-800/40 rounded-xl border border-blue-100/80 dark:border-slate-700/50 overflow-x-auto scrollbar-hide"
+      class="flex flex-col gap-1.5 p-2 sm:p-2.5 bg-blue-50/70 dark:bg-slate-800/50 rounded-xl sm:rounded-2xl border border-blue-100/80 dark:border-slate-700/50 shadow-2xs"
     >
-      <span class="text-xs text-blue-600 dark:text-blue-400 font-bold shrink-0 mr-1">子分类：</span>
-      <button
-        type="button"
-        class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0"
-        :class="
-          activeCategoryId === activeParentId
-            ? 'bg-blue-600 text-white shadow-xs'
-            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700'
-        "
-        @click="emit('select-category', activeParentId)"
-      >
-        全部
-      </button>
-      <button
-        v-for="sub in currentSubCategories"
-        :key="sub.id"
-        type="button"
-        class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0"
-        :class="
-          activeCategoryId === sub.id
-            ? 'bg-blue-600 text-white shadow-xs'
-            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700'
-        "
-        @click="emit('select-category', sub.id)"
-      >
-        <span>{{ sub.name }}</span
-        ><span v-if="sub.resourceCount" class="text-[10px] opacity-75"
-          >({{ sub.resourceCount }})</span
+      <div class="flex items-center justify-between text-xs px-0.5">
+        <span
+          class="text-blue-600 dark:text-blue-400 font-bold flex items-center gap-1 text-[11px] sm:text-xs"
         >
-      </button>
+          <span>子分类</span>
+          <span class="text-[10px] text-blue-400 dark:text-blue-500 font-normal"
+            >({{ currentSubCategories.length }} 个)</span
+          >
+        </span>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          class="px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer"
+          :class="
+            activeCategoryId === activeParentId
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white/90 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
+          "
+          @click="emit('select-category', activeParentId)"
+        >
+          全部
+        </button>
+        <button
+          v-for="sub in currentSubCategories"
+          :key="sub.id"
+          type="button"
+          class="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer"
+          :class="
+            activeCategoryId === sub.id
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white/90 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-blue-100/50 dark:hover:bg-slate-700 border border-slate-200/60 dark:border-slate-700/60'
+          "
+          @click="emit('select-category', sub.id)"
+        >
+          <span>{{ sub.name }}</span>
+          <span v-if="sub.resourceCount" class="text-[10px] opacity-75"
+            >({{ sub.resourceCount }})</span
+          >
+        </button>
+      </div>
     </div>
 
     <!-- Row 4: Category-Linked Dynamic Tags Ribbon -->
@@ -488,7 +502,7 @@ function handleTagFilter(tag: string) {
           v-for="tag in currentCategoryTags"
           :key="tag"
           type="button"
-          class="px-2.5 py-0.5 rounded-lg font-medium transition-all shrink-0"
+          class="px-2.5 py-0.5 rounded-lg font-medium transition-all shrink-0 cursor-pointer"
           :class="
             searchQuery.trim() === tag
               ? 'bg-blue-600 text-white shadow-xs font-bold'
@@ -502,20 +516,12 @@ function handleTagFilter(tag: string) {
 
       <div v-if="hasActiveFilters" class="flex items-center gap-2 shrink-0">
         <span
-          v-if="activeCategoryName"
-          class="px-2 py-0.5 rounded-md bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1"
-        >
-          分类: {{ activeCategoryName
-          }}<button type="button" @click="emit('select-category', null)">
-            <X class="w-3 h-3" />
-          </button>
-        </span>
-        <span
           v-if="searchQuery.trim()"
           class="px-2 py-0.5 rounded-md bg-blue-100/80 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-[11px] font-semibold flex items-center gap-1"
         >
           标签: "{{ searchQuery.trim() }}"<button
             type="button"
+            class="cursor-pointer"
             @click="
               emit('update:searchQuery', '');
               emit('search');
@@ -526,7 +532,7 @@ function handleTagFilter(tag: string) {
         </span>
         <button
           type="button"
-          class="text-[11px] text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors font-medium ml-1"
+          class="text-[11px] text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors font-medium ml-1 cursor-pointer"
           @click="emit('reset-all')"
         >
           <RotateCcw class="w-3 h-3" />重置

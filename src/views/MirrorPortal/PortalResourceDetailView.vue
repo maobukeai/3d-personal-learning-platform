@@ -422,13 +422,17 @@ function handleNavigateDetail(id: string) {
 
 <style scoped>
 .mirror-content :deep(img) {
-  max-width: 100%;
-  height: auto;
+  max-width: 100% !important;
+  height: auto !important;
   border-radius: 12px;
-  margin: 12px 0;
+  margin: 12px auto;
+  display: block;
+  object-fit: contain;
+  background: rgba(148, 163, 184, 0.08);
 }
 .mirror-content :deep(p) {
   margin: 8px 0;
   line-height: 1.7;
+  word-break: break-word;
 }
 </style>

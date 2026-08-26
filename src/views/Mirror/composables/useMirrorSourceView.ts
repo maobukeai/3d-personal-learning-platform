@@ -138,6 +138,17 @@ export function useMirrorSourceView() {
       const qCategory = route.query.categoryId as string | undefined;
       if (qCategory !== undefined) {
         mirrorStore.setActiveCategory(qCategory || null);
+      } else if (!mirrorStore.activeCategoryId) {
+        // 未指定分类时，默认优先选中“视频教程”顶级大分类
+        const videoCat = mirrorStore.categories.find(
+          (c) =>
+            /视频|教程|video|course/i.test(c.name) &&
+            (!c.parentExternalId ||
+              !mirrorStore.categories.some((p) => p.externalId === c.parentExternalId)),
+        );
+        if (videoCat) {
+          mirrorStore.setActiveCategory(videoCat.id);
+        }
       }
 
       const qSearch = route.query.search as string | undefined;

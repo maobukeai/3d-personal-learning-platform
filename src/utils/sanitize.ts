@@ -1,12 +1,40 @@
 import DOMPurify from 'dompurify';
 
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-  if (node instanceof HTMLElement && node.getAttribute('target') === '_blank') {
-    node.setAttribute('rel', 'noopener noreferrer');
+  if (node instanceof HTMLElement) {
+    if (node.getAttribute('target') === '_blank') {
+      node.setAttribute('rel', 'noopener noreferrer');
+    }
+
+    if (node.tagName.toLowerCase() === 'img') {
+      // 强制添加 no-referrer，绕过跨域图床对手机端防盗链拦截
+      node.setAttribute('referrerpolicy', 'no-referrer');
+      node.setAttribute('loading', 'lazy');
+      node.setAttribute('decoding', 'async');
+
+      let src = node.getAttribute('src') || '';
+      const dataSrc =
+        node.getAttribute('data-src') ||
+        node.getAttribute('data-original') ||
+        node.getAttribute('data-url');
+
+      if (!src && dataSrc) {
+        src = dataSrc;
+        node.setAttribute('src', dataSrc);
+      }
+
+      // 手机端全站 HTTPS 环境下将 http:// 图片自动升级为 https://，避免 Mixed Content 阻断
+      if (src.startsWith('http://') && !src.includes('localhost') && !src.includes('127.0.0.1')) {
+        const upgraded = src.replace(/^http:\/\//i, 'https://');
+        node.setAttribute('src', upgraded);
+      }
+    }
   }
 });
 
 export const sanitizeHtml = (html: string): string => {
+  if (!html) return '';
+
   return DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
       'address',
@@ -81,7 +109,25 @@ export const sanitizeHtml = (html: string): string => {
       'img',
       'video',
     ],
-    ALLOWED_ATTR: ['href', 'name', 'target', 'rel', 'src', 'alt', 'class', 'controls', 'style'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    ALLOWED_ATTR: [
+      'href',
+      'name',
+      'target',
+      'rel',
+      'src',
+      'alt',
+      'class',
+      'controls',
+      'style',
+      'loading',
+      'decoding',
+      'referrerpolicy',
+      'data-src',
+      'data-original',
+      'data-url',
+      'width',
+      'height',
+    ],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
   });
 };

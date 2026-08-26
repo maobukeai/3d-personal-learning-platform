@@ -18,6 +18,7 @@ import { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 
 import { ref, watch } from 'vue';
+import ImagePreviewModal from '@/components/ImagePreviewModal.vue';
 import MirrorResourceComments from './components/detail/MirrorResourceComments.vue';
 import MirrorResourceExtractCard from './components/detail/MirrorResourceExtractCard.vue';
 import MirrorResourceExtractModal from './components/detail/MirrorResourceExtractModal.vue';
@@ -25,6 +26,36 @@ import MirrorResourceSecurityVerifyModal from './components/detail/MirrorResourc
 import { useMirrorResourceDetail } from './composables/useMirrorResourceDetail';
 
 const containerRef = ref<HTMLElement | null>(null);
+const showImagePreview = ref(false);
+const previewImageUrl = ref('');
+const previewImageAlt = ref('');
+
+function openImagePreview(url: string, alt = '') {
+  if (!url) return;
+  previewImageUrl.value = url;
+  previewImageAlt.value = alt;
+  showImagePreview.value = true;
+}
+
+function handleTagClick(tag: string) {
+  if (!tag) return;
+  const sourceId = resource.value?.sourceId || (route.params.sourceId as string);
+  router.push({
+    path: sourceId ? `/mirror/source/${sourceId}` : '/mirror',
+    query: { search: tag.trim(), page: '1' },
+  });
+}
+
+function handleContentClick(e: MouseEvent) {
+  const target = e.target as HTMLElement;
+  if (target && target.tagName.toLowerCase() === 'img') {
+    const imgEl = target as HTMLImageElement;
+    const src = imgEl.currentSrc || imgEl.src || imgEl.getAttribute('src') || '';
+    if (src) {
+      openImagePreview(src, imgEl.alt || resource.value?.title || '');
+    }
+  }
+}
 
 function scrollToTop() {
   if (containerRef.value) {
@@ -162,13 +193,21 @@ watch(
           >
             <div
               v-if="resource.thumbnailUrl"
-              class="w-full aspect-[16/9] max-h-[460px] bg-slate-100 dark:bg-slate-700 overflow-hidden border-b border-slate-100 dark:border-slate-700/50"
+              class="w-full aspect-[16/9] max-h-[460px] bg-slate-100 dark:bg-slate-700 overflow-hidden border-b border-slate-100 dark:border-slate-700/50 cursor-zoom-in relative group"
+              title="点击查看大图"
+              @click="openImagePreview(getAssetUrl(resource.thumbnailUrl), resource.title)"
             >
               <img
                 :src="getAssetUrl(resource.thumbnailUrl)"
                 :alt="resource.title"
-                class="w-full h-full object-cover"
+                referrerpolicy="no-referrer"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-102"
               />
+              <div
+                class="absolute bottom-2 right-2 px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+              >
+                点击放大
+              </div>
             </div>
 
             <div class="p-5 md:p-7 space-y-5">
@@ -211,14 +250,18 @@ watch(
                 >
               </div>
 
+              <!-- Clickable Tags -->
               <div v-if="parseTags(resource.tags).length > 0" class="flex flex-wrap gap-1.5">
-                <span
+                <button
                   v-for="tag in parseTags(resource.tags)"
                   :key="tag"
-                  class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-medium"
+                  type="button"
+                  class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-slate-100 dark:bg-slate-700/60 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 border border-slate-200/60 dark:border-slate-700/60 hover:border-blue-300 dark:hover:border-blue-500/50 transition-all font-medium cursor-pointer"
+                  title="点击搜索此标签"
+                  @click="handleTagClick(tag)"
                 >
-                  <Tag class="w-3 h-3" />{{ tag }}
-                </span>
+                  <Tag class="w-3 h-3 text-slate-400 group-hover:text-blue-500" />{{ tag }}
+                </button>
               </div>
 
               <div class="block lg:hidden">
@@ -234,11 +277,13 @@ watch(
               </div>
 
               <div class="pt-2">
-                <SafeHtml
-                  v-if="resource.contentHtml"
-                  class="mirror-content prose prose-sm dark:prose-invert max-w-none"
-                  :html="resource.contentHtml"
-                />
+                <div @click="handleContentClick">
+                  <SafeHtml
+                    v-if="resource.contentHtml"
+                    class="mirror-content prose prose-sm dark:prose-invert max-w-none"
+                    :html="resource.contentHtml"
+                  />
+                </div>
                 <div
                   v-else-if="resource.description"
                   class="prose prose-sm dark:prose-invert max-w-none"
@@ -291,6 +336,11 @@ watch(
       @verified="handleSecurityVerified"
     />
     <MirrorResourceExtractModal v-model:show="showLinkDialog" :active-link="activeLink" />
+    <ImagePreviewModal
+      v-model:show="showImagePreview"
+      :image-url="previewImageUrl"
+      :alt="previewImageAlt"
+    />
   </div>
 </template>
 
@@ -303,6 +353,15 @@ watch(
   display: block;
   object-fit: contain;
   background: rgba(148, 163, 184, 0.08);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  cursor: zoom-in;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.mirror-content :deep(img:hover) {
+  transform: scale(1.01);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.1);
 }
 .mirror-content :deep(p) {
   margin: 8px 0;

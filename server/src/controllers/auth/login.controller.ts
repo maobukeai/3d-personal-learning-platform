@@ -22,11 +22,21 @@ import {
 import { AppError } from '../../utils/error';
 import { redisService } from '../../services/redis.service';
 
-const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: string) => {
+const setAuthCookies = (
+  reply: FastifyReply,
+  accessToken: string,
+  refreshToken: string,
+  request?: FastifyRequest,
+) => {
+  const host = request?.headers['host']?.split(':')[0]?.toLowerCase() || '';
+  const domain = host.endsWith('.591595.xyz') || host === '591595.xyz' ? '.591595.xyz' : undefined;
+
   const cookieOptions = {
     httpOnly: true,
     secure: config.NODE_ENV === 'production',
     sameSite: 'lax' as const,
+    path: '/',
+    ...(domain ? { domain } : {}),
   };
 
   reply.setCookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
@@ -37,8 +47,7 @@ const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: 
 
   const csrfToken = crypto.randomBytes(32).toString('hex');
   reply.setCookie('csrfToken', csrfToken, {
-    secure: config.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
+    ...cookieOptions,
     httpOnly: false,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
@@ -121,7 +130,7 @@ export const login = async (request: FastifyRequest, reply: FastifyReply): Promi
           });
           const accessToken = generateAccessToken(user.id, user.role);
           const refreshToken = await generateRefreshToken(user.id);
-          setAuthCookies(reply, accessToken, refreshToken);
+          setAuthCookies(reply, accessToken, refreshToken, request);
 
           await auditService.log({
             userId: user.id,
@@ -146,7 +155,7 @@ export const login = async (request: FastifyRequest, reply: FastifyReply): Promi
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(reply, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken, request);
 
     await auditService.log({
       userId: user.id,
@@ -226,7 +235,7 @@ export const login2FA = async (request: FastifyRequest, reply: FastifyReply): Pr
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(reply, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken, request);
 
     await auditService.log({
       userId: user.id,
@@ -272,7 +281,7 @@ export const refreshToken = async (request: FastifyRequest, reply: FastifyReply)
     const accessToken = generateAccessToken(storedToken.user.id, storedToken.user.role);
     const newRefreshToken = await generateRefreshToken(storedToken.user.id);
     await prisma.refreshToken.delete({ where: { id: storedToken.id } }).catch(() => {});
-    setAuthCookies(reply, accessToken, newRefreshToken);
+    setAuthCookies(reply, accessToken, newRefreshToken, request);
 
     reply.send({ accessToken, refreshToken: newRefreshToken });
   } catch (error) {

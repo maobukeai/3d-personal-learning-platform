@@ -91,15 +91,31 @@ const getCookie = (name: string): string | undefined => {
   return undefined;
 };
 
-/* 请求拦截器：自动注入 Workspace ID 和 CSRF Token */
-api.interceptors.request.use((config) => {
-  /* Inject in-memory access token as Bearer header on every request.
-     This is set after login/refresh and avoids the async browser cookie-write
-     race condition that causes 401s on requests fired immediately after refresh.
-     The auth refresh endpoint itself is excluded to avoid circular dependency. */
+let initTokenPromise: Promise<string | null> | null = null;
+
+/* 请求拦截器：自动注入 Access Token、Workspace ID 和 CSRF Token */
+api.interceptors.request.use(async (config) => {
   const isAuthRefresh = config.url?.includes('/auth/refresh');
   if (!isAuthRefresh) {
     const authStore = useAuthStore();
+    // 当已有持久化登录态（user 或 refreshToken）但内存 accessToken 尚未初始化时，
+    // 自动并发安全地静默刷新并注入 Bearer Token，确保任意接口（包括公开详情页）均能精准识别会员身份
+    if (
+      !authStore.accessToken &&
+      preferences.getRefreshToken() &&
+      !shouldBypassRefresh(config.url)
+    ) {
+      if (!initTokenPromise) {
+        initTokenPromise = authStore
+          .refreshAccessToken()
+          .catch(() => null)
+          .finally(() => {
+            initTokenPromise = null;
+          });
+      }
+      await initTokenPromise;
+    }
+
     if (authStore.accessToken) {
       config.headers['Authorization'] = `Bearer ${authStore.accessToken}`;
     }

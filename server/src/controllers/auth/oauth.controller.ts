@@ -12,11 +12,21 @@ import { provisionUserWorkspaces } from '../../services/user-workspace.service';
 const frontendLoginUrl = (query: string) =>
   `${config.FRONTEND_URL.replace(/\/$/, '')}/login?${query}`;
 
-const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: string) => {
+const setAuthCookies = (
+  reply: FastifyReply,
+  accessToken: string,
+  refreshToken: string,
+  request?: FastifyRequest,
+) => {
+  const host = request?.headers['host']?.split(':')[0]?.toLowerCase() || '';
+  const domain = host.endsWith('.591595.xyz') || host === '591595.xyz' ? '.591595.xyz' : undefined;
+
   const cookieOptions = {
     httpOnly: true,
     secure: config.NODE_ENV === 'production',
     sameSite: 'lax' as const,
+    path: '/',
+    ...(domain ? { domain } : {}),
   };
 
   reply.setCookie('token', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 });
@@ -27,8 +37,7 @@ const setAuthCookies = (reply: FastifyReply, accessToken: string, refreshToken: 
 
   const csrfToken = crypto.randomBytes(32).toString('hex');
   reply.setCookie('csrfToken', csrfToken, {
-    secure: config.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
+    ...cookieOptions,
     httpOnly: false,
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
@@ -112,7 +121,7 @@ export const googleCallback = async (
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(reply, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken, request);
     reply.redirect(frontendLoginUrl('oauth=success'));
   } catch (_error) {
     reply.redirect(frontendLoginUrl('error=oauth_failed'));
@@ -195,7 +204,7 @@ export const githubCallback = async (
 
     const accessToken = generateAccessToken(user.id, user.role);
     const refreshToken = await generateRefreshToken(user.id);
-    setAuthCookies(reply, accessToken, refreshToken);
+    setAuthCookies(reply, accessToken, refreshToken, request);
     reply.redirect(frontendLoginUrl('oauth=success'));
   } catch (_error) {
     reply.redirect(frontendLoginUrl('error=oauth_failed'));

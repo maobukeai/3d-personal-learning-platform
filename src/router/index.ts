@@ -533,6 +533,15 @@ router.beforeEach(async (to) => {
     }
   }
 
+  // 自动恢复与预热登录态 Access Token，确保首屏任意请求（包括公开详情页）均可直接携带凭据识别会员状态
+  if (!authStore.accessToken && preferences.getRefreshToken()) {
+    try {
+      await authStore.refreshAccessToken();
+    } catch {
+      // Refresh token 可能已失效，交由 401 拦截器或登录守卫处理
+    }
+  }
+
   // If no user in state but route needs auth, try fetching (it will use cookies)
   if (!authStore.user && to.meta.requiresAuth) {
     try {

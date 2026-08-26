@@ -17,11 +17,29 @@ import SafeHtml from '@/components/SafeHtml.vue';
 import { getAssetUrl } from '@/utils/api';
 import { getPlanName } from '@/utils/plans';
 
+import { ref, watch } from 'vue';
 import MirrorResourceComments from './components/detail/MirrorResourceComments.vue';
 import MirrorResourceExtractCard from './components/detail/MirrorResourceExtractCard.vue';
 import MirrorResourceExtractModal from './components/detail/MirrorResourceExtractModal.vue';
 import MirrorResourceSecurityVerifyModal from './components/detail/MirrorResourceSecurityVerifyModal.vue';
 import { useMirrorResourceDetail } from './composables/useMirrorResourceDetail';
+
+const containerRef = ref<HTMLElement | null>(null);
+
+function scrollToTop() {
+  if (containerRef.value) {
+    containerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const scrollParent = document.querySelector(
+    '.portal-layout-content, .main-content, main, .mirror-resource-detail',
+  );
+  if (scrollParent) {
+    scrollParent.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
 
 const {
   resource,
@@ -46,11 +64,21 @@ const {
   handleStartExtract,
   handleSecurityVerified,
 } = useMirrorResourceDetail();
+
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      scrollToTop();
+    }
+  },
+);
 </script>
 
 <template>
   <div
-    class="mirror-resource-detail h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1500px] mx-auto scrollbar-hide"
+    ref="containerRef"
+    class="mirror-resource-detail h-full overflow-y-auto p-3.5 sm:p-4 md:p-6 w-full max-w-[1500px] mx-auto scrollbar-hide"
   >
     <div class="flex items-center gap-3 mb-5">
       <button

@@ -91,14 +91,44 @@ function goBackPortal() {
   }
 }
 
+const containerRef = ref<HTMLElement | null>(null);
+
+function scrollToTop() {
+  if (containerRef.value) {
+    containerRef.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  const scrollParent = document.querySelector(
+    '.portal-layout-content, .main-content, main, .portal-resource-detail',
+  );
+  if (scrollParent) {
+    scrollParent.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+watch(
+  () => route.params.id,
+  (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      scrollToTop();
+      fetchExtractQuota();
+    }
+  },
+);
+
 function handleNavigateDetail(id: string) {
+  if (id === resource.value?.id) return;
   router.push(`/portal/resource/${id}`);
+  scrollToTop();
 }
 </script>
 
 <template>
   <div
-    class="portal-resource-detail h-full overflow-y-auto p-4 md:p-6 w-full max-w-[1500px] mx-auto scrollbar-hide"
+    ref="containerRef"
+    class="portal-resource-detail h-full overflow-y-auto p-3.5 sm:p-4 md:p-6 w-full max-w-[1500px] mx-auto scrollbar-hide"
   >
     <div class="flex items-center gap-3 mb-5">
       <button
@@ -350,11 +380,11 @@ function handleNavigateDetail(id: string) {
           </button>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
           <div
             v-for="item in recommendedResources"
             :key="item.id"
-            class="group cursor-pointer rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-2.5 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-600 shadow-2xs"
+            class="group cursor-pointer rounded-xl sm:rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 p-2 sm:p-2.5 transition-all duration-200 hover:border-slate-400 dark:hover:border-slate-600 shadow-2xs"
             @click="handleNavigateDetail(item.id)"
           >
             <div

@@ -204,12 +204,12 @@ const courseFeature = computed(() => {
   <!-- Grid View Mode (Comfortable & Compact) -->
   <div
     v-else
-    class="group relative flex flex-col bg-white dark:bg-slate-800/80 rounded-2xl border border-slate-200/90 dark:border-slate-700/70 hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
+    class="group relative flex flex-col bg-white dark:bg-slate-800/80 rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-700/70 hover:border-blue-400 dark:hover:border-blue-500/50 hover:shadow-lg hover:-translate-y-0.5 sm:hover:-translate-y-1 transition-all duration-300 cursor-pointer overflow-hidden"
     @click="emit('click', resource)"
   >
     <!-- Card Media Area -->
     <div
-      class="relative w-full aspect-video rounded-t-2xl overflow-hidden bg-slate-100 dark:bg-slate-700/80"
+      class="relative w-full aspect-video rounded-t-xl sm:rounded-t-2xl overflow-hidden bg-slate-100 dark:bg-slate-700/80"
     >
       <img
         v-if="resource.thumbnailUrl"
@@ -223,22 +223,22 @@ const courseFeature = computed(() => {
         v-else
         class="w-full h-full flex items-center justify-center text-slate-300 dark:text-slate-600"
       >
-        <ExternalLink class="w-8 h-8" />
+        <ExternalLink class="w-6 h-6 sm:w-8 sm:h-8" />
       </div>
 
       <!-- Top Left: Resource Type Badge -->
       <div
-        class="absolute top-2.5 left-2.5 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold backdrop-blur-md shadow-xs"
+        class="absolute top-1.5 sm:top-2.5 left-1.5 sm:left-2.5 flex items-center gap-0.5 sm:gap-1 px-1 sm:px-2 py-0.5 rounded sm:rounded-md text-[8px] sm:text-[10px] font-bold backdrop-blur-md shadow-xs"
         :class="typeBadge.color"
       >
-        <component :is="typeBadge.icon" class="w-3 h-3" />
-        <span>{{ typeBadge.label }}</span>
+        <component :is="typeBadge.icon" class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+        <span class="hidden xs:inline sm:inline">{{ typeBadge.label }}</span>
       </div>
 
       <!-- Top Right: Software Badge -->
       <div
         v-if="softwareBadge"
-        class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-black border backdrop-blur-md bg-white/90 dark:bg-slate-900/90 shadow-xs"
+        class="absolute top-1.5 sm:top-2.5 right-1.5 sm:right-2.5 px-1 sm:px-2 py-0.5 rounded sm:rounded-md text-[8px] sm:text-[10px] font-black border backdrop-blur-md bg-white/90 dark:bg-slate-900/90 shadow-xs"
         :class="softwareBadge.cls"
       >
         {{ softwareBadge.name }}
@@ -247,14 +247,14 @@ const courseFeature = computed(() => {
       <!-- Bottom Right: Feature Pill -->
       <div
         v-if="courseFeature"
-        class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[10px] font-bold text-amber-300 shadow-xs"
+        class="absolute bottom-1.5 sm:bottom-2 right-1.5 sm:right-2 px-1 sm:px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-xs text-[8px] sm:text-[10px] font-bold text-amber-300 shadow-xs"
       >
         {{ courseFeature }}
       </div>
 
-      <!-- Hover Overlay Quick Look Button -->
+      <!-- Hover Overlay Quick Look Button (Desktop only) -->
       <div
-        class="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2 backdrop-blur-[1.5px]"
+        class="hidden md:flex absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-center justify-center gap-2 backdrop-blur-[1.5px]"
       >
         <button
           type="button"
@@ -268,13 +268,13 @@ const courseFeature = computed(() => {
     </div>
 
     <!-- Card Content Area -->
-    <div class="p-3 md:p-4 flex-1 flex flex-col justify-between">
+    <div class="p-2 sm:p-3 md:p-4 flex-1 flex flex-col justify-between">
       <div>
         <!-- Category & Small tags -->
-        <div class="flex items-center gap-1.5 mb-1.5">
+        <div class="flex items-center gap-1 mb-1 sm:mb-1.5">
           <span
             v-if="resource.category"
-            class="px-2 py-0.5 text-[11px] font-semibold rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+            class="px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[11px] font-semibold rounded bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
           >
             {{ resource.category.name }}
           </span>
@@ -282,15 +282,19 @@ const courseFeature = computed(() => {
 
         <!-- Title -->
         <h3
-          class="font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug"
-          :class="viewMode === 'grid-compact' ? 'text-xs min-h-[2rem]' : 'text-sm min-h-[2.5rem]'"
+          class="font-bold text-slate-900 dark:text-white line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-tight sm:leading-snug"
+          :class="
+            viewMode === 'grid-compact'
+              ? 'text-[11px] sm:text-xs min-h-[1.75rem] sm:min-h-[2rem]'
+              : 'text-xs sm:text-sm min-h-[2rem] sm:min-h-[2.5rem]'
+          "
           :title="resource.title"
         >
           {{ resource.title }}
         </h3>
 
         <!-- Tags Row -->
-        <div v-if="tagsList.length > 0" class="flex flex-wrap gap-1 mt-2">
+        <div v-if="tagsList.length > 0" class="hidden sm:flex flex-wrap gap-1 mt-2">
           <span
             v-for="t in tagsList.slice(0, 3)"
             :key="t"
@@ -304,14 +308,14 @@ const courseFeature = computed(() => {
 
       <!-- Footer Metadata -->
       <div
-        class="flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 pt-3 mt-2 border-t border-slate-100 dark:border-slate-700/50"
+        class="flex items-center justify-between text-[9px] sm:text-[11px] text-slate-400 dark:text-slate-500 pt-1.5 sm:pt-3 mt-1.5 sm:mt-2 border-t border-slate-100 dark:border-slate-700/50"
       >
-        <span v-if="resource.publishedAt" class="flex items-center gap-1 truncate">
-          <Clock class="w-3 h-3" />
+        <span v-if="resource.publishedAt" class="flex items-center gap-0.5 sm:gap-1 truncate">
+          <Clock class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           {{ formatDate(resource.publishedAt) }}
         </span>
-        <span class="flex items-center gap-1 shrink-0 ml-auto">
-          <Eye class="w-3 h-3" />
+        <span class="flex items-center gap-0.5 sm:gap-1 shrink-0 ml-auto font-medium">
+          <Eye class="w-2.5 h-2.5 sm:w-3 sm:h-3" />
           {{ resource.viewCount }}
         </span>
       </div>

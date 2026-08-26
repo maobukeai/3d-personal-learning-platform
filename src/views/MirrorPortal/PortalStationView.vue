@@ -229,12 +229,13 @@ onMounted(() => {
         />
       </div>
 
-      <!-- Pagination Bar -->
+      <!-- Pagination: Refined Minimal Responsive Design -->
       <div
-        v-if="mirrorStore.totalPages > 1 || mirrorStore.totalResources > 20"
-        class="flex flex-wrap items-center justify-between gap-3 mt-8 p-3 bg-white/80 dark:bg-slate-900/80 rounded-2xl border border-slate-200/80 dark:border-slate-800 backdrop-blur-md shadow-2xs"
+        v-if="mirrorStore.totalPages > 1"
+        class="flex flex-wrap items-center justify-between sm:justify-between gap-3 mt-6 sm:mt-8 p-2.5 sm:p-3 bg-white/80 dark:bg-slate-900/80 rounded-xl sm:rounded-2xl border border-slate-200/80 dark:border-slate-800 backdrop-blur-md shadow-2xs"
       >
-        <div class="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+        <!-- Page size selector (Desktop only) -->
+        <div class="hidden md:flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
           <span>每页：</span>
           <div
             class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60"
@@ -257,38 +258,44 @@ onMounted(() => {
           <span>条</span>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- Center Pagination Controls (Full-width on mobile) -->
+        <div class="flex items-center justify-between w-full md:w-auto gap-2">
           <button
             type="button"
-            class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer text-xs font-semibold"
             :disabled="mirrorStore.currentPage <= 1"
             @click="goToPage(mirrorStore.currentPage - 1)"
           >
-            <ChevronLeft class="w-4 h-4" />
+            <ChevronLeft class="w-3.5 h-3.5" />
+            <span class="sm:inline">上一页</span>
           </button>
 
-          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-1.5">
+          <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 px-2 text-center">
             第
             <span class="text-slate-900 dark:text-white font-bold">{{
               mirrorStore.currentPage
             }}</span>
             / {{ mirrorStore.totalPages }} 页
-            <span class="text-slate-400 font-normal ml-1"
+            <span class="text-slate-400 font-normal hidden sm:inline ml-1"
               >（共 {{ mirrorStore.totalResources }} 项）</span
             >
           </span>
 
           <button
             type="button"
-            class="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer"
+            class="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all cursor-pointer text-xs font-semibold"
             :disabled="mirrorStore.currentPage >= mirrorStore.totalPages"
             @click="goToPage(mirrorStore.currentPage + 1)"
           >
-            <ChevronRight class="w-4 h-4" />
+            <span class="sm:inline">下一页</span>
+            <ChevronRight class="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <div class="flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-3">
+        <!-- Page Jump (Desktop only) -->
+        <div
+          class="hidden md:flex items-center gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-3"
+        >
           <span class="text-xs text-slate-400">前往</span>
           <input
             v-model="jumpPageInput"
